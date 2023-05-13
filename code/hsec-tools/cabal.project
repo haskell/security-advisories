@@ -1,0 +1,5 @@
+tested-with: GHC==9.2.5
+
+packages: *.cabal
+
+package hsec-tools
