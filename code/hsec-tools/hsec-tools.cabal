@@ -41,6 +41,6 @@ executable hsec-render
                       unordered-containers >= 0.2 && < 0.3,
                       containers >= 0.6 && < 0.7,
                       commonmark ^>= 0.2.2,
-                      toml-reader ^>= 0.1
+                      toml-reader ^>= 0.1 || ^>= 0.2
     hs-source-dirs:   app
     default-language: Haskell2010
