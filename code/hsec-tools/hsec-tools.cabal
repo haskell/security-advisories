@@ -33,13 +33,13 @@ executable hsec-render
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:    base >=4.14 && < 4.19,
+                      text >= 1.2 && < 3,
+                      time >= 1.9 && < 1.14,
+                      Cabal >= 3.2.1.0 && < 3.11,
+                      mtl >= 2.2 && < 2.4,
+                      unordered-containers >= 0.2 && < 0.3,
+                      containers >= 0.6 && < 0.7,
                       commonmark ^>= 0.2.2,
-                      text ^>= 1.2,
-                      time ^>= 1.9,
-                      Cabal ^>= 3.6.3.0,
-                      mtl ^>= 2.2,
-                      unordered-containers,
-                      containers ^>= 0.6,
                       toml-reader ^>= 0.1
     hs-source-dirs:   app
     default-language: Haskell2010
