@@ -3,23 +3,24 @@ name:               hsec-tools
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
--- synopsis:
+synopsis: Tools for working with the Haskell security advisory database
 
 -- A longer description of the package.
--- description:
+description:
+  Tools for working with the Haskell security advisory database.
 
 -- A URL where users can report bugs.
 -- bug-reports:
 
 -- The license under which the package is released.
--- license:
+license:            BSD-3-Clause
 author:             David Christiansen
 maintainer:         david@davidchristiansen.dk
 
 -- A copyright notice.
 -- copyright:
--- category:
-extra-source-files: CHANGELOG.md
+category: Data
+extra-doc-files: CHANGELOG.md
 
 tested-with:
   GHC ==8.10.7 || ==9.0.2 || ==9.2.7 || ==9.4.5 || ==9.6.1
