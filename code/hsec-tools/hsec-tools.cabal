@@ -1,6 +1,7 @@
 cabal-version:      2.4
 name:               hsec-tools
 version:            0.1.0.0
+tested-with:        GHC==9.2.7, GHC==9.0.2, GHC==8.10.7
 
 -- A short (one-line) description of the package.
 synopsis: Tools for working with the Haskell security advisory database
