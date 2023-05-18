@@ -1,0 +1,17 @@
+# Our desired pipeline using only a Nix shell environment
+name: nix build
+
+on:
+  - push
+  - pull_request
+jobs:
+  check_nix:
+    name: Check nix build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - run: nix -L build
+        working-directory: ./code/hsec-tools
