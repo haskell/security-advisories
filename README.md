@@ -87,6 +87,15 @@ affected = ">= 1.1.0 && < 1.2.0.5"
 
 The above [TOML] "front matter" is followed by the long description in [Markdown] format.
 
+## Current Members
+
+- [Tristan de Cacqueray](tristan.cacqueray@gmail.com)
+- [Gautier di Folco](mailto:gautier.difolco@gmail.com)
+- [Mihai Maruseac](mailto:mihai.maruseac@gmail.com)
+- [Casey Mattingly](mailto:case@capsulecorp.org)
+- [David Christiansen Thrane](david@haskell.foundation)
+- [Fraser Tweedale](frase@frase.id.au)
+
 ## Acknowledgments
 
 The process and documentation in this repository are based off the work of the [RustSec][RustSec] team.
