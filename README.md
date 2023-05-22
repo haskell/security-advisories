@@ -96,6 +96,23 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 - [David Christiansen Thrane](david@haskell.foundation)
 - [Fraser Tweedale](frase@frase.id.au)
 
+## Processes
+
+Haskell Security Advisory Database is a for security vulnerabilities. Here are some examples:
+
+- RCE
+- Memory Corruption
+- Privilege Escalation
+- Cryptography issues
+- Various injection issues (SQL, Command, etc.)
+- Use of broken algorithms
+- Use of obsolete libraries
+
+When in doubt, submit a PR. As a group, we will review and decide to promote the vulnerability in the Database.
+If there are issues regarding confidentiality and you would like to disclose an issue in a more private setting, please use the [Mailing List](mailto:security-advisories@haskell.org)
+
+As a group, we will review the submission and collectively decide whether or not we'll issue an advisory.
+
 ## Acknowledgments
 
 The process and documentation in this repository are based off the work of the [RustSec][RustSec] team.
