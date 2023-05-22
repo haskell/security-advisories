@@ -115,7 +115,7 @@ As a group, we will review the submission and collectively decide whether or not
 
 ## Acknowledgments
 
-The process and documentation in this repository are based off the work of the [RustSec][RustSec] team.
+The process and documentation in this repository are based off the work of the [RustSec](https://rustsec.org/) team.
 
 ## License
 
