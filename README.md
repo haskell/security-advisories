@@ -100,7 +100,7 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 
 Haskell Security Advisory Database is a for security vulnerabilities. Here are some examples:
 
-- RCE
+- Remote Code Execution
 - Memory Corruption
 - Privilege Escalation
 - Cryptography issues
