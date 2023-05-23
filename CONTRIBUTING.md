@@ -25,6 +25,10 @@ Feel free to do either or both of these as you see fit (we recommend you do both
    a CVE for you. In this case, you can add the GHSA ID to the advisory via the
    `aliases` field.
 
+### License
+
+All published security advisories are released under [CC0](https://creativecommons.org/share-your-work/public-domain/cc0/). By contributing an advisory, you agree to release the entire content of the advisory (including machine-readable metadata, example code, and textual descriptions) under CC0.
+
 ## Criteria
 
 This is a database of security vulnerabilities. The following are
