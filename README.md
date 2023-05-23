@@ -98,20 +98,19 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 
 ## Processes
 
-Haskell Security Advisory Database is a for security vulnerabilities. Here are some examples:
+The Haskell Security Advisory Database is a collection of security advisories for Haskell libraries. Here are some examples of the kinds of issues that are documented in the database:
 
 - Remote Code Execution
 - Memory Corruption
 - Privilege Escalation
 - Cryptography issues
 - Various injection issues (SQL, Command, etc.)
-- Use of broken algorithms
+- Use of flawed algorithms
 - Use of obsolete libraries
 
 When in doubt, submit a PR. As a group, we will review and decide to promote the vulnerability in the Database.
-If there are issues regarding confidentiality and you would like to disclose an issue in a more private setting, please use the [Mailing List](mailto:security-advisories@haskell.org)
+If there are issues regarding confidentiality and you would like to disclose an issue in a more private setting, please use the [mailing list](mailto:security-advisories@haskell.org). It reaches only the members of the committee, and the archives are private.
 
-As a group, we will review the submission and collectively decide whether or not we'll issue an advisory.
 
 ## Acknowledgments
 
