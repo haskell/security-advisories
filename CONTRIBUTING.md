@@ -55,7 +55,7 @@ A:  No, anyone can file an advisory against any package. The legitimacy of
 A: Yes, instead of creating a full advisory yourself you can also
    [open an issue on the security-advisories repo](https://github.com/haskell/security-advisories/issues)
    or email information about the vulnerability to
-   [TODO@example.com](mailto:TODO@example.com).
+   [security-advisories@haskell.org](mailto:security-advisories@haskell.org).
 
 **Q: Does this project have a GPG key or other means of handling embargoed vulnerabilities?**
 
