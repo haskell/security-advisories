@@ -108,7 +108,7 @@ The Haskell Security Advisory Database is a collection of security advisories fo
 - Use of flawed algorithms
 - Use of obsolete libraries
 
-When in doubt, submit a PR. As a group, we will review and decide to promote the vulnerability in the Database.
+When in doubt, submit a pull request to this repository. As a group, we will work with you to ensure that the advisory is as helpful as possible, and decide whether to include it in the database.
 If there are issues regarding confidentiality and you would like to disclose an issue in a more private setting, please use the [mailing list](mailto:security-advisories@haskell.org). It reaches only the members of the committee, and the archives are private.
 
 
