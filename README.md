@@ -93,7 +93,7 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 - [Gautier Di Folco](mailto:gautier.difolco@gmail.com)
 - [Mihai Maruseac](mailto:mihai.maruseac@gmail.com)
 - [Casey Mattingly](mailto:case@capsulecorp.org)
-- [David Christiansen Thrane](david@haskell.foundation)
+- [David Thrane Christiansen](mailto:david@haskell.foundation)
 - [Fraser Tweedale](frase@frase.id.au)
 
 ## Processes
