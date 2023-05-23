@@ -89,40 +89,26 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 
 ## Current Members
 
-- [Tristan de Cacqueray](mailto:tristan.cacqueray@gmail.com)
-- [Gautier Di Folco](mailto:gautier.difolco@gmail.com)
+- [Tristan de Cacqueray](tristan.cacqueray@gmail.com)
+- [Gautier di Folco](mailto:gautier.difolco@gmail.com)
 - [Mihai Maruseac](mailto:mihai.maruseac@gmail.com)
 - [Casey Mattingly](mailto:case@capsulecorp.org)
-- [David Thrane Christiansen](mailto:david@haskell.foundation)
-- [Fraser Tweedale](mailto:frase@frase.id.au)
+- [David Christiansen Thrane](david@haskell.foundation)
+- [Fraser Tweedale](frase@frase.id.au)
 
 ## Processes
 
-The Haskell Security Advisory Database is a collection of security advisories for Haskell libraries. Here are some examples of the kinds of issues that are documented in the database:
-
-- Remote Code Execution
-- Memory Corruption
-- Privilege Escalation
-- Cryptography issues
-- Various injection issues (SQL, Command, etc.)
-- Use of flawed algorithms
-- Use of obsolete libraries
-
-When in doubt, submit a pull request to this repository. As a group, we will work with you to ensure that the advisory is as helpful as possible, and decide whether to include it in the database.
-If there are issues regarding confidentiality and you would like to disclose an issue in a more private setting, please use the [mailing list](mailto:security-advisories@haskell.org). It reaches only the members of the committee, and the archives are private.
-
+please see [Contributing](./CONTRIBUTING.md) for details.
 
 ## Acknowledgments
 
-The process and documentation in this repository are based off the work of the [RustSec](https://rustsec.org/) team.
+The process and documentation in this repository are based off the work of the [RustSec][RustSec] team.
 
 ## License
 
-All security advisory content in this repository is placed in the public domain, including metadata, descriptions, and example code.
+All content in this repository is placed in the public domain.
 
 [![Public Domain](http://i.creativecommons.org/p/zero/1.0/88x31.png)](https://github.com/haskell/security-advisories/LICENSE.txt)
-
-The contents of the `code` subdirectory, which contains tools and libraries for working with the advisory data format in Haskell, are licensed under a three-clause BSD license. Please refer to [that subdirectory's LICENSE file](code/LICENSE.txt) for details.
 
 [EXAMPLE_ADVISORY.md]: https://github.com/haskell/security-advisories/blob/main/EXAMPLE_ADVISORY.md
 [Markdown]: https://www.markdownguide.org/

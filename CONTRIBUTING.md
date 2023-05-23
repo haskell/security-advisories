@@ -3,7 +3,7 @@
 To add an advisory to the database, open a [Pull Request] against
 [this](https://github.com/haskell/security-advisories/pulls) repository containing the new advisory:
 
-### Required Steps
+## Required Steps
 
 1. Create a file named `HSEC-0000-0000.md` in the `packages/<your-package-name>`
    subdirectory of the repository (you may need to create it if it doesn't exist)
@@ -13,14 +13,14 @@ To add an advisory to the database, open a [Pull Request] against
 3. Write a human-readable Markdown description in the same file, after the <code>\```</code> marker and a newline. Use [this example advisory][example] as a reference.
 4. Open a [Pull Request]. After being reviewed your advisory will be assigned
    a `HSEC-*` advisory identifier and be published to the database.
-   
+
 ### Optional Steps
 
 Feel free to do either or both of these as you see fit (we recommend you do both):
 
 4. Deprecate the affected versions of the package on Hackage.
 5. Request a CVE for your vulnerability. See for details:
-   https://cve.mitre.org/cve/request_id.html and https://cveform.mitre.org .
+   <https://cve.mitre.org/cve/request_id.html> and <https://cveform.mitre.org> .
    Alternatively, you can create a GitHub Security Advisory (GHSA) and let them request
    a CVE for you. In this case, you can add the GHSA ID to the advisory via the
    `aliases` field.
@@ -40,7 +40,6 @@ examples of qualifying vulnerabilities:
 * Cryptography Failure (e.g. confidentiality breakage, integrity breakage, key leakage)
 * Covert Channels (e.g. Spectre, Meltdown)
 
-
 ## FAQ
 
 **Q: Do I need to be the maintainer of a package to file an advisory?**
@@ -49,13 +48,13 @@ A:  No, anyone can file an advisory against any package. The legitimacy of
     vulnerabilities will be determined prior to merging. If a vulnerability
     turns out to be incorrect then it will be corrected or removed from the
     database.
-    
+
 **Q: Can I file an advisory without creating a pull request?**
 
 A: Yes, instead of creating a full advisory yourself you can also
    [open an issue on the security-advisories repo](https://github.com/haskell/security-advisories/issues)
    or email information about the vulnerability to
-   [TODO@example.com](mailto:TODO@example.com).
+   [security-advisories@haskell.org](mailto:security-advisories@haskell.org).
 
 **Q: Does this project have a GPG key or other means of handling embargoed vulnerabilities?**
 
