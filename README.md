@@ -98,7 +98,7 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 
 ## Processes
 
-please see [Contributing](./CONTRIBUTING.md) for details.
+Please see [Contributing](./CONTRIBUTING.md) for details.
 
 ## Acknowledgments
 
