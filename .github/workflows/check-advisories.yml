@@ -1,0 +1,30 @@
+name: Check security advisories
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        required: true
+        type: string
+jobs:
+  check-advisories:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          path: source
+      - run: mkdir -p ~/.local/bin
+      - id: download
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ~/.local/bin
+      - run: chmod +x ~/.local/bin/hsec-tools
+      - name: run checks
+        run: |
+          cd source
+          RESULT=0
+          find advisories EXAMPLE_ADVISORY.md -type f -name "*.md" | while read FILE ; do
+            echo -n "$FILE: "
+            hsec-tools check < "$FILE" || RESULT=1
+          done
+          exit $RESULT
