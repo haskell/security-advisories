@@ -1,0 +1,24 @@
+diff --git a/.github/workflows/haskell-ci.yml b/.github/workflows/haskell-ci.yml
+index d51bb64..7ff8684 100644
+--- a/.github/workflows/haskell-ci.yml
++++ b/.github/workflows/haskell-ci.yml
+@@ -224,3 +224,19 @@ jobs:
+         with:
+           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
+           path: ~/.cabal/store
++      - name: install executable
++        if: matrix.compiler == 'ghc-9.6.1'
++        run: |
++          $CABAL v2-install $ARG_COMPILER --install-method=copy exe:hsec-tools
++      - name: upload executable
++        uses: actions/upload-artifact@v3
++        if: matrix.compiler == 'ghc-9.6.1'
++        with:
++          name: hsec-tools-${{ github.sha }}
++          path: ~/.cabal/bin/hsec-tools
++  check-advisories:
++    name: Invoke check-advisories workflow
++    needs: linux
++    uses: ./.github/workflows/check-advisories.yml
++    with:
++      artifact-name: hsec-tools-${{ github.sha }}
