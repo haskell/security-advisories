@@ -8,9 +8,9 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.16.1
+# version: 0.16.3
 #
-# REGENDATA ("0.16.1",["github","--haddock","--hlint","--hlint-job","9.4.5","--github-patches",".github/haskell-ci.patch","code/hsec-tools/hsec-tools.cabal"])
+# REGENDATA ("0.16.3",["github","--haddock","--hlint","--hlint-job","9.4.5","--github-patches",".github/haskell-ci.patch","code/hsec-tools/hsec-tools.cabal"])
 #
 name: Haskell-CI
 on:
@@ -28,9 +28,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - compiler: ghc-9.6.1
+          - compiler: ghc-9.6.2
             compilerKind: ghc
-            compilerVersion: 9.6.1
+            compilerVersion: 9.6.2
             setup-method: ghcup
             allow-failure: false
           - compiler: ghc-9.4.5
@@ -226,12 +226,12 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
       - name: install executable
-        if: matrix.compiler == 'ghc-9.6.1'
+        if: matrix.compiler == 'ghc-9.6.2'
         run: |
           $CABAL v2-install $ARG_COMPILER --install-method=copy exe:hsec-tools
       - name: upload executable
         uses: actions/upload-artifact@v3
-        if: matrix.compiler == 'ghc-9.6.1'
+        if: matrix.compiler == 'ghc-9.6.2'
         with:
           name: hsec-tools-${{ github.sha }}
           path: ~/.cabal/bin/hsec-tools
