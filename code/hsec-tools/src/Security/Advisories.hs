@@ -36,7 +36,7 @@ import Commonmark.Types
     Rangeable (..),
     SourceRange,
   )
-import Control.Monad ((>=>))
+import Control.Monad (forM, (>=>))
 import Control.Monad.Except
   ( ExceptT (ExceptT),
     MonadError,
@@ -144,11 +144,17 @@ data Advisory = Advisory
     advisoryKeywords :: [Keyword],
     advisoryAliases :: [Text],
     advisoryCVSS :: Text,
-    advisoryVersions :: VersionRange,
+    advisoryVersions :: [AffectedVersionRange],
     advisoryArchitectures :: Maybe [Architecture],
     advisoryOS :: Maybe [OS],
     advisoryNames :: [(Text, VersionRange)],
     advisoryHtml :: Text
+  }
+  deriving stock (Show)
+
+data AffectedVersionRange = AffectedVersionRange
+  { affectedVersionRangeIntroduced :: Text,
+    affectedVersionRangeFixed :: Maybe Text
   }
   deriving stock (Show)
 
@@ -229,8 +235,12 @@ parseAdvisoryTable table = runTableParser $ do
             <$> optional tbl "declarations" (isTableOf versionRange)
         pure (os, arch, decls)
 
-  versions <- mandatory table "versions" isTable
-  affectedVersions <- mandatory versions "affected" versionRange
+  versions <- mandatory table "versions" isArray
+  affectedVersionsRange <- forM versions $ \version -> do
+    versionTable <- isTable version
+    introduced <- mandatory versionTable "introduced" isString
+    fixed <- optional versionTable "fixed" isString
+    pure $ AffectedVersionRange introduced fixed
 
   pure $ \html ->
     Advisory
@@ -242,7 +252,7 @@ parseAdvisoryTable table = runTableParser $ do
         advisoryKeywords = kwds,
         advisoryAliases = aliases,
         advisoryCVSS = cvss,
-        advisoryVersions = affectedVersions,
+        advisoryVersions = affectedVersionsRange,
         advisoryArchitectures = arch,
         advisoryOS = os,
         advisoryNames = decls,
