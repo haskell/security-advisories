@@ -5,11 +5,3 @@
 ## Building
 
 We aim to support both regular cabal-based and nix-based builds.
-
-## Developping
-
-Whenever you add or change denpendencies, update cabal freeze file:
-
-```
-cabal freeze
-```
