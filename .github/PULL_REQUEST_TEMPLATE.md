@@ -9,6 +9,4 @@
 
 ## hsec-tools
 
-- [ ] If dependencies change: `cabal freeze` is up to date
 - [ ] Previous advisories are still valid
-
