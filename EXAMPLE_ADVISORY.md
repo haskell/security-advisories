@@ -16,9 +16,10 @@ keywords = ["example", "freeform", "keywords"]
 # os = ["mingw32"]
 # declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
 
-# Versions affected by the vulnerability
-[versions]
-affected = ">= 1.1.0 && < 1.2.0.5"
+# Versions affected by the vulnerability. Multiple range should not overlap.
+[[versions]]
+introduced = "1.1.0"
+fixed = "1.2.0.5"
 ```
 
 # Advisory Template - Title Goes Here
@@ -33,6 +34,4 @@ In this section of the advisory you can write an extended description of the vul
 
 A well structured advisory will include information like:
 
- > Acme Broken implements safe internal mutation using `unsafePerformIO`. However, in a multithreaded context, an attacker can cause a service to return the wrong answer by forcing an interleaving of writes that violates internal invariants. The flaw was corrected by replacing uses of `IORef` with `MVar` in commit abc123. 
-
-
+ > Acme Broken implements safe internal mutation using `unsafePerformIO`. However, in a multithreaded context, an attacker can cause a service to return the wrong answer by forcing an interleaving of writes that violates internal invariants. The flaw was corrected by replacing uses of `IORef` with `MVar` in commit abc123.
