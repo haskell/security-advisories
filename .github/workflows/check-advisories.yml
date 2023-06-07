@@ -19,12 +19,12 @@ jobs:
           name: ${{ inputs.artifact-name }}
           path: ~/.local/bin
       - run: chmod +x ~/.local/bin/hsec-tools
-      - name: run checks
+      - name: Run advisories checks
         run: |
           cd source
           RESULT=0
-          find advisories EXAMPLE_ADVISORY.md -type f -name "*.md" | while read FILE ; do
+          while read FILE ; do
             echo -n "$FILE: "
             hsec-tools check < "$FILE" || RESULT=1
-          done
+          done < <(find advisories EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
