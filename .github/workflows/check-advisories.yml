@@ -23,8 +23,10 @@ jobs:
         run: |
           cd source
           RESULT=0
+          # Remove the begining of the README to extract the example.
+          (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
           while read FILE ; do
             echo -n "$FILE: "
             hsec-tools check < "$FILE" || RESULT=1
-          done < <(find advisories EXAMPLE_ADVISORY.md -type f -name "*.md")
+          done < <(find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
