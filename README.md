@@ -75,14 +75,15 @@ keywords = ["ssl", "mitm"]
 
 # Table of canonical paths to vulnerable declarations in the package (optional)
 # that describes which versions impacted by this advisory used that particular
-# name (e.g. if an affected function or datatype was renamed between versions). 
+# name (e.g. if an affected function or datatype was renamed between versions).
 # The path syntax is the module import path, without any type signatures or
 # additional information, followed by the affected versions.
 #declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
 
-# Versions affected by the vulnerability
-[versions]
-affected = ">= 1.1.0 && < 1.2.0.5"
+# Versions affected by the vulnerability. Multiple range should not overlap.
+[[versions]]
+introduced = "1.1.0"
+fixed = "1.2.0.5"
 ```
 
 The above [TOML] "front matter" is followed by the long description in [Markdown] format.
