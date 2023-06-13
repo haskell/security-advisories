@@ -18,16 +18,26 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser :: Parser (IO ())
     commandsParser =
       subparser
-        ( command "check" (info (pure $ withAdvisory $ const $ T.putStrLn "no error") mempty)
-            <> command "render" (info (pure $ withAdvisory $ T.putStrLn . renderAdvisoryHtml) mempty)
-            <> command "help" (info (pure displayHelp) mempty)
+        (  command "check" (info commandCheck mempty)
+        <> command "render" (info commandRender mempty)
+        <> command "help" (info (pure displayHelp) mempty)
         )
     displayHelp :: IO ()
     displayHelp = void $ handleParseResult $ execParserPure defaultPrefs cliOpts ["-h"]
 
-withAdvisory :: (Advisory -> IO ()) -> IO ()
-withAdvisory f = do
-  input <- T.getContents
+commandCheck :: Parser (IO ())
+commandCheck =
+  withAdvisory (const $ T.putStrLn "no error")
+  <$> optional (argument str (metavar "FILE"))
+
+commandRender :: Parser (IO ())
+commandRender =
+  withAdvisory (T.putStrLn . renderAdvisoryHtml)
+  <$> optional (argument str (metavar "FILE"))
+
+withAdvisory :: (Advisory -> IO ()) -> Maybe FilePath -> IO ()
+withAdvisory go file = do
+  input <- maybe T.getContents T.readFile file
   case parseAdvisory input of
     Left e -> do
       T.hPutStrLn stderr $
@@ -38,5 +48,5 @@ withAdvisory f = do
           AdvisoryError _ explanation -> "Advisory structure error:\n" <> explanation
       exitFailure
     Right advisory -> do
-      f advisory
+      go advisory
       exitSuccess
