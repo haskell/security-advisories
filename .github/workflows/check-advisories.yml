@@ -19,7 +19,7 @@ jobs:
           name: ${{ inputs.artifact-name }}
           path: ~/.local/bin
       - run: chmod +x ~/.local/bin/hsec-tools
-      - name: Run advisories checks
+      - name: Run advisory syntax checks
         run: |
           cd source
           RESULT=0
@@ -30,3 +30,7 @@ jobs:
             hsec-tools check < "$FILE" || RESULT=1
           done < <(find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
+      - name: Run advisory uniqueness checks
+        run: |
+          ! find source/advisories -name '*.md' -print0 \
+            | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
