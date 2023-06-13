@@ -2,12 +2,16 @@
 
 module Main where
 
-import Control.Monad (join, void)
+import Control.Monad (join, void, when)
+import Data.Foldable (for_)
+import Data.List (isPrefixOf)
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Options.Applicative
 import Security.Advisories
-import System.Exit (exitFailure, exitSuccess)
+import System.Exit (die, exitFailure, exitSuccess)
 import System.IO (stderr)
+import System.FilePath (takeBaseName)
 
 main :: IO ()
 main = join $ execParser cliOpts
@@ -25,13 +29,20 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
 
 commandCheck :: Parser (IO ())
 commandCheck =
-  withAdvisory (const $ T.putStrLn "no error")
+  withAdvisory go
   <$> optional (argument str (metavar "FILE"))
   <**> helper
+  where
+    go mPath advisory = do
+      for_ mPath $ \path -> do
+        let base = takeBaseName path
+        when ("HSEC-" `isPrefixOf` base && base /= T.unpack (advisoryId advisory)) $
+          die $ "Filename does not match advisory ID: " <> path
+      T.putStrLn "no error"
 
 commandRender :: Parser (IO ())
 commandRender =
-  withAdvisory (T.putStrLn . renderAdvisoryHtml)
+  withAdvisory (\_ -> T.putStrLn . renderAdvisoryHtml)
   <$> optional (argument str (metavar "FILE"))
   <**> helper
 
@@ -43,7 +54,7 @@ commandHelp =
   )
   <$> optional (argument str (metavar "COMMAND"))
 
-withAdvisory :: (Advisory -> IO ()) -> Maybe FilePath -> IO ()
+withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
   input <- maybe T.getContents T.readFile file
   case parseAdvisory input of
@@ -56,5 +67,5 @@ withAdvisory go file = do
           AdvisoryError _ explanation -> "Advisory structure error:\n" <> explanation
       exitFailure
     Right advisory -> do
-      go advisory
+      go file advisory
       exitSuccess
