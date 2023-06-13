@@ -20,20 +20,28 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
       subparser
         (  command "check" (info commandCheck mempty)
         <> command "render" (info commandRender mempty)
-        <> command "help" (info (pure displayHelp) mempty)
+        <> command "help" (info commandHelp mempty)
         )
-    displayHelp :: IO ()
-    displayHelp = void $ handleParseResult $ execParserPure defaultPrefs cliOpts ["-h"]
 
 commandCheck :: Parser (IO ())
 commandCheck =
   withAdvisory (const $ T.putStrLn "no error")
   <$> optional (argument str (metavar "FILE"))
+  <**> helper
 
 commandRender :: Parser (IO ())
 commandRender =
   withAdvisory (T.putStrLn . renderAdvisoryHtml)
   <$> optional (argument str (metavar "FILE"))
+  <**> helper
+
+commandHelp :: Parser (IO ())
+commandHelp =
+  ( \mCmd ->
+      let args = maybe id (:) mCmd ["-h"]
+      in void $ handleParseResult $ execParserPure defaultPrefs cliOpts args
+  )
+  <$> optional (argument str (metavar "COMMAND"))
 
 withAdvisory :: (Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
