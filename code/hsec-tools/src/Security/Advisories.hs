@@ -228,7 +228,7 @@ parseAdvisoryTable table = runTableParser $ do
           optional tbl "os" $
             isArrayOf (isString >=> operatingSystem)
         arch <-
-          optional tbl "os" $
+          optional tbl "arch" $
             isArrayOf (isString >=> architecture)
         decls <-
           maybe [] Map.toList
