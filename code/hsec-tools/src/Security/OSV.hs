@@ -5,11 +5,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Security.OSV where
 
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Aeson
   ( ToJSON(..), FromJSON(..), Value(..)
-  , (.:), (.=), object, withText
+  , (.:), (.:?), (.=), object, withObject, withText
   )
-import Data.Aeson.Types (prependFailure, typeMismatch)
+import Data.Aeson.Types (Key, Object, Parser, prependFailure, typeMismatch)
 import Data.Text (Text)
 import Data.Tuple (swap)
 
@@ -40,18 +41,63 @@ newtype Events = Events
   { eventsIntroduced :: Text
   } deriving (Show, Eq, Ord)
 
-data Model = Model
-  { modelDetails :: Text
-  , modelId :: Text
-  , modelSummary :: Text
-  , modelRelated :: [Value]
+-- | OSV model parameterised over the @database_specific@ field.
+--
+data Model a = Model
+  { modelSchemaVersion :: Text  -- TODO make it a proper semver version type
+  , modelId :: Text             -- TODO we should newtype it
+  , modelModified :: Text        -- \
+  , modelPublished :: Maybe Text --  } TODO let's make these proper datetime fields
+  , modelWithdrawn :: Maybe Text -- /
+  , modelAliases :: [Text]
+  , modelRelated :: [Text]
+  , modelSummary :: Maybe Text
+    -- ^ A one-line, English textual summary of the vulnerability. It is
+    -- recommended that this field be kept short, on the order of no more than
+    -- 120 characters.
+  , modelDetails :: Maybe Text
+    -- ^ CommonMark markdown giving additional English textual details about
+    -- the vulnerability.
+  , modelSeverity :: [Value]  -- TODO refine type
   , modelAffected :: [Affected]
-  , modelAliases :: [Value]
-  , modelPublished :: Text
   , modelReferences :: [Reference]
-  , modelSeverity :: [Value]
-  , modelModified :: Text
+  , modelCredits :: [Value] -- TODO refine
+  , modelDatabaseSpecific :: Maybe a
   } deriving (Show, Eq)
+
+-- | Schema version implemented by this library.  Currently @1.5.0@.
+defaultSchemaVersion :: Text
+defaultSchemaVersion = "1.5.0"
+
+-- | Construct a new model with only the required fields
+newModel
+  :: Text -- ^ schema version
+  -> Text -- ^ id
+  -> Text -- ^ modified
+  -> Model a
+newModel ver ident modified = Model
+  ver
+  ident
+  modified
+  Nothing
+  Nothing
+  []
+  []
+  Nothing
+  Nothing
+  []
+  []
+  []
+  []
+  Nothing
+
+-- | Construct a new model given @id@ and @modified@ values,
+-- using 'defaultSchemaVersion'.
+newModel'
+  :: Text -- ^ id
+  -> Text -- ^ modified
+  -> Model a
+newModel' = newModel defaultSchemaVersion
 
 data Package = Package
   { packageName :: Text
@@ -159,19 +205,28 @@ instance ToJSON Events where
     [ "introduced" .= eventsIntroduced
     ]
 
-instance ToJSON Model where
-  toJSON Model{..} = object
-    [ "details" .= modelDetails
+instance (ToJSON a) => ToJSON (Model a) where
+  toJSON Model{..} = object $
+    [ "schema_version" .= modelSchemaVersion
     , "id" .= modelId
-    , "summary" .= modelSummary
-    , "related" .= modelRelated
-    , "affected" .= modelAffected
-    , "aliases" .= modelAliases
-    , "published" .= modelPublished
-    , "references" .= modelReferences
-    , "severity" .= modelSeverity
     , "modified" .= modelModified
     ]
+    <> catMaybes
+      [ ("published" .=) <$> modelPublished
+      , ("withdrawn" .=) <$> modelWithdrawn
+      , ("aliases" .=) <$> omitEmptyList modelAliases
+      , ("related" .=) <$> omitEmptyList modelRelated
+      , ("summary" .=) <$> modelSummary
+      , ("details" .=) <$> modelDetails
+      , ("severity" .=) <$> omitEmptyList modelSeverity
+      , ("affected" .=) <$> omitEmptyList modelAffected
+      , ("references" .=) <$> omitEmptyList modelReferences
+      , ("credits" .=) <$> omitEmptyList modelReferences
+      , ("database_specific" .=) <$> modelDatabaseSpecific
+    ]
+    where
+      omitEmptyList [] = Nothing
+      omitEmptyList xs = Just xs
 
 instance ToJSON Package where
   toJSON Package{..} = object
@@ -239,22 +294,30 @@ instance FromJSON Events where
     prependFailure "parsing Events failed, "
       (typeMismatch "Object" invalid)
 
-instance FromJSON Model where
-  parseJSON (Object v) = do
-    modelDetails <- v .: "details"
+
+-- | Parse helper for optional lists.  If the key is absent,
+-- it will be interpreted as an empty list.
+--
+(.::?) :: FromJSON a => Object -> Key -> Parser [a]
+o .::? k = fromMaybe [] <$> o .:? k
+
+instance (FromJSON a) => FromJSON (Model a) where
+  parseJSON = withObject "osv-schema" $ \v -> do
+    modelSchemaVersion <- v .: "schema_version"
     modelId <- v .: "id"
-    modelSummary <- v .: "summary"
-    modelRelated <- v .: "related"
-    modelAffected <- v .: "affected"
-    modelAliases <- v .: "aliases"
-    modelPublished <- v .: "published"
-    modelReferences <- v .: "references"
-    modelSeverity <- v .: "severity"
     modelModified <- v .: "modified"
+    modelPublished <- v .:? "published"
+    modelWithdrawn <- v .:? "withdrawn"
+    modelAliases <- v .::? "aliases"
+    modelRelated <- v .::? "related"
+    modelSummary <- v .:? "summary"
+    modelDetails <- v .:? "details"
+    modelSeverity <- v .::? "severity"
+    modelAffected <- v .::? "affected"
+    modelReferences <- v .::? "references"
+    modelCredits <- v .::? "credits"
+    modelDatabaseSpecific <- v .:? "database_specific"
     pure $ Model{..}
-  parseJSON invalid = do
-    prependFailure "parsing Model failed, "
-      (typeMismatch "Object" invalid)
 
 instance FromJSON Package where
   parseJSON (Object v) = do
