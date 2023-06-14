@@ -5,9 +5,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Security.OSV where
 
-import Data.Aeson (ToJSON(..), FromJSON(..), Value(..), (.:), (.=), object)
+import Data.Aeson
+  ( ToJSON(..), FromJSON(..), Value(..)
+  , (.:), (.=), object, withText
+  )
 import Data.Aeson.Types (prependFailure, typeMismatch)
 import Data.Text (Text)
+import Data.Tuple (swap)
 
 data Affected = Affected
   { affectedRanges :: [Ranges]
@@ -44,10 +48,10 @@ data Model = Model
   , modelAffected :: [Affected]
   , modelAliases :: [Value]
   , modelPublished :: Text
-  , modelReferences :: [References]
+  , modelReferences :: [Reference]
   , modelSeverity :: [Value]
   , modelModified :: Text
-  } deriving (Show, Eq, Ord)
+  } deriving (Show, Eq)
 
 data Package = Package
   { packageName :: Text
@@ -60,10 +64,68 @@ data Ranges = Ranges
   , rangesType :: Text
   } deriving (Show, Eq, Ord)
 
-data References = References
-  { referencesType :: Text
+data ReferenceType
+  = ReferenceTypeAdvisory
+  -- ^ A published security advisory for the vulnerability.
+  | ReferenceTypeArticle
+  -- ^ An article or blog post describing the vulnerability.
+  | ReferenceTypeDetection
+  -- ^ A tool, script, scanner, or other mechanism that allows for detection of
+  -- the vulnerability in production environments. e.g. YARA rules, hashes,
+  -- virus signature, or other scanners.
+  | ReferenceTypeDiscussion
+  -- ^ A social media discussion regarding the vulnerability, e.g. a Twitter,
+  -- Mastodon, Hacker News, or Reddit thread.
+  | ReferenceTypeReport
+  -- ^ A report, typically on a bug or issue tracker, of the vulnerability.
+  | ReferenceTypeFix
+  -- ^ A source code browser link to the fix (e.g., a GitHub commit) Note that
+  -- the @Fix@ type is meant for viewing by people using web browsers. Programs
+  -- interested in analyzing the exact commit range would do better to use the
+  -- GIT-typed affected 'Ranges' entries.
+  | ReferenceTypeIntroduced
+  -- ^ A source code browser link to the introduction of the vulnerability
+  -- (e.g., a GitHub commit) Note that the introduced type is meant for viewing
+  -- by people using web browsers. Programs interested in analyzing the exact
+  -- commit range would do better to use the GIT-typed affected  'Ranges'
+  -- entries.
+  | ReferenceTypePackage
+  -- ^ A home web page for the package.
+  | ReferenceTypeEvidence
+  -- ^ A demonstration of the validity of a vulnerability claim, e.g.
+  -- @app.any.run@ replaying the exploitation of the vulnerability.
+  | ReferenceTypeWeb
+  -- ^ A web page of some unspecified kind.
+  deriving (Show, Eq)
+
+-- | Bijection of reference types and their string representations
+referenceTypes :: [(ReferenceType, Text)]
+referenceTypes =
+  [ (ReferenceTypeAdvisory    , "ADVISORY")
+  , (ReferenceTypeArticle     , "ARTICLE")
+  , (ReferenceTypeDetection   , "DETECTION")
+  , (ReferenceTypeDiscussion  , "DISCUSSION")
+  , (ReferenceTypeReport      , "REPORT")
+  , (ReferenceTypeFix         , "FIX")
+  , (ReferenceTypeIntroduced  , "INTRODUCED")
+  , (ReferenceTypePackage     , "PACKAGE")
+  , (ReferenceTypeEvidence    , "EVIDENCE")
+  , (ReferenceTypeWeb         , "WEB")
+  ]
+
+instance FromJSON ReferenceType where
+  parseJSON = withText "references.type" $ \s ->
+    case lookup s (fmap swap referenceTypes) of
+      Just v  -> pure v
+      Nothing -> typeMismatch "references.type" (String s)
+
+instance ToJSON ReferenceType where
+  toJSON v = String $ fromMaybe "WEB" (lookup v referenceTypes)
+
+data Reference = Reference
+  { referencesType :: ReferenceType
   , referencesUrl :: Text
-  } deriving (Show, Eq, Ord)
+  } deriving (Show, Eq)
 
 instance ToJSON Affected where
   toJSON Affected{..} = object
@@ -124,8 +186,8 @@ instance ToJSON Ranges where
     , "type" .= rangesType
     ]
 
-instance ToJSON References where
-  toJSON References{..} = object
+instance ToJSON Reference where
+  toJSON Reference{..} = object
     [ "type" .= referencesType
     , "url" .= referencesUrl
     ]
@@ -213,11 +275,11 @@ instance FromJSON Ranges where
     prependFailure "parsing Ranges failed, "
       (typeMismatch "Object" invalid)
 
-instance FromJSON References where
+instance FromJSON Reference where
   parseJSON (Object v) = do
     referencesType <- v .: "type"
     referencesUrl <- v .: "url"
-    pure $ References{..}
+    pure $ Reference{..}
   parseJSON invalid = do
     prependFailure "parsing References failed, "
       (typeMismatch "Object" invalid)
