@@ -4,7 +4,6 @@
 id = "HSEC-0000-0000"
 package = "package-name"
 date = 2021-01-31
-url = "https://example.com"
 cwe = []
 cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 keywords = ["example", "freeform", "keywords"]
@@ -20,6 +19,10 @@ keywords = ["example", "freeform", "keywords"]
 [[versions]]
 introduced = "1.1.0"
 fixed = "1.2.0.5"
+
+[[references]]
+type = "ARTICLE"
+url = "https://example.com"
 ```
 
 # Advisory Template - Title Goes Here

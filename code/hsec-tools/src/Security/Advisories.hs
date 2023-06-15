@@ -56,11 +56,14 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
 import Data.Time.Calendar
+import Data.Tuple (swap)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange)
 import GHC.Exts (IsList (..))
 import GHC.Generics (Generic)
 import qualified TOML
+
+import Security.OSV (Reference(..), referenceTypes)
 
 data ParseAdvisoryError
   = MarkdownError Commonmark.ParseError T.Text
@@ -142,7 +145,6 @@ data Advisory = Advisory
   { advisoryId :: Text,
     advisoryPackage :: Text,
     advisoryDate :: Date,
-    advisoryUrl :: Text,
     advisoryCWEs :: [CWE],
     advisoryKeywords :: [Keyword],
     advisoryAliases :: [Text],
@@ -151,6 +153,7 @@ data Advisory = Advisory
     advisoryArchitectures :: Maybe [Architecture],
     advisoryOS :: Maybe [OS],
     advisoryNames :: [(Text, VersionRange)],
+    advisoryReferences :: [Reference],
     advisoryHtml :: Text,
     advisorySummary :: Text
   }
@@ -172,7 +175,6 @@ renderAdvisoryHtml adv =
           [ row "ID" advisoryId,
             row "Package" advisoryPackage,
             row "Date" (date . advisoryDate),
-            row "URL" advisoryUrl,
             row "CWEs" (T.intercalate ", " . map (T.pack . show . unCWE) . advisoryCWEs),
             row "Keywords" (T.intercalate ", " . map (T.pack . show) . advisoryKeywords),
             row "Aliases" (T.intercalate ", " . advisoryAliases),
@@ -194,7 +196,9 @@ renderAdvisoryHtml adv =
                   . map (\(name, version) -> name <> " in " <> T.pack (show version))
                   . advisoryNames
               )
-          ],
+          ]
+          <> fmap refRow (advisoryReferences adv)
+          ,
       "</table>",
       advisoryHtml adv
     ]
@@ -202,17 +206,20 @@ renderAdvisoryHtml adv =
     tr x = "<tr>" <> x <> "</tr>"
     td x = "<td>" <> x <> "</td>"
     row name f = td name <> td (f adv)
+    refRow (Reference refType url) =
+      tr $
+        td "Reference"
+        <> td (fromMaybe "URL" (lookup refType referenceTypes) <> ": " <> url)
     date (Date y m d) = T.intercalate "-" $ T.pack <$> [show y, show m, show d]
 
 parseAdvisoryTable :: TOML.Table -> Text -> Either TableParseErr (Text -> Advisory)
 parseAdvisoryTable table summary = runTableParser $ do
-  hasNoKeysBut ["advisory", "affected", "versions"] table
+  hasNoKeysBut ["advisory", "affected", "versions", "references"] table
   advisory <- mandatory table "advisory" isTable
 
   identifier <- mandatory advisory "id" isString
   package <- mandatory advisory "package" isString
   date <- mandatory advisory "date" isDate <&> uncurry3 Date . toGregorian
-  url <- mandatory advisory "url" isString
   cats <-
     fromMaybe []
       <$> optional advisory "cwe" (isArrayOf (fmap CWE . isInt))
@@ -246,12 +253,13 @@ parseAdvisoryTable table summary = runTableParser $ do
     fixed <- optional versionTable "fixed" isString
     pure $ AffectedVersionRange introduced fixed
 
+  references <- mandatory table "references" (isArrayOf parseReference)
+
   pure $ \html ->
     Advisory
       { advisoryId = identifier,
         advisoryPackage = package,
         advisoryDate = date,
-        advisoryUrl = url,
         advisoryCWEs = cats,
         advisoryKeywords = kwds,
         advisoryAliases = aliases,
@@ -260,9 +268,20 @@ parseAdvisoryTable table summary = runTableParser $ do
         advisoryArchitectures = arch,
         advisoryOS = os,
         advisoryNames = decls,
+        advisoryReferences = references,
         advisoryHtml = html,
         advisorySummary = summary
       }
+
+parseReference :: TOML.Value -> TableParser Reference
+parseReference v = do
+  tbl <- isTable v
+  refTypeStr <- mandatory tbl "type" isString
+  refType <- case lookup refTypeStr (fmap swap referenceTypes) of
+    Just a -> pure a
+    Nothing -> throwError $ InvalidFormat "reference.type" refTypeStr
+  url <- mandatory tbl "url" isString
+  pure $ Reference refType url
 
 uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
 uncurry3 f (x, y, z) = f x y z

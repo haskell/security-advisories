@@ -34,10 +34,6 @@ package = "acme-broken"
 # Disclosure date of the advisory as an RFC 3339 date (mandatory)
 date = 2021-01-31
 
-# URL to a long-form description of this issue, e.g. a GitHub issue/PR,
-# a change log entry, or a blogpost announcing the release (optional)
-url = "https://github.com/username/package/issues/123"
-
 # Optional: Classification of the advisory with respect to the Common Weakness Enumeration.
 cwe = [820]
 
@@ -56,6 +52,16 @@ keywords = ["ssl", "mitm"]
 # Related vulnerabilities (optional)
 # e.g. CVE for a C library wrapped by a Haskell library
 #related = ["CVE-2018-YYYY", "CVE-2018-ZZZZ"]
+
+# References to articles, issues/PRs, etc.  Recognised types:
+# ADVISORY, ARTICLE, DETECTION, DISCUSSION, REPORT,
+# FIX, INTRODUCED, PACKAGE, EVIDENCE, WEB
+[[references]]
+type = "REPORT"
+url = "https://github.com/username/package/issues/123"
+[[references]]
+type = "FIX"
+url = "https://github.com/username/package/pull/139"
 
 # Optional: metadata which narrows the scope of what this advisory affects
 [affected]
