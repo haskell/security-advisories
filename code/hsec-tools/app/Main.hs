@@ -42,7 +42,7 @@ commandCheck =
 
 commandRender :: Parser (IO ())
 commandRender =
-  withAdvisory (\_ -> T.putStrLn . renderAdvisoryHtml)
+  withAdvisory (\_ -> T.putStrLn . advisoryHtml)
   <$> optional (argument str (metavar "FILE"))
   <**> helper
 

@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Eta reduce" #-}
@@ -14,7 +13,6 @@ module Security.Advisories
   ( Advisory (..),
     parseAdvisory,
     ParseAdvisoryError (..),
-    renderAdvisoryHtml,
     -- * Supporting types
     CWE (..),
     Architecture (..),
@@ -24,19 +22,6 @@ module Security.Advisories
   )
 where
 
-import Commonmark.Html (Html, renderHtml)
-import qualified Commonmark.Parser as Commonmark
-import Commonmark.Types
-  ( Attributes,
-    Format,
-    HasAttributes (..),
-    IsBlock (..),
-    IsInline (..),
-    ListSpacing,
-    ListType,
-    Rangeable (..),
-    SourceRange,
-  )
 import Control.Monad (forM, (>=>))
 import Control.Monad.Except
   ( ExceptT (ExceptT),
@@ -50,8 +35,8 @@ import Data.List.NonEmpty (NonEmpty (..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.Monoid
 import qualified Data.Set as Set
+import Data.Sequence (Seq((:<|)))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
@@ -61,7 +46,14 @@ import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange)
 import GHC.Exts (IsList (..))
 import GHC.Generics (Generic)
+
+import Commonmark.Html (Html, renderHtml)
+import qualified Commonmark.Parser as Commonmark
+import Commonmark.Pandoc (Cm(unCm))
 import qualified TOML
+import Text.Pandoc.Builder (Blocks, Many(..))
+import Text.Pandoc.Definition (Block(..), Inline(..), Pandoc(..))
+import Text.Pandoc.Walk (query)
 
 import Security.OSV (Reference(..), referenceTypes)
 
@@ -74,12 +66,25 @@ data ParseAdvisoryError
 
 parseAdvisory :: Text -> Either ParseAdvisoryError Advisory
 parseAdvisory raw = do
-  markdown <- firstPretty MarkdownError (T.pack . show) $ Commonmark.commonmark "input" raw
-  (frontMatter, text) <- first MarkdownFormatError $ advisoryDoc markdown
-  !summary <- first MarkdownFormatError $ parseAdvisorySummary text
+  markdown <-
+    unCm
+    <$> firstPretty MarkdownError (T.pack . show)
+          (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Cm () Blocks))
+  (frontMatter, rest) <- first MarkdownFormatError $ advisoryDoc markdown
+  let doc = Pandoc mempty rest
+  !summary <- first MarkdownFormatError $ parseAdvisorySummary doc
   table <- firstPretty TomlError TOML.renderTOMLError $ TOML.decode frontMatter
-  bimap (mkPretty AdvisoryError (T.pack . show)) ($ T.toStrict $ renderHtml (fromBlock text :: Html ())) $
-    parseAdvisoryTable table summary
+
+  -- Re-parse input as HTML.  This will probably go away; we now store the
+  -- Pandoc doc and can render that instead, where needed.
+  html <-
+    T.toStrict . renderHtml
+    <$> firstPretty MarkdownError (T.pack . show)
+          (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Html ()))
+
+  first (mkPretty AdvisoryError (T.pack . show)) $
+    parseAdvisoryTable table doc summary html
+
   where firstPretty
           :: (e -> T.Text -> ParseAdvisoryError)
           -> (e -> T.Text)
@@ -154,6 +159,7 @@ data Advisory = Advisory
     advisoryOS :: Maybe [OS],
     advisoryNames :: [(Text, VersionRange)],
     advisoryReferences :: [Reference],
+    advisoryPandoc :: Pandoc,  -- ^ Parsed document, without TOML front matter
     advisoryHtml :: Text,
     advisorySummary :: Text
   }
@@ -165,55 +171,13 @@ data AffectedVersionRange = AffectedVersionRange
   }
   deriving stock (Show)
 
-renderAdvisoryHtml :: Advisory -> Text
-renderAdvisoryHtml adv =
-  T.unlines
-    [ "<table>",
-      T.unlines $
-        map
-          tr
-          [ row "ID" advisoryId,
-            row "Package" advisoryPackage,
-            row "Date" (date . advisoryDate),
-            row "CWEs" (T.intercalate ", " . map (T.pack . show . unCWE) . advisoryCWEs),
-            row "Keywords" (T.intercalate ", " . map (T.pack . show) . advisoryKeywords),
-            row "Aliases" (T.intercalate ", " . advisoryAliases),
-            row "CVSS" advisoryCVSS,
-            row "Versions" (T.pack . show . advisoryVersions),
-            row
-              "Architectures"
-              ( maybe
-                  "All"
-                  ( T.intercalate ", "
-                      . map (T.pack . show)
-                  )
-                  . advisoryArchitectures
-              ),
-            row "OS" (maybe "All" (T.intercalate ", " . map (T.pack . show)) . advisoryOS),
-            row
-              "Affected exports"
-              ( T.intercalate ", "
-                  . map (\(name, version) -> name <> " in " <> T.pack (show version))
-                  . advisoryNames
-              )
-          ]
-          <> fmap refRow (advisoryReferences adv)
-          ,
-      "</table>",
-      advisoryHtml adv
-    ]
-  where
-    tr x = "<tr>" <> x <> "</tr>"
-    td x = "<td>" <> x <> "</td>"
-    row name f = td name <> td (f adv)
-    refRow (Reference refType url) =
-      tr $
-        td "Reference"
-        <> td (fromMaybe "URL" (lookup refType referenceTypes) <> ": " <> url)
-    date (Date y m d) = T.intercalate "-" $ T.pack <$> [show y, show m, show d]
-
-parseAdvisoryTable :: TOML.Table -> Text -> Either TableParseErr (Text -> Advisory)
-parseAdvisoryTable table summary = runTableParser $ do
+parseAdvisoryTable
+  :: TOML.Table
+  -> Pandoc -- ^ parsed document (without frontmatter)
+  -> Text -- ^ summary
+  -> Text -- ^ rendered HTML
+  -> Either TableParseErr Advisory
+parseAdvisoryTable table doc summary html = runTableParser $ do
   hasNoKeysBut ["advisory", "affected", "versions", "references"] table
   advisory <- mandatory table "advisory" isTable
 
@@ -255,8 +219,7 @@ parseAdvisoryTable table summary = runTableParser $ do
 
   references <- mandatory table "references" (isArrayOf parseReference)
 
-  pure $ \html ->
-    Advisory
+  pure $ Advisory
       { advisoryId = identifier,
         advisoryPackage = package,
         advisoryDate = date,
@@ -269,6 +232,7 @@ parseAdvisoryTable table summary = runTableParser $ do
         advisoryOS = os,
         advisoryNames = decls,
         advisoryReferences = references,
+        advisoryPandoc = doc,
         advisoryHtml = html,
         advisorySummary = summary
       }
@@ -432,154 +396,34 @@ describeValue TOML.LocalDateTime {} = "local date/time"
 describeValue TOML.LocalDate {} = "local date"
 describeValue TOML.LocalTime {} = "local time"
 
-advisoryDoc :: Block -> Either Text (Text, Block)
-advisoryDoc (BSeq bseq) =
-  case bseq of
-    [] -> Left "Does not have toml code block as first element"
-    b : bs -> advisoryDoc b >>= \(toml, acode) -> pure (toml, BSeq (acode : bs))
-advisoryDoc (BRanged _ b) = advisoryDoc b
-advisoryDoc (CodeBlock (T.unpack -> "toml") frontMatter) = pure (frontMatter, mempty)
-advisoryDoc _ = Left "Does not have toml code block as first element"
+advisoryDoc :: Blocks -> Either Text (Text, [Block])
+advisoryDoc (Many blocks) = case blocks of
+  CodeBlock (_, classes, _) frontMatter :<| t
+    | "toml" `elem` classes
+    -> pure (frontMatter, toList t)
+  _
+    -> Left "Does not have toml code block as first element"
 
-parseAdvisorySummary :: Block -> Either Text Text
+parseAdvisorySummary :: Pandoc -> Either Text Text
 parseAdvisorySummary = fmap inlineText . firstHeading
 
-firstHeading :: Block -> Either Text Inline
-firstHeading = maybe (Left "Does not have summary heading") Right . go where
-  go (Heading _ h) = Just h
-  go (AddAttributes _ b) = go b
-  go (BSeq bs) = getFirst . foldMap (First . go) $ bs
-  go (BRanged  _ b) = go b
-  go _ = Nothing
+firstHeading :: Pandoc -> Either Text [Inline]
+firstHeading (Pandoc _ xs) = go xs
+  where
+  go [] = Left "Does not have summary heading"
+  go (Header _ _ ys : _) = Right ys
+  go (_ : t) = go t
 
-inlineText :: Inline -> Text
-inlineText LineBreak = "\n"
-inlineText SoftBreak = ""
-inlineText (Str s) = s
-inlineText (Entity s) = s
-inlineText (Sequence l) = T.concat $ map inlineText l
-inlineText (Escaped c) = T.singleton c
-inlineText (Emph i) = inlineText i
-inlineText (Strong i) = inlineText i
-inlineText (Link _ _ i) = inlineText i
-inlineText (Image _ _ i) = inlineText i
-inlineText (Code s) = s
-inlineText (RawInline _ s) = s
-inlineText (WithAttrs _ i) = inlineText i
-inlineText (Ranged _ i) = inlineText i
-
-data Block
-  = Para Inline
-  | Plain Inline
-  | ThematicBreak
-  | BlockQuote Block
-  | CodeBlock Text Text
-  | Heading Int Inline
-  | Raw Format Text
-  | RefLinkDef Text (Text, Text)
-  | List ListType ListSpacing [Block]
-  | AddAttributes Attributes Block
-  | BSeq [Block]
-  | BRanged SourceRange Block
-  deriving stock (Show)
-
-fromBlock :: IsBlock il html => Block -> html
-fromBlock (Para il) = paragraph (fromInline il)
-fromBlock (Plain il) = plain (fromInline il)
-fromBlock ThematicBreak = thematicBreak
-fromBlock (BlockQuote b) = blockQuote (fromBlock b)
-fromBlock (CodeBlock x y) = codeBlock x y
-fromBlock (Heading i il) = heading i (fromInline il)
-fromBlock (Raw fmt txt) = rawBlock fmt txt
-fromBlock (RefLinkDef a b) = referenceLinkDefinition a b
-fromBlock (List ty sp elts) = list ty sp (map fromBlock elts)
-fromBlock (AddAttributes attrs b) = addAttributes attrs (fromBlock b)
-fromBlock (BSeq bs) = foldMap fromBlock bs
-fromBlock (BRanged rng b) = ranged rng (fromBlock b)
-
-instance HasAttributes Block where
-  addAttributes = AddAttributes
-
-instance Semigroup Block where
-  BSeq xs <> BSeq ys = BSeq (xs <> ys)
-  BSeq xs <> x = BSeq (xs ++ [x])
-  x <> BSeq xs = BSeq (x : xs)
-  x <> y = BSeq [x, y]
-
-instance Monoid Block where
-  mempty = BSeq []
-
-instance Rangeable Block where
-  ranged = BRanged
-
-instance IsBlock Inline Block where
-  paragraph = Para
-  plain = Plain
-  thematicBreak = ThematicBreak
-  blockQuote = BlockQuote
-  codeBlock = CodeBlock
-  heading = Heading
-  rawBlock = Raw
-  referenceLinkDefinition = RefLinkDef
-  list = List
-
-data Inline
-  = LineBreak
-  | SoftBreak
-  | Str Text
-  | Entity Text
-  | Escaped Char
-  | Emph Inline
-  | Strong Inline
-  | Link Text Text Inline
-  | Image Text Text Inline
-  | Code Text
-  | RawInline Format Text
-  | WithAttrs [(Text, Text)] Inline
-  | Ranged SourceRange Inline
-  | Sequence [Inline]
-  deriving stock (Show)
-
-fromInline :: IsInline il => Inline -> il
-fromInline LineBreak = lineBreak
-fromInline SoftBreak = softBreak
-fromInline (Str txt) = str txt
-fromInline (Entity ent) = entity ent
-fromInline (Escaped ch) = escapedChar ch
-fromInline (Emph il) = emph (fromInline il)
-fromInline (Strong il) = strong (fromInline il)
-fromInline (Link a b il) = link a b (fromInline il)
-fromInline (Image a b il) = image a b (fromInline il)
-fromInline (Code txt) = code txt
-fromInline (RawInline fmt txt) = rawInline fmt txt
-fromInline (WithAttrs attrs il) = addAttributes attrs (fromInline il)
-fromInline (Ranged rng il) = ranged rng (fromInline il)
-fromInline (Sequence ils) = foldMap fromInline ils
-
-instance HasAttributes Inline where
-  addAttributes = WithAttrs
-
-instance Rangeable Inline where
-  ranged = Ranged
-
-instance Semigroup Inline where
-  Sequence xs <> Sequence ys = Sequence (xs <> ys)
-  Sequence xs <> other = Sequence xs <> Sequence [other]
-  other <> Sequence ys = Sequence (other : ys)
-  in1 <> in2 = Sequence [in1, in2]
-
-instance Monoid Inline where
-  mempty = Sequence []
-
-instance IsInline Inline where
-  lineBreak = LineBreak
-  softBreak = SoftBreak
-  str = Str
-  entity = Entity
-  escapedChar = Escaped
-  emph = Emph
-  strong = Strong
-  link = Link
-  image = Image
-  code = Code
-  rawInline = RawInline
+-- yield "plain" terminal inline content; discard formatting
+inlineText :: [Inline] -> Text
+inlineText = query f
+  where
+  f inl = case inl of
+    Str s -> s
+    Code _ s -> s
+    Space -> " "
+    SoftBreak -> " "
+    LineBreak -> "\n"
+    Math _ s -> s
+    RawInline _ s -> s
+    _ -> ""
