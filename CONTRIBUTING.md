@@ -67,5 +67,5 @@ A: We do not presently handle embargoed vulnerabilities. Please ensure embargoes
    them here.
 
 [Pull Request]: https://github.com/haskell/security-advisories/pulls
-[TOML advisory template]: https://github.com/haskell/security-advisories/pulls#advisory-format
+[TOML advisory template]: https://github.com/haskell/security-advisories/blob/main/README.md#advisory-format
 [example]: https://raw.githubusercontent.com/haskell/security-advisories/main/EXAMPLE_ADVISORY.md
