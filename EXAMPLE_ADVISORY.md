@@ -3,7 +3,6 @@
 [advisory]
 id = "HSEC-0000-0000"
 package = "package-name"
-date = 2021-01-31
 cwe = []
 cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 keywords = ["example", "freeform", "keywords"]

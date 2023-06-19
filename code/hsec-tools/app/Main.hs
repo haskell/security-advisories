@@ -1,17 +1,21 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Control.Monad (join, void, when)
 import Data.Foldable (for_)
+import Data.Functor ((<&>))
 import Data.List (isPrefixOf)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Options.Applicative
-import Security.Advisories
 import System.Exit (die, exitFailure, exitSuccess)
 import System.IO (stderr)
 import System.FilePath (takeBaseName)
+
+import Security.Advisories
+import Security.Advisories.Git
 
 main :: IO ()
 main = join $ execParser cliOpts
@@ -57,7 +61,18 @@ commandHelp =
 withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
   input <- maybe T.getContents T.readFile file
-  case parseAdvisory input of
+
+  oob <- ($ emptyOutOfBandAttributes) <$> case file of
+    Nothing -> pure id
+    Just path ->
+      getAdvisoryGitInfo path <&> \case
+        Left _ -> id
+        Right gitInfo -> \oob -> oob
+          { oobPublished = Just (firstAppearanceCommitDate gitInfo)
+          , oobModified = Just (lastModificationCommitDate gitInfo)
+          }
+
+  case parseAdvisory NoOverrides oob input of
     Left e -> do
       T.hPutStrLn stderr $
         case e of

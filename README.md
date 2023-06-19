@@ -31,7 +31,9 @@ id = "HSEC-0000-0000"
 # Name of the affected package on Hackage (mandatory)
 package = "acme-broken"
 
-# Disclosure date of the advisory as an RFC 3339 date (mandatory)
+# Publication date of the advisory as an RFC 3339 date.
+# DO NOT INCLUDE THIS in files committed to Git.
+# It will be derived from the Git commit history.
 date = 2021-01-31
 
 # Optional: Classification of the advisory with respect to the Common Weakness Enumeration.
