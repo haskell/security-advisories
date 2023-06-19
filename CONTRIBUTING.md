@@ -5,7 +5,7 @@ To add an advisory to the database, open a [Pull Request] against
 
 ## Required Steps
 
-1. Create a file named `HSEC-0000-0000.md` in the `packages/<your-package-name>`
+1. Create a file named `HSEC-0000-0000.md` in the `advisories/hackage/<your-package-name>`
    subdirectory of the repository (you may need to create it if it doesn't exist)
 2. Copy and paste the [TOML advisory template] from the README.md file in this repo.
    Delete the comments and additional whitespace, and fill it out with the
