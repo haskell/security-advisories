@@ -6,6 +6,9 @@
 
 module Security.Advisories.Parse
   ( parseAdvisory
+  , OutOfBandAttributes(..)
+  , emptyOutOfBandAttributes
+  , AttributeOverridePolicy(..)
   , ParseAdvisoryError(..)
   , TableParseError(..)
   )
@@ -46,6 +49,32 @@ import Text.Pandoc.Walk (query)
 import Security.Advisories.Definition
 import Security.OSV (Reference(..), referenceTypes)
 
+-- | A source of attributes supplied out of band from the advisory
+-- content.  Values provided out of band are treated according to
+-- the 'AttributeOverridePolicy'.
+--
+-- The convenient way to construct a value of this type is to start
+-- with 'emptyOutOfBandAttributes', then use the record accessors to
+-- set particular fields.
+--
+data OutOfBandAttributes = OutOfBandAttributes
+  { oobModified :: Maybe ZonedTime
+  , oobPublished :: Maybe ZonedTime
+  }
+  deriving (Show)
+
+emptyOutOfBandAttributes :: OutOfBandAttributes
+emptyOutOfBandAttributes = OutOfBandAttributes
+  { oobModified = Nothing
+  , oobPublished = Nothing
+  }
+
+data AttributeOverridePolicy
+  = PreferInBand
+  | PreferOutOfBand
+  | NoOverrides -- ^ Parse error if attribute occurs both in-band and out-of-band
+  deriving (Show, Eq)
+
 data ParseAdvisoryError
   = MarkdownError Commonmark.ParseError T.Text
   | MarkdownFormatError T.Text
@@ -53,8 +82,15 @@ data ParseAdvisoryError
   | AdvisoryError TableParseError T.Text
   deriving stock (Eq, Show, Generic)
 
-parseAdvisory :: T.Text -> Either ParseAdvisoryError Advisory
-parseAdvisory raw = do
+-- | The main parsing function.  'OutOfBandAttributes' are handled
+-- according to the 'AttributeOverridePolicy'.
+--
+parseAdvisory
+  :: AttributeOverridePolicy
+  -> OutOfBandAttributes
+  -> T.Text -- ^ input (CommonMark with TOML header)
+  -> Either ParseAdvisoryError Advisory
+parseAdvisory policy attrs raw = do
   markdown <-
     unCm
     <$> firstPretty MarkdownError (T.pack . show)
@@ -72,7 +108,7 @@ parseAdvisory raw = do
           (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Html ()))
 
   first (mkPretty AdvisoryError (T.pack . show)) $
-    parseAdvisoryTable table doc summary html
+    parseAdvisoryTable attrs policy table doc summary html
 
   where
     firstPretty
@@ -90,22 +126,24 @@ parseAdvisory raw = do
     mkPretty ctr pretty x = ctr x $ pretty x
 
 parseAdvisoryTable
-  :: TOML.Table
+  :: OutOfBandAttributes
+  -> AttributeOverridePolicy
+  -> TOML.Table
   -> Pandoc -- ^ parsed document (without frontmatter)
   -> T.Text -- ^ summary
   -> T.Text -- ^ rendered HTML
   -> Either TableParseError Advisory
-parseAdvisoryTable table doc summary html = runTableParser $ do
+parseAdvisoryTable oob policy table doc summary html = runTableParser $ do
   hasNoKeysBut ["advisory", "affected", "versions", "references"] table
   advisory <- mandatory table "advisory" isTable
 
   identifier <- mandatory advisory "id" isString
 
-  published <- mandatory advisory "date" isTimestamp
+  published <- mergeOobMandatory policy (oobPublished oob) advisory "date" isTimestamp
   -- if "modified" not supplied, default to "published"
   modified <-
     fromMaybe published
-    <$> optional advisory "modified" isTimestamp
+    <$> mergeOobOptional policy (oobModified oob) advisory "modified" isTimestamp
 
   package <- mandatory advisory "package" isString
   cats <-
@@ -254,6 +292,7 @@ versionRange =
 data TableParseError
   = UnexpectedKeys (NonEmpty T.Text)
   | MissingKey T.Text
+  | IllegalOutOfBandOverride T.Text
   | InvalidFormat T.Text T.Text
   | InvalidOS T.Text
   | InvalidArchitecture T.Text
@@ -269,6 +308,46 @@ newtype TableParser a = TableParser {runTableParser :: Either TableParseError a}
       MonadError TableParseError
     )
     via ExceptT TableParseError Identity
+
+mergeOob
+  :: AttributeOverridePolicy
+  -> Maybe a  -- ^ out-of-band value
+  -> TOML.Table
+  -> T.Text  -- ^ key
+  -> (TOML.Value -> TableParser a) -- ^ value parser
+  -> TableParser b  -- ^ when key and out-of-band value absent
+  -> (a -> TableParser b) -- ^ when value present
+  -> TableParser b
+mergeOob policy oob tbl k act absent present = do
+  ib <- optional tbl k act
+  case (oob, ib) of
+    (Just l, Just r) -> case policy of
+      NoOverrides -> throwError $ IllegalOutOfBandOverride k
+      PreferOutOfBand -> present l
+      PreferInBand -> present r
+    (Just a, Nothing) -> present a
+    (Nothing, Just a) -> present a
+    (Nothing, Nothing) -> absent
+
+mergeOobOptional
+  :: AttributeOverridePolicy
+  -> Maybe a  -- ^ out-of-band value
+  -> TOML.Table
+  -> T.Text  -- ^ key
+  -> (TOML.Value -> TableParser a) -- ^ value parser
+  -> TableParser (Maybe a)
+mergeOobOptional policy oob tbl k act =
+  mergeOob policy oob tbl k act (pure Nothing) (pure . Just)
+
+mergeOobMandatory
+  :: AttributeOverridePolicy
+  -> Maybe a  -- ^ out-of-band value
+  -> TOML.Table
+  -> T.Text  -- ^ key
+  -> (TOML.Value -> TableParser a) -- ^ value parser
+  -> TableParser a
+mergeOobMandatory policy oob tbl k act =
+  mergeOob policy oob tbl k act (throwError $ MissingKey k) pure
 
 hasNoKeysBut :: [T.Text] -> TOML.Table -> TableParser ()
 hasNoKeysBut keys tbl =
