@@ -7,12 +7,12 @@ module Security.Advisories.Definition
   , Architecture(..)
   , AffectedVersionRange(..)
   , OS(..)
-  , Date(..)
   , Keyword(..)
   )
   where
 
 import Data.Text (Text)
+import Data.Time (ZonedTime)
 import Distribution.Types.VersionRange (VersionRange)
 
 import Text.Pandoc.Definition (Pandoc)
@@ -21,8 +21,9 @@ import Security.OSV (Reference)
 
 data Advisory = Advisory
   { advisoryId :: Text
+  , advisoryModified :: ZonedTime
+  , advisoryPublished :: ZonedTime
   , advisoryPackage :: Text
-  , advisoryDate :: Date
   , advisoryCWEs :: [CWE]
   , advisoryKeywords :: [Keyword]
   , advisoryAliases :: [Text]
@@ -77,9 +78,6 @@ data OS
   | Android
   | NetBSD
   | OpenBSD
-  deriving stock (Show)
-
-data Date = Date {dateYear :: Integer, dateMonth :: Int, dateDay :: Int}
   deriving stock (Show)
 
 newtype Keyword = Keyword Text

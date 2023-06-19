@@ -14,7 +14,6 @@ module Security.Advisories.Parse
 import Control.Monad ((>=>))
 import Data.Bifunctor (first)
 import Data.Foldable (toList)
-import Data.Functor ((<&>))
 import Data.Functor.Identity (Identity(Identity))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (fromMaybe)
@@ -32,7 +31,7 @@ import Data.Sequence (Seq((:<|)))
 import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
-import Data.Time.Calendar
+import Data.Time (LocalTime(..), ZonedTime(..), midnight, utc)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange)
 
@@ -101,8 +100,14 @@ parseAdvisoryTable table doc summary html = runTableParser $ do
   advisory <- mandatory table "advisory" isTable
 
   identifier <- mandatory advisory "id" isString
+
+  published <- mandatory advisory "date" isTimestamp
+  -- if "modified" not supplied, default to "published"
+  modified <-
+    fromMaybe published
+    <$> optional advisory "modified" isTimestamp
+
   package <- mandatory advisory "package" isString
-  date <- mandatory advisory "date" isDate <&> uncurry3 Date . toGregorian
   cats <-
     fromMaybe []
       <$> optional advisory "cwe" (isArrayOf (fmap CWE . isInt))
@@ -140,8 +145,9 @@ parseAdvisoryTable table doc summary html = runTableParser $ do
 
   pure $ Advisory
     { advisoryId = identifier
+    , advisoryModified = modified
+    , advisoryPublished = published
     , advisoryPackage = package
-    , advisoryDate = date
     , advisoryCWEs = cats
     , advisoryKeywords = kwds
     , advisoryAliases = aliases
@@ -197,9 +203,6 @@ parseReference v = do
     Nothing -> throwError $ InvalidFormat "reference.type" refTypeStr
   url <- mandatory tbl "url" isString
   pure $ Reference refType url
-
-uncurry3 :: (a -> b -> c -> d) -> (a, b, c) -> d
-uncurry3 f (x, y, z) = f x y z
 
 operatingSystem :: T.Text -> TableParser OS
 operatingSystem = \case
@@ -322,9 +325,14 @@ isTableOf elt (TOML.Table table) =
 isTableOf _ other =
   throwError $ InvalidFormat "Table" (describeValue other)
 
-isDate :: TOML.Value -> TableParser Day
-isDate (TOML.LocalDate time) = pure time
-isDate other = throwError $ InvalidFormat "Date/time" (describeValue other)
+-- | Read timestamp.  'LocalDateTime' will be interpreted as
+-- UTC.  LocalDate will be interpreted as midnight in UTC.
+isTimestamp :: TOML.Value -> TableParser ZonedTime
+isTimestamp = \case
+  TOML.OffsetDateTime (t, tz) -> pure $ ZonedTime t tz
+  TOML.LocalDateTime t        -> pure $ ZonedTime t utc
+  TOML.LocalDate day          -> pure $ ZonedTime (LocalTime day midnight) utc
+  other -> throwError $ InvalidFormat "Date/time" (describeValue other)
 
 isArray :: TOML.Value -> TableParser [TOML.Value]
 isArray (TOML.Array arr) = pure arr
