@@ -7,6 +7,7 @@
 module Security.Advisories.Parse
   ( parseAdvisory
   , ParseAdvisoryError(..)
+  , TableParseError(..)
   )
   where
 
@@ -50,7 +51,7 @@ data ParseAdvisoryError
   = MarkdownError Commonmark.ParseError T.Text
   | MarkdownFormatError T.Text
   | TomlError TOML.TOMLError T.Text
-  | AdvisoryError TableParseErr T.Text
+  | AdvisoryError TableParseError T.Text
   deriving stock (Eq, Show, Generic)
 
 parseAdvisory :: T.Text -> Either ParseAdvisoryError Advisory
@@ -94,7 +95,7 @@ parseAdvisoryTable
   -> Pandoc -- ^ parsed document (without frontmatter)
   -> T.Text -- ^ summary
   -> T.Text -- ^ rendered HTML
-  -> Either TableParseErr Advisory
+  -> Either TableParseError Advisory
 parseAdvisoryTable table doc summary html = runTableParser $ do
   hasNoKeysBut ["advisory", "affected", "versions", "references"] table
   advisory <- mandatory table "advisory" isTable
@@ -247,7 +248,7 @@ versionRange =
       Left err -> throwError $ UnderlyingParserError (T.pack err)
       Right affected -> pure affected
 
-data TableParseErr
+data TableParseError
   = UnexpectedKeys (NonEmpty T.Text)
   | MissingKey T.Text
   | InvalidFormat T.Text T.Text
@@ -256,15 +257,15 @@ data TableParseErr
   | UnderlyingParserError T.Text
   deriving stock (Eq, Show)
 
-newtype TableParser a = TableParser {runTableParser :: Either TableParseErr a}
+newtype TableParser a = TableParser {runTableParser :: Either TableParseError a}
   deriving stock (Show)
   deriving
     ( Functor,
       Applicative,
       Monad,
-      MonadError TableParseErr
+      MonadError TableParseError
     )
-    via ExceptT TableParseErr Identity
+    via ExceptT TableParseError Identity
 
 hasNoKeysBut :: [T.Text] -> TOML.Table -> TableParser ()
 hasNoKeysBut keys tbl =
