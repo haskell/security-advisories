@@ -5,6 +5,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Security.OSV where
 
+import Control.Applicative ((<|>))
+import Control.Monad (when)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Aeson
   ( ToJSON(..), FromJSON(..), Value(..)
@@ -21,11 +23,11 @@ import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Data.Tuple (swap)
 
 data Affected = Affected
-  { affectedRanges :: [Ranges]
+  { affectedRanges :: [Range]
   , affectedPackage :: Package
   , affectedEcosystemSpecific :: EcosystemSpecific
   , affectedDatabaseSpecific :: DatabaseSpecific
-  } deriving (Show, Eq, Ord)
+  } deriving (Show, Eq)
 
 data Affects = Affects
   { affectsOs :: [Value]
@@ -43,9 +45,29 @@ newtype EcosystemSpecific = EcosystemSpecific
   { ecosystemSpecificAffects :: Affects
   } deriving (Show, Eq, Ord)
 
-newtype Events = Events
-  { eventsIntroduced :: Text
-  } deriving (Show, Eq, Ord)
+data Event a
+  = EventIntroduced a
+  | EventFixed a
+  | EventLastAffected a
+  | EventLimit a
+  deriving (Eq, Ord, Show)
+
+instance (FromJSON a) => FromJSON (Event a) where
+  parseJSON = withObject "events[]" $ \o -> do
+    -- there must exactly one key
+    when (length o /= 1) $ typeMismatch "events[]" (Object o)
+    prependFailure "unknown event type" $
+      EventIntroduced <$> o .: "introduced"
+      <|> EventFixed <$> o .: "fixed"
+      <|> EventLastAffected <$> o .: "last_affected"
+      <|> EventLimit <$> o .: "limit"
+
+instance (ToJSON a) => ToJSON (Event a) where
+  toJSON ev = object . pure $ case ev of
+    EventIntroduced a   -> "introduced"    .= a
+    EventFixed a        -> "fixed"         .= a
+    EventLastAffected a -> "last_affected" .= a
+    EventLimit a        -> "limit"         .= a
 
 -- | OSV model parameterised over the @database_specific@ field.
 --
@@ -111,10 +133,30 @@ data Package = Package
   , packagePurl :: Text
   } deriving (Show, Eq, Ord)
 
-data Ranges = Ranges
-  { rangesEvents :: [Events]
-  , rangesType :: Text
-  } deriving (Show, Eq, Ord)
+data Range
+  = RangeSemVer [Event Text {- TODO refine -}]
+  | RangeEcosystem [Event Text]
+  | RangeGit
+      [Event Text {- TODO refine -}]
+      Text -- ^ Git repo URL
+  deriving (Eq, Show)
+
+instance FromJSON Range where
+  parseJSON = withObject "ranges[]" $ \o -> do
+    typ <- o .: "type" :: Parser Text
+    case typ of
+      "SEMVER" -> RangeSemVer <$> o .: "events"
+      "ECOSYSTEM" -> RangeEcosystem <$> o .: "events"
+      "GIT" -> RangeGit <$> o .: "events" <*> o .: "repo"
+      s ->
+        prependFailure ("unregognised range type: " <> show s)
+          $ typeMismatch "ranges[]" (Object o)
+
+instance ToJSON Range where
+  toJSON range = object $ case range of
+    RangeSemVer evs -> ["type" .= ("SEMVER" :: Text), "events" .= evs]
+    RangeEcosystem evs -> ["type" .= ("ECOSYSTEM" :: Text), "events" .= evs]
+    RangeGit evs repo -> ["type" .= ("GIT" :: Text), "events" .= evs, "repo" .= repo]
 
 data ReferenceType
   = ReferenceTypeAdvisory
@@ -134,12 +176,12 @@ data ReferenceType
   -- ^ A source code browser link to the fix (e.g., a GitHub commit) Note that
   -- the @Fix@ type is meant for viewing by people using web browsers. Programs
   -- interested in analyzing the exact commit range would do better to use the
-  -- GIT-typed affected 'Ranges' entries.
+  -- GIT-typed affected 'Range' entries.
   | ReferenceTypeIntroduced
   -- ^ A source code browser link to the introduction of the vulnerability
   -- (e.g., a GitHub commit) Note that the introduced type is meant for viewing
   -- by people using web browsers. Programs interested in analyzing the exact
-  -- commit range would do better to use the GIT-typed affected  'Ranges'
+  -- commit range would do better to use the GIT-typed affected  'Range'
   -- entries.
   | ReferenceTypePackage
   -- ^ A home web page for the package.
@@ -206,11 +248,6 @@ instance ToJSON EcosystemSpecific where
     [ "affects" .= ecosystemSpecificAffects
     ]
 
-instance ToJSON Events where
-  toJSON Events{..} = object
-    [ "introduced" .= eventsIntroduced
-    ]
-
 instance (ToJSON a) => ToJSON (Model a) where
   toJSON Model{..} = object $
     [ "schema_version" .= modelSchemaVersion
@@ -239,12 +276,6 @@ instance ToJSON Package where
     [ "name" .= packageName
     , "ecosystem" .= packageEcosystem
     , "purl" .= packagePurl
-    ]
-
-instance ToJSON Ranges where
-  toJSON Ranges{..} = object
-    [ "events" .= rangesEvents
-    , "type" .= rangesType
     ]
 
 instance ToJSON Reference where
@@ -292,14 +323,6 @@ instance FromJSON EcosystemSpecific where
     prependFailure "parsing EcosystemSpecific failed, "
       (typeMismatch "Object" invalid)
 
-instance FromJSON Events where
-  parseJSON (Object v) = do
-    eventsIntroduced <- v .: "introduced"
-    pure $ Events{..}
-  parseJSON invalid = do
-    prependFailure "parsing Events failed, "
-      (typeMismatch "Object" invalid)
-
 -- | Explicit parser for 'UTCTime', stricter than the @FromJSON@
 -- instance for that type.
 --
@@ -341,15 +364,6 @@ instance FromJSON Package where
     pure $ Package{..}
   parseJSON invalid = do
     prependFailure "parsing Package failed, "
-      (typeMismatch "Object" invalid)
-
-instance FromJSON Ranges where
-  parseJSON (Object v) = do
-    rangesEvents <- v .: "events"
-    rangesType <- v .: "type"
-    pure $ Ranges{..}
-  parseJSON invalid = do
-    prependFailure "parsing Ranges failed, "
       (typeMismatch "Object" invalid)
 
 instance FromJSON Reference where
