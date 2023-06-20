@@ -15,5 +15,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
       - name: Check Nix flake inputs
         uses: DeterminateSystems/flake-checker-action@v4
+        with:
+          flake-lock-path: ./code/hsec-tools/flake.lock
       - run: nix -L build
         working-directory: ./code/hsec-tools
