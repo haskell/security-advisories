@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
@@ -20,6 +22,7 @@ import Data.Foldable (toList)
 import Data.Functor.Identity (Identity(Identity))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (fromMaybe)
+import Data.Monoid (First(..))
 import Data.Traversable (for)
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
@@ -40,11 +43,13 @@ import Distribution.Types.VersionRange (VersionRange)
 
 import Commonmark.Html (Html, renderHtml)
 import qualified Commonmark.Parser as Commonmark
+import Commonmark.Types (HasAttributes(..), IsBlock(..), IsInline(..), Rangeable(..), SourceRange(..))
 import Commonmark.Pandoc (Cm(unCm))
 import qualified TOML
 import Text.Pandoc.Builder (Blocks, Many(..))
 import Text.Pandoc.Definition (Block(..), Inline(..), Pandoc(..))
 import Text.Pandoc.Walk (query)
+import Text.Parsec.Pos (sourceLine)
 
 import Security.Advisories.Definition
 import Security.OSV (Reference(..), referenceTypes)
@@ -100,6 +105,24 @@ parseAdvisory policy attrs raw = do
   !summary <- first MarkdownFormatError $ parseAdvisorySummary doc
   table <- firstPretty TomlError TOML.renderTOMLError $ TOML.decode frontMatter
 
+  -- Re-parse as FirstSourceRange to find the source range of
+  -- the TOML header.
+  FirstSourceRange (First mRange) <-
+    firstPretty MarkdownError (T.pack . show) (Commonmark.commonmark "input" raw)
+  let
+    details = case mRange of
+      Just (SourceRange ((_,end):_)) ->
+        T.unlines
+        . dropWhile T.null
+        . fmap snd
+        . dropWhile ((< sourceLine end) . fst)
+        . zip [1..]
+        $ T.lines raw
+      _ ->
+        -- no block elements?  empty range list?
+        -- these shouldn't happen, but better be total
+        raw
+
   -- Re-parse input as HTML.  This will probably go away; we now store the
   -- Pandoc doc and can render that instead, where needed.
   html <-
@@ -108,7 +131,7 @@ parseAdvisory policy attrs raw = do
           (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Html ()))
 
   first (mkPretty AdvisoryError (T.pack . show)) $
-    parseAdvisoryTable attrs policy table doc summary html
+    parseAdvisoryTable attrs policy table doc summary details html
 
   where
     firstPretty
@@ -131,9 +154,10 @@ parseAdvisoryTable
   -> TOML.Table
   -> Pandoc -- ^ parsed document (without frontmatter)
   -> T.Text -- ^ summary
+  -> T.Text -- ^ details
   -> T.Text -- ^ rendered HTML
   -> Either TableParseError Advisory
-parseAdvisoryTable oob policy table doc summary html = runTableParser $ do
+parseAdvisoryTable oob policy table doc summary details html = runTableParser $ do
   hasNoKeysBut ["advisory", "affected", "versions", "references"] table
   advisory <- mandatory table "advisory" isTable
 
@@ -198,6 +222,7 @@ parseAdvisoryTable oob policy table doc summary html = runTableParser $ do
     , advisoryPandoc = doc
     , advisoryHtml = html
     , advisorySummary = summary
+    , advisoryDetails = details
     }
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
@@ -435,3 +460,41 @@ describeValue TOML.OffsetDateTime {} = "date/time with offset"
 describeValue TOML.LocalDateTime {} = "local date/time"
 describeValue TOML.LocalDate {} = "local date"
 describeValue TOML.LocalTime {} = "local time"
+
+-- | A solution to an awkward problem: how to delete the TOML
+-- block.  We parse into this type to get the source range of
+-- the first block element.  We can use it to delete the lines
+-- from the input.
+--
+newtype FirstSourceRange = FirstSourceRange (First SourceRange)
+  deriving (Show, Semigroup, Monoid)
+
+instance Rangeable FirstSourceRange where
+  ranged range = (FirstSourceRange (First (Just range)) <>)
+
+instance HasAttributes FirstSourceRange where
+  addAttributes _ = id
+
+instance IsBlock FirstSourceRange FirstSourceRange where
+  paragraph _ = mempty
+  plain _ = mempty
+  thematicBreak = mempty
+  blockQuote _ = mempty
+  codeBlock _ = mempty
+  heading _ = mempty
+  rawBlock _ = mempty
+  referenceLinkDefinition _ = mempty
+  list _ = mempty
+
+instance IsInline FirstSourceRange where
+  lineBreak = mempty
+  softBreak = mempty
+  str _ = mempty
+  entity _ = mempty
+  escapedChar _ = mempty
+  emph = id
+  strong = id
+  link _ _ _ = mempty
+  image _ _ _ = mempty
+  code _ = mempty
+  rawInline _ _ = mempty

@@ -36,6 +36,9 @@ data Advisory = Advisory
   , advisoryPandoc :: Pandoc  -- ^ Parsed document, without TOML front matter
   , advisoryHtml :: Text
   , advisorySummary :: Text
+    -- ^ A one-line, English textual summary of the vulnerability
+  , advisoryDetails :: Text
+    -- ^ Details of the vulnerability (CommonMark), without TOML front matter
   }
   deriving stock (Show)
 
