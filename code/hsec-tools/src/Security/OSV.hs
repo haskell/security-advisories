@@ -10,8 +10,14 @@ import Data.Aeson
   ( ToJSON(..), FromJSON(..), Value(..)
   , (.:), (.:?), (.=), object, withObject, withText
   )
-import Data.Aeson.Types (Key, Object, Parser, prependFailure, typeMismatch)
+import Data.Aeson.Types
+  ( Key, Object, Parser
+  , explicitParseField, explicitParseFieldMaybe, prependFailure, typeMismatch
+  )
 import Data.Text (Text)
+import qualified Data.Text as T
+import Data.Time (UTCTime)
+import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Data.Tuple (swap)
 
 data Affected = Affected
@@ -46,9 +52,9 @@ newtype Events = Events
 data Model a = Model
   { modelSchemaVersion :: Text  -- TODO make it a proper semver version type
   , modelId :: Text             -- TODO we should newtype it
-  , modelModified :: Text        -- \
-  , modelPublished :: Maybe Text --  } TODO let's make these proper datetime fields
-  , modelWithdrawn :: Maybe Text -- /
+  , modelModified :: UTCTime
+  , modelPublished :: Maybe UTCTime
+  , modelWithdrawn :: Maybe UTCTime
   , modelAliases :: [Text]
   , modelRelated :: [Text]
   , modelSummary :: Maybe Text
@@ -73,7 +79,7 @@ defaultSchemaVersion = "1.5.0"
 newModel
   :: Text -- ^ schema version
   -> Text -- ^ id
-  -> Text -- ^ modified
+  -> UTCTime -- ^ modified
   -> Model a
 newModel ver ident modified = Model
   ver
@@ -95,7 +101,7 @@ newModel ver ident modified = Model
 -- using 'defaultSchemaVersion'.
 newModel'
   :: Text -- ^ id
-  -> Text -- ^ modified
+  -> UTCTime -- ^ modified
   -> Model a
 newModel' = newModel defaultSchemaVersion
 
@@ -294,6 +300,14 @@ instance FromJSON Events where
     prependFailure "parsing Events failed, "
       (typeMismatch "Object" invalid)
 
+-- | Explicit parser for 'UTCTime', stricter than the @FromJSON@
+-- instance for that type.
+--
+parseUTCTime :: Value -> Parser UTCTime
+parseUTCTime = withText "UTCTime" $ \s ->
+  case iso8601ParseM (T.unpack s) of
+    Nothing -> typeMismatch "UTCTime" (String s)
+    Just t -> pure t
 
 -- | Parse helper for optional lists.  If the key is absent,
 -- it will be interpreted as an empty list.
@@ -305,9 +319,9 @@ instance (FromJSON a) => FromJSON (Model a) where
   parseJSON = withObject "osv-schema" $ \v -> do
     modelSchemaVersion <- v .: "schema_version"
     modelId <- v .: "id"
-    modelModified <- v .: "modified"
-    modelPublished <- v .:? "published"
-    modelWithdrawn <- v .:? "withdrawn"
+    modelModified <- explicitParseField parseUTCTime v "modified"
+    modelPublished <- explicitParseFieldMaybe parseUTCTime v "published"
+    modelWithdrawn <- explicitParseFieldMaybe parseUTCTime v "withdrawn"
     modelAliases <- v .::? "aliases"
     modelRelated <- v .::? "related"
     modelSummary <- v .:? "summary"
