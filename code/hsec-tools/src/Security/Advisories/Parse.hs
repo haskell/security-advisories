@@ -263,7 +263,10 @@ parseReference v = do
   refTypeStr <- mandatory tbl "type" isString
   refType <- case lookup refTypeStr (fmap swap referenceTypes) of
     Just a -> pure a
-    Nothing -> throwError $ InvalidFormat "reference.type" refTypeStr
+    Nothing ->
+      throwError $
+        InvalidFormat "reference.type" refTypeStr $
+        "should be one of: " <> T.intercalate ", " (snd <$> referenceTypes)
   url <- mandatory tbl "url" isString
   pure $ Reference refType url
 
@@ -318,7 +321,7 @@ data TableParseError
   = UnexpectedKeys (NonEmpty T.Text)
   | MissingKey T.Text
   | IllegalOutOfBandOverride T.Text
-  | InvalidFormat T.Text T.Text
+  | InvalidFormat T.Text T.Text T.Text
   | InvalidOS T.Text
   | InvalidArchitecture T.Text
   | UnderlyingParserError T.Text
@@ -410,15 +413,15 @@ onKey tbl k absent present =
 
 isInt :: TOML.Value -> TableParser Integer
 isInt (TOML.Integer i) = pure i
-isInt other = throwError $ InvalidFormat "Integer" (describeValue other)
+isInt other = throwError $ InvalidFormat "Integer" (describeValue other) "42"
 
 isString :: TOML.Value -> TableParser T.Text
 isString (TOML.String txt) = pure txt
-isString other = throwError $ InvalidFormat "String" (describeValue other)
+isString other = throwError $ InvalidFormat "String" (describeValue other) "\"any string\""
 
 isTable :: TOML.Value -> TableParser TOML.Table
 isTable (TOML.Table table) = pure table
-isTable other = throwError $ InvalidFormat "Table" (describeValue other)
+isTable other = throwError $ InvalidFormat "Table" (describeValue other) ""
 
 isTableOf ::
   (TOML.Value -> TableParser a) ->
@@ -427,7 +430,7 @@ isTableOf ::
 isTableOf elt (TOML.Table table) =
   traverse elt table
 isTableOf _ other =
-  throwError $ InvalidFormat "Table" (describeValue other)
+  throwError $ InvalidFormat "Table" (describeValue other) "[any-table-name]"
 
 -- | Read timestamp.  'LocalDateTime' will be interpreted as
 -- UTC.  LocalDate will be interpreted as midnight in UTC.
@@ -436,11 +439,11 @@ isTimestamp = \case
   TOML.OffsetDateTime (t, tz) -> pure $ ZonedTime t tz
   TOML.LocalDateTime t        -> pure $ ZonedTime t utc
   TOML.LocalDate day          -> pure $ ZonedTime (LocalTime day midnight) utc
-  other -> throwError $ InvalidFormat "Date/time" (describeValue other)
+  other -> throwError $ InvalidFormat "Date/time" (describeValue other) "1970-01-01"
 
 isArray :: TOML.Value -> TableParser [TOML.Value]
 isArray (TOML.Array arr) = pure arr
-isArray other = throwError $ InvalidFormat "Array" (describeValue other)
+isArray other = throwError $ InvalidFormat "Array" (describeValue other) "[1, 2, 3]"
 
 isArrayOf ::
   (TOML.Value -> TableParser a) ->
