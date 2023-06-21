@@ -25,6 +25,7 @@ import Data.Tuple (swap)
 data Affected = Affected
   { affectedRanges :: [Range]
   , affectedPackage :: Package
+  , affectedSeverity :: [Severity]
   , affectedEcosystemSpecific :: EcosystemSpecific
   , affectedDatabaseSpecific :: DatabaseSpecific
   } deriving (Show, Eq)
@@ -86,7 +87,7 @@ data Model a = Model
   , modelDetails :: Maybe Text
     -- ^ CommonMark markdown giving additional English textual details about
     -- the vulnerability.
-  , modelSeverity :: [Value]  -- TODO refine type
+  , modelSeverity :: [Severity]
   , modelAffected :: [Affected]
   , modelReferences :: [Reference]
   , modelCredits :: [Value] -- TODO refine
@@ -126,6 +127,32 @@ newModel'
   -> UTCTime -- ^ modified
   -> Model a
 newModel' = newModel defaultSchemaVersion
+
+-- | Severity.  There is no 'Ord' instance.  Severity scores should be
+-- calculated and compared in a more nuanced way than 'Ord' can provide
+-- for.
+--
+data Severity
+  = SeverityCvss2 Text {- TODO refine -}
+  | SeverityCvss3 Text {- TODO refine -}
+  deriving (Show, Eq)
+
+instance FromJSON Severity where
+  parseJSON = withObject "severity" $ \o -> do
+    typ <- o .: "type" :: Parser Text
+    case typ of
+      "CVSS_V2" -> SeverityCvss2 <$> o .: "score"
+      "CVSS_V3" -> SeverityCvss3 <$> o .: "score"
+      s ->
+        prependFailure ("unregognised severity type: " <> show s)
+          $ typeMismatch "severity" (Object o)
+
+instance ToJSON Severity where
+  toJSON sev = object $ case sev of
+    SeverityCvss2 score -> [typ "CVSS_V2", "score" .= score]
+    SeverityCvss3 score -> [typ "CVSS_V3", "score" .= score]
+    where
+      typ s = "type" .= (s :: Text)
 
 data Package = Package
   { packageName :: Text
@@ -222,12 +249,16 @@ data Reference = Reference
   } deriving (Show, Eq)
 
 instance ToJSON Affected where
-  toJSON Affected{..} = object
+  toJSON Affected{..} = object $
     [ "ranges" .= affectedRanges
     , "package" .= affectedPackage
     , "ecosystem_specific" .= affectedEcosystemSpecific
     , "database_specific" .= affectedDatabaseSpecific
     ]
+    <> omitEmptyList "severity" affectedSeverity
+    where
+      omitEmptyList _ [] = []
+      omitEmptyList k xs = [k .= xs]
 
 instance ToJSON Affects where
   toJSON Affects{..} = object
@@ -288,6 +319,7 @@ instance FromJSON Affected where
   parseJSON (Object v) = do
     affectedRanges <- v .: "ranges"
     affectedPackage <- v .: "package"
+    affectedSeverity <- v .::? "severity"
     affectedEcosystemSpecific <- v .: "ecosystem_specific"
     affectedDatabaseSpecific <- v .: "database_specific"
     pure $ Affected{..}
