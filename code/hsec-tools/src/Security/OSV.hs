@@ -90,7 +90,7 @@ data Model a = Model
   , modelSeverity :: [Severity]
   , modelAffected :: [Affected]
   , modelReferences :: [Reference]
-  , modelCredits :: [Value] -- TODO refine
+  , modelCredits :: [Credit]
   , modelDatabaseSpecific :: Maybe a
   } deriving (Show, Eq)
 
@@ -248,6 +248,84 @@ data Reference = Reference
   , referencesUrl :: Text
   } deriving (Show, Eq)
 
+
+-- | Types of individuals or entities to be credited in relation to
+-- an advisory.
+data CreditType
+  = CreditTypeFinder
+  -- ^ Identified the vulnerability
+  | CreditTypeReporter
+  -- ^ Notified the vendor of the vulnerability to a CNA
+  | CreditTypeAnalyst
+  -- ^ Validated the vulnerability to ensure accuracy or severity
+  | CreditTypeCoordinator
+  -- ^ Facilitated the coordinated response process
+  | CreditTypeRemediationDeveloper
+  -- ^ prepared a code change or other remediation plans
+  | CreditTypeRemediationReviewer
+  -- ^ Reviewed vulnerability remediation plans or code changes for effectiveness and completeness
+  | CreditTypeRemediationVerifier
+  -- ^ Tested and verified the vulnerability or its remediation
+  | CreditTypeTool
+  -- ^ Names of tools used in vulnerability discovery or identification
+  | CreditTypeSponsor
+  -- ^ Supported the vulnerability identification or remediation activities
+  | CreditTypeOther
+  -- ^ Any other type or role that does not fall under the categories described above
+  deriving (Show, Eq)
+
+-- | Bijection of credit types and their string representations
+creditTypes :: [(CreditType, Text)]
+creditTypes =
+  [ (CreditTypeFinder               , "FINDER")
+  , (CreditTypeReporter             , "REPORTER")
+  , (CreditTypeAnalyst              , "ANALYST")
+  , (CreditTypeCoordinator          , "COORDINATOR")
+  , (CreditTypeRemediationDeveloper , "REMEDIATION_DEVELOPER")
+  , (CreditTypeRemediationReviewer  , "REMEDIATION_REVIEWER")
+  , (CreditTypeRemediationVerifier  , "REMEDIATION_VERIFIER")
+  , (CreditTypeTool                 , "TOOL")
+  , (CreditTypeSponsor              , "SPONSOR")
+  , (CreditTypeOther                , "OTHER")
+  ]
+
+instance FromJSON CreditType where
+  parseJSON = withText "credits[].type" $ \s ->
+    case lookup s (fmap swap creditTypes) of
+      Just v  -> pure v
+      Nothing -> typeMismatch "credits[].type" (String s)
+
+instance ToJSON CreditType where
+  toJSON v = String $ fromMaybe "OTHER" (lookup v creditTypes)
+
+data Credit = Credit
+  { creditType :: CreditType
+  , creditName :: Text
+    -- ^ The name, label, or other identifier of the individual or entity
+    -- being credited, using whatever notation the creditor prefers.
+  , creditContacts :: [Text] -- TODO refine tpye
+    -- ^ Fully qualified, plain-text URLs at which the credited can be reached.
+  }
+  deriving (Show, Eq)
+
+instance FromJSON Credit where
+  parseJSON = withObject "credits[]" $ \o -> do
+    creditType <- o .: "type"
+    creditName <- o .: "name"
+    creditContacts <- o .::? "contact"
+    pure $ Credit{..}
+
+instance ToJSON Credit where
+  toJSON Credit{..} = object $
+    [ "type" .= creditType
+    , "name" .= creditName
+    ]
+    <> omitEmptyList "contact" creditContacts
+    where
+      omitEmptyList _ [] = []
+      omitEmptyList k xs = [k .= xs]
+
+
 instance ToJSON Affected where
   toJSON Affected{..} = object $
     [ "ranges" .= affectedRanges
@@ -295,7 +373,7 @@ instance (ToJSON a) => ToJSON (Model a) where
       , ("severity" .=) <$> omitEmptyList modelSeverity
       , ("affected" .=) <$> omitEmptyList modelAffected
       , ("references" .=) <$> omitEmptyList modelReferences
-      , ("credits" .=) <$> omitEmptyList modelReferences
+      , ("credits" .=) <$> omitEmptyList modelCredits
       , ("database_specific" .=) <$> modelDatabaseSpecific
     ]
     where
