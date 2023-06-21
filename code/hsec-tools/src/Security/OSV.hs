@@ -22,28 +22,18 @@ import Data.Time (UTCTime)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Data.Tuple (swap)
 
-data Affected = Affected
-  { affectedRanges :: [Range]
+data Affected dbSpecific ecosystemSpecific rangeDbSpecific = Affected
+  { affectedRanges :: [Range rangeDbSpecific]
   , affectedPackage :: Package
   , affectedSeverity :: [Severity]
-  , affectedEcosystemSpecific :: EcosystemSpecific
-  , affectedDatabaseSpecific :: DatabaseSpecific
+  , affectedEcosystemSpecific :: Maybe ecosystemSpecific
+  , affectedDatabaseSpecific :: Maybe dbSpecific
   } deriving (Show, Eq)
 
 data Affects = Affects
   { affectsOs :: [Value]
   , affectsArch :: [Value]
   , affectsFunctions :: [Value]
-  } deriving (Show, Eq, Ord)
-
-data DatabaseSpecific = DatabaseSpecific
-  { databaseSpecificCvss :: Maybe Value
-  , databaseSpecificCategories :: [Value]
-  , databaseSpecificInformational :: Text
-  } deriving (Show, Eq, Ord)
-
-newtype EcosystemSpecific = EcosystemSpecific
-  { ecosystemSpecificAffects :: Affects
   } deriving (Show, Eq, Ord)
 
 data Event a
@@ -70,9 +60,17 @@ instance (ToJSON a) => ToJSON (Event a) where
     EventLastAffected a -> "last_affected" .= a
     EventLimit a        -> "limit"         .= a
 
--- | OSV model parameterised over the @database_specific@ field.
+-- | OSV model parameterised over database-specific and
+-- ecosystem-specific fields.
 --
-data Model a = Model
+-- A naïve consumer can parse @'Model' 'Value' Value Value Value@
+-- for no loss of information.
+--
+-- A producer can instantiate unused database/ecosystem-specific
+-- fields at @Data.Void.Void@.  '()' is not recommended, because
+-- @'Just' ()@ will serialise as an empty JSON array.
+--
+data Model dbSpecific affectedEcosystemSpecific affectedDbSpecific rangeDbSpecific = Model
   { modelSchemaVersion :: Text  -- TODO make it a proper semver version type
   , modelId :: Text             -- TODO we should newtype it
   , modelModified :: UTCTime
@@ -88,10 +86,10 @@ data Model a = Model
     -- ^ CommonMark markdown giving additional English textual details about
     -- the vulnerability.
   , modelSeverity :: [Severity]
-  , modelAffected :: [Affected]
+  , modelAffected :: [Affected affectedEcosystemSpecific affectedDbSpecific rangeDbSpecific]
   , modelReferences :: [Reference]
   , modelCredits :: [Credit]
-  , modelDatabaseSpecific :: Maybe a
+  , modelDatabaseSpecific :: Maybe dbSpecific
   } deriving (Show, Eq)
 
 -- | Schema version implemented by this library.  Currently @1.5.0@.
@@ -103,7 +101,7 @@ newModel
   :: Text -- ^ schema version
   -> Text -- ^ id
   -> UTCTime -- ^ modified
-  -> Model a
+  -> Model dbs aes adbs rdbs
 newModel ver ident modified = Model
   ver
   ident
@@ -125,7 +123,7 @@ newModel ver ident modified = Model
 newModel'
   :: Text -- ^ id
   -> UTCTime -- ^ modified
-  -> Model a
+  -> Model dbs aes adbs rdbs
 newModel' = newModel defaultSchemaVersion
 
 -- | Severity.  There is no 'Ord' instance.  Severity scores should be
@@ -160,30 +158,34 @@ data Package = Package
   , packagePurl :: Text
   } deriving (Show, Eq, Ord)
 
-data Range
-  = RangeSemVer [Event Text {- TODO refine -}]
-  | RangeEcosystem [Event Text]
+data Range dbSpecific
+  = RangeSemVer [Event Text {- TODO refine -}] (Maybe dbSpecific)
+  | RangeEcosystem [Event Text] (Maybe dbSpecific)
   | RangeGit
       [Event Text {- TODO refine -}]
       Text -- ^ Git repo URL
+      (Maybe dbSpecific)
   deriving (Eq, Show)
 
-instance FromJSON Range where
+instance (FromJSON dbSpecific) => FromJSON (Range dbSpecific) where
   parseJSON = withObject "ranges[]" $ \o -> do
     typ <- o .: "type" :: Parser Text
     case typ of
-      "SEMVER" -> RangeSemVer <$> o .: "events"
-      "ECOSYSTEM" -> RangeEcosystem <$> o .: "events"
-      "GIT" -> RangeGit <$> o .: "events" <*> o .: "repo"
+      "SEMVER" -> RangeSemVer <$> o .: "events" <*> o .:? "database_specific"
+      "ECOSYSTEM" -> RangeEcosystem <$> o .: "events" <*> o .:? "database_specific"
+      "GIT" -> RangeGit <$> o .: "events" <*> o .: "repo" <*> o .:? "database_specific"
       s ->
         prependFailure ("unregognised range type: " <> show s)
           $ typeMismatch "ranges[]" (Object o)
 
-instance ToJSON Range where
+instance (ToJSON dbSpecific) => ToJSON (Range dbSpecific) where
   toJSON range = object $ case range of
-    RangeSemVer evs -> ["type" .= ("SEMVER" :: Text), "events" .= evs]
-    RangeEcosystem evs -> ["type" .= ("ECOSYSTEM" :: Text), "events" .= evs]
-    RangeGit evs repo -> ["type" .= ("GIT" :: Text), "events" .= evs, "repo" .= repo]
+    RangeSemVer evs dbs -> [typ "SEMVER", "events" .= evs] <> mkDbSpecific dbs
+    RangeEcosystem evs dbs -> [typ "ECOSYSTEM", "events" .= evs] <> mkDbSpecific dbs
+    RangeGit evs repo dbs -> [typ "GIT", "events" .= evs, "repo" .= repo] <> mkDbSpecific dbs
+    where
+      mkDbSpecific = maybe [] (\v -> ["database_specific" .= v])
+      typ s = "type" .= (s :: Text)
 
 data ReferenceType
   = ReferenceTypeAdvisory
@@ -326,14 +328,16 @@ instance ToJSON Credit where
       omitEmptyList k xs = [k .= xs]
 
 
-instance ToJSON Affected where
+instance
+    (ToJSON ecosystemSpecific, ToJSON dbSpecific, ToJSON rangeDbSpecific)
+    => ToJSON (Affected ecosystemSpecific dbSpecific rangeDbSpecific) where
   toJSON Affected{..} = object $
     [ "ranges" .= affectedRanges
     , "package" .= affectedPackage
-    , "ecosystem_specific" .= affectedEcosystemSpecific
-    , "database_specific" .= affectedDatabaseSpecific
     ]
     <> omitEmptyList "severity" affectedSeverity
+    <> maybe [] (pure . ("ecosystem_specific" .=)) affectedEcosystemSpecific
+    <> maybe [] (pure . ("database_specific" .=)) affectedDatabaseSpecific
     where
       omitEmptyList _ [] = []
       omitEmptyList k xs = [k .= xs]
@@ -345,19 +349,13 @@ instance ToJSON Affects where
     , "functions" .= affectsFunctions
     ]
 
-instance ToJSON DatabaseSpecific where
-  toJSON DatabaseSpecific{..} = object
-    [ "cvss" .= databaseSpecificCvss
-    , "categories" .= databaseSpecificCategories
-    , "informational" .= databaseSpecificInformational
-    ]
-
-instance ToJSON EcosystemSpecific where
-  toJSON EcosystemSpecific{..} = object
-    [ "affects" .= ecosystemSpecificAffects
-    ]
-
-instance (ToJSON a) => ToJSON (Model a) where
+instance
+  ( ToJSON dbSpecific
+  , ToJSON affectedEcosystemSpecific
+  , ToJSON affectedDbSpecific
+  , ToJSON rangeDbSpecific
+  ) => ToJSON (Model dbSpecific affectedEcosystemSpecific affectedDbSpecific rangeDbSpecific)
+  where
   toJSON Model{..} = object $
     [ "schema_version" .= modelSchemaVersion
     , "id" .= modelId
@@ -393,13 +391,15 @@ instance ToJSON Reference where
     , "url" .= referencesUrl
     ]
 
-instance FromJSON Affected where
+instance
+    (FromJSON ecosystemSpecific, FromJSON dbSpecific, FromJSON rangeDbSpecific)
+    => FromJSON (Affected ecosystemSpecific dbSpecific rangeDbSpecific) where
   parseJSON (Object v) = do
     affectedRanges <- v .: "ranges"
     affectedPackage <- v .: "package"
     affectedSeverity <- v .::? "severity"
-    affectedEcosystemSpecific <- v .: "ecosystem_specific"
-    affectedDatabaseSpecific <- v .: "database_specific"
+    affectedEcosystemSpecific <- v .:? "ecosystem_specific"
+    affectedDatabaseSpecific <- v .:? "database_specific"
     pure $ Affected{..}
   parseJSON invalid = do
     prependFailure "parsing Affected failed, "
@@ -413,24 +413,6 @@ instance FromJSON Affects where
     pure $ Affects{..}
   parseJSON invalid = do
     prependFailure "parsing Affects failed, "
-      (typeMismatch "Object" invalid)
-
-instance FromJSON DatabaseSpecific where
-  parseJSON (Object v) = do
-    databaseSpecificCvss <- v .: "cvss"
-    databaseSpecificCategories <- v .: "categories"
-    databaseSpecificInformational <- v .: "informational"
-    pure $ DatabaseSpecific{..}
-  parseJSON invalid = do
-    prependFailure "parsing DatabaseSpecific failed, "
-      (typeMismatch "Object" invalid)
-
-instance FromJSON EcosystemSpecific where
-  parseJSON (Object v) = do
-    ecosystemSpecificAffects <- v .: "affects"
-    pure $ EcosystemSpecific{..}
-  parseJSON invalid = do
-    prependFailure "parsing EcosystemSpecific failed, "
       (typeMismatch "Object" invalid)
 
 -- | Explicit parser for 'UTCTime', stricter than the @FromJSON@
@@ -448,7 +430,12 @@ parseUTCTime = withText "UTCTime" $ \s ->
 (.::?) :: FromJSON a => Object -> Key -> Parser [a]
 o .::? k = fromMaybe [] <$> o .:? k
 
-instance (FromJSON a) => FromJSON (Model a) where
+instance
+  ( FromJSON dbSpecific
+  , FromJSON affectedEcosystemSpecific
+  , FromJSON affectedDbSpecific
+  , FromJSON rangeDbSpecific
+  ) => FromJSON (Model dbSpecific affectedEcosystemSpecific affectedDbSpecific rangeDbSpecific) where
   parseJSON = withObject "osv-schema" $ \v -> do
     modelSchemaVersion <- v .: "schema_version"
     modelId <- v .: "id"
