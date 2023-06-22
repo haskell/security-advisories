@@ -149,7 +149,7 @@ instance ToJSON Severity where
 data Package = Package
   { packageName :: Text
   , packageEcosystem :: Text
-  , packagePurl :: Text
+  , packagePurl :: Maybe Text  -- TODO refine type
   } deriving (Show, Eq, Ord)
 
 data Range dbSpecific
@@ -366,11 +366,11 @@ instance
       omitEmptyList xs = Just xs
 
 instance ToJSON Package where
-  toJSON Package{..} = object
+  toJSON Package{..} = object $
     [ "name" .= packageName
     , "ecosystem" .= packageEcosystem
-    , "purl" .= packagePurl
     ]
+    <> maybe [] (pure . ("purl" .=)) packagePurl
 
 instance ToJSON Reference where
   toJSON Reference{..} = object
@@ -434,7 +434,7 @@ instance FromJSON Package where
   parseJSON (Object v) = do
     packageName <- v .: "name"
     packageEcosystem <- v .: "ecosystem"
-    packagePurl <- v .: "purl"
+    packagePurl <- v .:? "purl"
     pure $ Package{..}
   parseJSON invalid = do
     prependFailure "parsing Package failed, "
