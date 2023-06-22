@@ -30,12 +30,6 @@ data Affected dbSpecific ecosystemSpecific rangeDbSpecific = Affected
   , affectedDatabaseSpecific :: Maybe dbSpecific
   } deriving (Show, Eq)
 
-data Affects = Affects
-  { affectsOs :: [Value]
-  , affectsArch :: [Value]
-  , affectsFunctions :: [Value]
-  } deriving (Show, Eq, Ord)
-
 data Event a
   = EventIntroduced a
   | EventFixed a
@@ -342,13 +336,6 @@ instance
       omitEmptyList _ [] = []
       omitEmptyList k xs = [k .= xs]
 
-instance ToJSON Affects where
-  toJSON Affects{..} = object
-    [ "os" .= affectsOs
-    , "arch" .= affectsArch
-    , "functions" .= affectsFunctions
-    ]
-
 instance
   ( ToJSON dbSpecific
   , ToJSON affectedEcosystemSpecific
@@ -403,16 +390,6 @@ instance
     pure $ Affected{..}
   parseJSON invalid = do
     prependFailure "parsing Affected failed, "
-      (typeMismatch "Object" invalid)
-
-instance FromJSON Affects where
-  parseJSON (Object v) = do
-    affectsOs <- v .: "os"
-    affectsArch <- v .: "arch"
-    affectsFunctions <- v .: "functions"
-    pure $ Affects{..}
-  parseJSON invalid = do
-    prependFailure "parsing Affects failed, "
       (typeMismatch "Object" invalid)
 
 -- | Explicit parser for 'UTCTime', stricter than the @FromJSON@
