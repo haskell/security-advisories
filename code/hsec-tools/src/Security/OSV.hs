@@ -3,7 +3,29 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Security.OSV where
+
+module Security.OSV
+  (
+  -- * Top-level data type
+    Model(..)
+  , newModel
+  , newModel'
+  , defaultSchemaVersion
+
+  -- * Subsidiary data types
+  , Affected(..)
+  , Credit(..)
+  , CreditType(..)
+  , creditTypes
+  , Event(..)
+  , Package(..)
+  , Range(..)
+  , Reference(..)
+  , ReferenceType(..)
+  , referenceTypes
+  , Severity(..)
+  )
+  where
 
 import Control.Applicative ((<|>))
 import Control.Monad (when)
