@@ -17,7 +17,9 @@
 
           haskellPackages = pkgs.haskell.packages.ghc925.override
             {
-              overrides = hself: hsuper: { };
+              overrides = hself: hsuper: {
+                Cabal-syntax = hsuper.Cabal-syntax_3_8_1_0;
+              };
             };
         in
         rec
