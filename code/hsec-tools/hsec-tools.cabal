@@ -37,7 +37,7 @@ library
                       process >= 1.6 && < 1.7,
                       text >= 1.2 && < 3,
                       time >= 1.9 && < 1.14,
-                      Cabal >= 3.2.1.0 && < 3.11,
+                      Cabal-syntax >= 3.8.1.0 && < 3.11,
                       mtl >= 2.2 && < 2.4,
                       containers >= 0.6 && < 0.7,
                       commonmark ^>= 0.2.2,
