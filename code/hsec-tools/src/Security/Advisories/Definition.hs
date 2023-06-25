@@ -3,6 +3,7 @@
 module Security.Advisories.Definition
   ( Advisory(..)
     -- * Supporting types
+  , Affected(..)
   , CWE(..)
   , Architecture(..)
   , AffectedVersionRange(..)
@@ -23,15 +24,10 @@ data Advisory = Advisory
   { advisoryId :: Text
   , advisoryModified :: ZonedTime
   , advisoryPublished :: ZonedTime
-  , advisoryPackage :: Text
   , advisoryCWEs :: [CWE]
   , advisoryKeywords :: [Keyword]
   , advisoryAliases :: [Text]
-  , advisoryCVSS :: Text
-  , advisoryVersions :: [AffectedVersionRange]
-  , advisoryArchitectures :: Maybe [Architecture]
-  , advisoryOS :: Maybe [OS]
-  , advisoryNames :: [(Text, VersionRange)]
+  , advisoryAffected :: [Affected]
   , advisoryReferences :: [Reference]
   , advisoryPandoc :: Pandoc  -- ^ Parsed document, without TOML front matter
   , advisoryHtml :: Text
@@ -39,6 +35,18 @@ data Advisory = Advisory
     -- ^ A one-line, English textual summary of the vulnerability
   , advisoryDetails :: Text
     -- ^ Details of the vulnerability (CommonMark), without TOML front matter
+  }
+  deriving stock (Show)
+
+-- | An affected package (or package component).  An 'Advisory' must
+-- mention one or more packages.
+data Affected = Affected
+  { affectedPackage :: Text
+  , affectedCVSS :: Text -- TODO refine type
+  , affectedVersions :: [AffectedVersionRange]
+  , affectedArchitectures :: Maybe [Architecture]
+  , affectedOS :: Maybe [OS]
+  , affectedDeclarations :: [(Text, VersionRange)]
   }
   deriving stock (Show)
 

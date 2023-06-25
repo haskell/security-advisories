@@ -2,20 +2,21 @@
 
 [advisory]
 id = "HSEC-0000-0000"
-package = "package-name"
 cwe = []
-cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 keywords = ["example", "freeform", "keywords"]
 # aliases = ["CVE-2022-XXXX"]
 # related = ["CVE-2022-YYYY", "CVE-2022-ZZZZ"]
 
-[affected]
+# You can declare multiple affected packages
+[[affected]]
+package = "package-name"
+cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 # arch = ["x86", "x86_64"]
 # os = ["mingw32"]
 # declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
 
-# Versions affected by the vulnerability. Multiple range should not overlap.
-[[versions]]
+# Versions affected by the vulnerability. Multiple ranges should not overlap.
+[[affected.versions]]
 introduced = "1.1.0"
 fixed = "1.2.0.5"
 
