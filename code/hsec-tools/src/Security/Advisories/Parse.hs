@@ -23,7 +23,6 @@ import Data.Functor.Identity (Identity(Identity))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First(..))
-import Data.Traversable (for)
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
 
@@ -169,7 +168,6 @@ parseAdvisoryTable oob policy table doc summary details html = runTableParser $ 
     fromMaybe published
     <$> mergeOobOptional policy (oobModified oob) advisory "modified" isTimestamp
 
-  package <- mandatory advisory "package" isString
   cats <-
     fromMaybe []
       <$> optional advisory "cwe" (isArrayOf (fmap CWE . isInt))
@@ -179,51 +177,51 @@ parseAdvisoryTable oob policy table doc summary details html = runTableParser $ 
   aliases <-
     fromMaybe []
       <$> optional advisory "aliases" (isArrayOf isString)
-  cvss <- mandatory advisory "cvss" isString -- TODO validate CVSS format
 
-  (os, arch, decls) <-
-    optional table "affected" isTable >>= \case
-      Nothing -> pure (Nothing, Nothing, [])
-      Just tbl -> do
-        os <-
-          optional tbl "os" $
-            isArrayOf (isString >=> operatingSystem)
-        arch <-
-          optional tbl "arch" $
-            isArrayOf (isString >=> architecture)
-        decls <-
-          maybe [] Map.toList
-            <$> optional tbl "declarations" (isTableOf versionRange)
-        pure (os, arch, decls)
-
-  versions <- mandatory table "versions" isArray
-  affectedVersionsRange <- for versions $ \version -> do
-    versionTable <- isTable version
-    introduced <- mandatory versionTable "introduced" isString
-    fixed <- optional versionTable "fixed" isString
-    pure $ AffectedVersionRange introduced fixed
-
+  affected <- mandatory table "affected" (isArrayOf parseAffected)
   references <- mandatory table "references" (isArrayOf parseReference)
 
   pure $ Advisory
     { advisoryId = identifier
     , advisoryModified = modified
     , advisoryPublished = published
-    , advisoryPackage = package
     , advisoryCWEs = cats
     , advisoryKeywords = kwds
     , advisoryAliases = aliases
-    , advisoryCVSS = cvss
-    , advisoryVersions = affectedVersionsRange
-    , advisoryArchitectures = arch
-    , advisoryOS = os
-    , advisoryNames = decls
+    , advisoryAffected = affected
     , advisoryReferences = references
     , advisoryPandoc = doc
     , advisoryHtml = html
     , advisorySummary = summary
     , advisoryDetails = details
     }
+
+parseAffected :: TOML.Value -> TableParser Affected
+parseAffected v = do
+  tbl <- isTable v
+  package <- mandatory tbl "package" isString
+  cvss <- mandatory tbl "cvss" isString -- TODO validate CVSS format
+  os <- optional tbl "os" $ isArrayOf (isString >=> operatingSystem)
+  arch <- optional tbl "arch" $ isArrayOf (isString >=> architecture)
+  decls <- maybe [] Map.toList <$> optional tbl "declarations" (isTableOf versionRange)
+
+  versions <- mandatory tbl "versions" (isArrayOf parseAffectedVersionRange)
+
+  pure $ Affected
+    { affectedPackage = package
+    , affectedCVSS = cvss
+    , affectedVersions = versions
+    , affectedArchitectures = arch
+    , affectedOS = os
+    , affectedDeclarations = decls
+    }
+
+parseAffectedVersionRange :: TOML.Value -> TableParser AffectedVersionRange
+parseAffectedVersionRange v = do
+  tbl <- isTable v
+  introduced <- mandatory tbl "introduced" isString
+  fixed <- optional tbl "fixed" isString
+  pure $ AffectedVersionRange introduced fixed
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
 advisoryDoc (Many blocks) = case blocks of

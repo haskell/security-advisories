@@ -28,9 +28,6 @@ to remove the explanatory comments for each field.
 # identifier e.g. HSEC-2022-0001. Please use "HSEC-0000-0000" in PRs.
 id = "HSEC-0000-0000"
 
-# Name of the affected package on Hackage (mandatory)
-package = "acme-broken"
-
 # Publication date of the advisory as an RFC 3339 date.
 # DO NOT INCLUDE THIS in files committed to Git.
 # It will be derived from the Git commit history.
@@ -38,11 +35,6 @@ date = 2021-01-31
 
 # Optional: Classification of the advisory with respect to the Common Weakness Enumeration.
 cwe = [820]
-
-# Mandatory: a Common Vulnerability Scoring System score. More information
-# can be found on the CVSS website, https://www.first.org/cvss/.
-# The committee will assist advisory authors in constructing an appropriate CVSS if necessary.
-cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 
 # Freeform keywords which describe this vulnerability (optional)
 keywords = ["ssl", "mitm"]
@@ -65,23 +57,34 @@ url = "https://github.com/username/package/issues/123"
 type = "FIX"
 url = "https://github.com/username/package/pull/139"
 
-# Optional: metadata which narrows the scope of what this advisory affects
-[affected]
-# CPU architectures impacted by this vulnerability (optional).
+# Affected package(s).  You can declare one or more packages.
+# Sub-fields are `package`, `cvss`, `arch`, `os`, `declarations`
+# and the `versions` table.
+[[affected]]
+
+# Mandatory: name of the affected package on Hackage
+package = "acme-broken"
+
+# Mandatory: a Common Vulnerability Scoring System score. More information
+# can be found on the CVSS website, https://www.first.org/cvss/.
+# The committee will assist advisory authors in constructing an appropriate CVSS if necessary.
+cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+
+# Optional: CPU architectures impacted by this vulnerability
 # Only use this if the vulnerability is specific to a particular CPU architecture,
 # e.g. the vulnerability is in x86 assembly.
 # For a list of CPU architecture strings, see the documentation for System.Info.arch:
 # <https://hackage.haskell.org/package/base-4.16.1.0/docs/System-Info.html>
 #arch = ["x86", "x86_64"]
 
-# Operating systems impacted by this vulnerability (optional)
+# Optional: Operating systems impacted by this vulnerability
 # Only use this if the vulnerable is specific to a particular OS, e.g. it was
 # located in a binding to a Windows-specific API.
 # For a list of OS strings, see the documentation for System.Info.os:
 # <https://hackage.haskell.org/package/base-4.16.1.0/docs/System-Info.html>
 #os = ["mingw32"]
 
-# Table of canonical paths to vulnerable declarations in the package (optional)
+# Optional: Table of canonical paths to vulnerable declarations in the package
 # that describes which versions impacted by this advisory used that particular
 # name (e.g. if an affected function or datatype was renamed between versions).
 # The path syntax is the module import path, without any type signatures or
@@ -89,7 +92,7 @@ url = "https://github.com/username/package/pull/139"
 #declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
 
 # Versions affected by the vulnerability. Multiple range should not overlap.
-[[versions]]
+[[affected.versions]]
 introduced = "1.1.0"
 fixed = "1.2.0.5"
 ```
