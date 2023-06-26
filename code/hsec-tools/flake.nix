@@ -1,6 +1,7 @@
 {
   description = "hsec-tools";
 
+  # useless comment
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
