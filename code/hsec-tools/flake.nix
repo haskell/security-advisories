@@ -1,6 +1,7 @@
 {
   description = "hsec-tools";
 
+  # useless
 
   nixConfig = {
     extra-substituters = "https://cache.nixos.org https://hydra.nixos.org https://nix-community.cachix.org";
