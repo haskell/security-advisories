@@ -4,6 +4,7 @@
 module Main where
 
 import Control.Monad (join, void, when)
+import qualified Data.ByteString.Lazy as L
 import Data.Foldable (for_)
 import Data.Functor ((<&>))
 import Data.List (isPrefixOf)
@@ -14,7 +15,10 @@ import System.Exit (die, exitFailure, exitSuccess)
 import System.IO (stderr)
 import System.FilePath (takeBaseName)
 
+import qualified Data.Aeson
+
 import Security.Advisories
+import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Git
 
 main :: IO ()
@@ -27,6 +31,7 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser =
       subparser
         (  command "check" (info commandCheck mempty)
+        <> command "osv" (info commandOsv mempty)
         <> command "render" (info commandRender mempty)
         <> command "help" (info commandHelp mempty)
         )
@@ -43,6 +48,16 @@ commandCheck =
         when ("HSEC-" `isPrefixOf` base && base /= T.unpack (advisoryId advisory)) $
           die $ "Filename does not match advisory ID: " <> path
       T.putStrLn "no error"
+
+commandOsv :: Parser (IO ())
+commandOsv =
+  withAdvisory go
+  <$> optional (argument str (metavar "FILE"))
+  <**> helper
+  where
+    go _ adv = do
+      L.putStr (Data.Aeson.encode (OSV.convert adv))
+      putChar '\n'
 
 commandRender :: Parser (IO ())
 commandRender =
