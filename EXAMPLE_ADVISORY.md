@@ -15,10 +15,20 @@ cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 # os = ["mingw32"]
 # declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
 
-# Versions affected by the vulnerability. Multiple ranges should not overlap.
+# Versions affected by the vulnerability.
+#
+# The `fixed` field is optional.  You can specify multiple ranges
+# (for example, if the issue was introduced in multiple releases
+# series).  In the case of multiple ranges, use `fixed` to "close"
+# a range, even when the release series does not actually have a
+# fix.  For example, if an issue was introduced in 1.0.8 and 1.1.2
+# (but 1.1 is unaffected), and a fix has not been released for the
+# 1.0.x series, specify:
 [[affected.versions]]
-introduced = "1.1.0"
-fixed = "1.2.0.5"
+introduced = "1.0.8"
+fixed = "1.1"
+[[affected.versions]]
+introduced = "1.1.2"
 
 [[references]]
 type = "ARTICLE"
