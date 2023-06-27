@@ -7,7 +7,6 @@ module Security.Advisories.Definition
   , CWE(..)
   , Architecture(..)
   , AffectedVersionRange(..)
-  , VersionRangeTerminal(..)
   , OS(..)
   , Keyword(..)
   )
@@ -96,27 +95,8 @@ newtype Keyword = Keyword Text
   deriving stock (Eq, Ord)
   deriving (Show) via Text
 
-data VersionRangeTerminal
-  = Limit Text  -- ^ closes a range without a fix
-  | Fixed Text
-  deriving (Show, Eq)
-
--- | Specify a version range.
---
--- In most cases, a range is either open (no fix yet) or closed via
--- the 'Fixed' terminal.  Scenarios that require 'Limit' include
--- those where a vulnerability has been introduced on multiple
--- branches.  For example, if an issue was introduced in 1.0.8 and
--- 1.1.2 (but 1.1 is unaffected), and a fix has not been released
--- for the 1.0.x series, then you need:
---
--- @
--- [ 'AffectedVersionRange' "1.0.8" (Just ('Limit' "1.1"))
--- , 'AffectedVersionRange' "1.1.2" Nothing ]
--- @
---
 data AffectedVersionRange = AffectedVersionRange
-  { affectedVersionRangeIntroduced :: Text
-  , affectedVersionRangeTerminal :: Maybe VersionRangeTerminal
+  { affectedVersionRangeIntroduced :: Text,
+    affectedVersionRangeFixed :: Maybe Text
   }
-  deriving stock (Show, Eq)
+  deriving stock (Show)

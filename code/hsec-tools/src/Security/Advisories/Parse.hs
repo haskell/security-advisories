@@ -221,14 +221,7 @@ parseAffectedVersionRange v = do
   tbl <- isTable v
   introduced <- mandatory tbl "introduced" isString
   fixed <- optional tbl "fixed" isString
-  limit <- optional tbl "limit" isString
-  terminal <- case (fixed, limit) of
-    (Just _, Just _) -> throwError $ MutuallyExclusiveKeys "fixed" "limit"
-    (Just ver, _) -> pure $ Just (Fixed ver)
-    (_, Just ver) -> pure $ Just (Limit ver)
-    (_, _)        -> pure Nothing
-
-  pure $ AffectedVersionRange introduced terminal
+  pure $ AffectedVersionRange introduced fixed
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
 advisoryDoc (Many blocks) = case blocks of
@@ -325,7 +318,6 @@ versionRange =
 data TableParseError
   = UnexpectedKeys (NonEmpty T.Text)
   | MissingKey T.Text
-  | MutuallyExclusiveKeys T.Text T.Text
   | IllegalOutOfBandOverride T.Text
   | InvalidFormat T.Text T.Text T.Text
   | InvalidOS T.Text
