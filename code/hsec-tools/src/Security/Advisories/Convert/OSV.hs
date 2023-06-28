@@ -20,6 +20,7 @@ convert adv =
   )
   { OSV.modelPublished = Just $ zonedTimeToUTC (advisoryPublished adv)
   , OSV.modelAliases = advisoryAliases adv
+  , OSV.modelRelated = advisoryRelated adv
   , OSV.modelSummary = Just $ advisorySummary adv
   , OSV.modelDetails = Just $ advisoryDetails adv
   , OSV.modelReferences = advisoryReferences adv
