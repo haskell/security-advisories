@@ -1,4 +1,4 @@
-name: Check security advisories
+name: Check and publish security advisories
 on:
   workflow_call:
     inputs:
@@ -12,6 +12,9 @@ jobs:
       - uses: actions/checkout@v3
         with:
           path: source
+          # We need to retrieve full history to determine the correct
+          # `published` and `modified` timestamps
+          fetch-depth: 0
       - run: mkdir -p ~/.local/bin
       - id: download
         uses: actions/download-artifact@v3
@@ -34,3 +37,29 @@ jobs:
         run: |
           ! find source/advisories -name '*.md' -print0 \
             | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
+      - name: Publish OSV data
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          DATA_DIR=$PWD/osv
+          mkdir "$DATA_DIR"
+          cd source
+          while read FILE ; do
+            ID=$(basename "$FILE" .md)
+            YEAR=$(echo "$ID" | cut -d - -f 2)
+            mkdir -p $DATA_DIR/$YEAR
+            hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
+          done < <(find advisories -type f -name "*.md")
+          BRANCH=generated/osv-export
+          REF=refs/remotes/origin/$BRANCH
+          export GIT_WORK_TREE=$DATA_DIR
+          git read-tree "$REF"
+          git add --all --intent-to-add
+          git diff --quiet && exit
+          git add --all
+          TREE=$(git write-tree)
+          git config user.email security-advisories@haskell.org
+          git config user.name "Haskell Security Response Team"
+          COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
+          git push origin $COMMIT:$BRANCH
