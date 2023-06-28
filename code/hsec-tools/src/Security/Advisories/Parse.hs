@@ -177,6 +177,9 @@ parseAdvisoryTable oob policy table doc summary details html = runTableParser $ 
   aliases <-
     fromMaybe []
       <$> optional advisory "aliases" (isArrayOf isString)
+  related <-
+    fromMaybe []
+      <$> optional advisory "related" (isArrayOf isString)
 
   affected <- mandatory table "affected" (isArrayOf parseAffected)
   references <- mandatory table "references" (isArrayOf parseReference)
@@ -188,6 +191,7 @@ parseAdvisoryTable oob policy table doc summary details html = runTableParser $ 
     , advisoryCWEs = cats
     , advisoryKeywords = kwds
     , advisoryAliases = aliases
+    , advisoryRelated = related
     , advisoryAffected = affected
     , advisoryReferences = references
     , advisoryPandoc = doc

@@ -28,6 +28,7 @@ data Advisory = Advisory
   , advisoryCWEs :: [CWE]
   , advisoryKeywords :: [Keyword]
   , advisoryAliases :: [Text]
+  , advisoryRelated :: [Text]
   , advisoryAffected :: [Affected]
   , advisoryReferences :: [Reference]
   , advisoryPandoc :: Pandoc  -- ^ Parsed document, without TOML front matter
