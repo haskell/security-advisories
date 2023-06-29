@@ -19,3 +19,8 @@ jobs:
           flake-lock-path: ./code/hsec-tools/flake.lock
       - run: nix -L build
         working-directory: ./code/hsec-tools
+      - uses: actions/upload-artifact@v3
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        with:
+          name: hsec-tools
+          path: code/hsec-tools/result/bin/hsec-tools
