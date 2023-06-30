@@ -5,8 +5,23 @@ on:
   - push
   - pull_request
 jobs:
+  tools_changed:
+    continue-on-error: true
+    runs-on: ubuntu-22.04
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: "never"
+          skip_after_successful_duplicate: "true"
+          paths: '["code/**"]'
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
   check_nix:
     name: Check nix build
+    needs: tools_changed
+    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
     runs-on: ubuntu-22.04
     steps:
       - name: git checkout
@@ -22,5 +37,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         with:
-          name: hsec-tools
+          name: hsec-tools-main
           path: code/hsec-tools/result/bin/hsec-tools
