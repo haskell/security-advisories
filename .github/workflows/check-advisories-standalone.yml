@@ -31,7 +31,8 @@ jobs:
   check-advisories:
     name: Invoke check-advisories workflow
     needs: [tools_changed, advisories_changed]
-    if: ${{ needs.tools_changed.outputs.should_skip == 'true'  && needs.advisories_changed.outputs.should_skip != 'true' }}
+    if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/check-advisories.yml
     with:
       artifact-name: hsec-tools-main
+      changed-advisories: ${{ toJSON(needs.advisories_changed.outputs.changed_files) }}
