@@ -1,0 +1,37 @@
+name: Check advisories standalone
+on:
+  - push
+  - pull_request
+jobs:
+  tools_changed:
+    continue-on-error: true
+    runs-on: ubuntu-22.04
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: "never"
+          skip_after_successful_duplicate: "true"
+          paths: '["code/**"]'
+  advisories_changed:
+    continue-on-error: true
+    runs-on: ubuntu-22.04
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: "never"
+          skip_after_successful_duplicate: "true"
+          paths: '["advisories/**"]'
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
+  check-advisories:
+    name: Invoke check-advisories workflow
+    needs: [tools_changed, advisories_changed]
+    if: ${{ needs.tools_changed.outputs.should_skip == 'true'  && needs.advisories_changed.outputs.should_skip != 'true' }}
+    uses: ./.github/workflows/check-advisories.yml
+    with:
+      artifact-name: hsec-tools-main
