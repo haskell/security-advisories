@@ -17,8 +17,23 @@ on:
   - push
   - pull_request
 jobs:
+  tools_changed:
+    continue-on-error: true
+    runs-on: ubuntu-20.04
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: "never"
+          skip_after_successful_duplicate: "true"
+          paths: '["code/**"]'
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
   linux:
     name: Haskell-CI - Linux - ${{ matrix.compiler }}
+    needs: tools_changed
+    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
     runs-on: ubuntu-20.04
     timeout-minutes:
       60
