@@ -35,6 +35,8 @@ The HSRT may *provisionally* offer coordinated disclosure for
 HIGH severity issues, affecting a widely used library or tool.
 
 Public report can be submitted as a [regular issue on the security-advisories repo](https://github.com/haskell/security-advisories/issues).
+In that case, please follow the process defined in
+the [Reporting Vulnerabilities](./CONTRIBUTING.md) document.
 
 The first steps performed by the HSRT are to:
 
@@ -53,16 +55,13 @@ in the [Reporting Vulnerabilities](./CONTRIBUTING.md) document.
 
 The advisory is validated by the reporter and the project's maintainer.
 
-### Embargoed disclosure
+### Vulnerability disclosure
 
 Once the patches are approved, a signed email
 with the vulnerability description is sent to the downstream
 stakeholders. The notice will state the planned disclosure date.
 No stakeholder is supposed to deploy public patches before
 disclosure date.
-
-For non-embargoed, public vulnerabilities no separate downstream advance
-notification is sent.
 
 ### Open bug, Push patch
 
@@ -72,8 +71,7 @@ help pushing the fix at disclosure time.
 On the disclosure hour, open bug, push patches for review and
 fast-track approvals (referencing the bug).
 
-Embargo reminder can be removed at that point.
-
+If a CVE got assigned when the report is still private,
 [MITRE's CVE Request form](https://cveform.mitre.org/) should be used
 again at this point, but instead select a *request type* of
 `Notify CVE about a publication` and fill in the coordinator's *e-mail
@@ -91,10 +89,10 @@ test runs to complete), publish the advisory to the repository.
 Patches approved in code review do not necessarily merge immediately,
 but should be tracked closely until they do.
 
-### Abnormal embargo termination
+### Abnormal termination
 
-If a report is held in embargo for 90 days without a fix, or significant
-details of the report are disclosed in a public venue, the embargo is
+If a report is held in private for 90 days without a fix, or significant
+details of the report are disclosed in a public venue, the report is
 terminated by a HSRT coordinator at that time and subsequent process
 switches to the public report workflow instead.
 
@@ -113,14 +111,6 @@ Vulnerability reporters retain final control over the disclosure of
 their findings. If for some reason they are uncomfortable with our
 process, their choice of disclosure terms prevails.
 
-### Embargo exceptions
-
-To keep the embargo period short and effective, the HSRT may choose to
-open bug reports. Issues that take too much time to be fixed (e.g., more
-than 2 weeks) or issues that require a complex patch are usually better
-solved in the open. Only under unusual circumstances should any embargo
-extend past 90 days.
-
 ### Downstream stakeholders
 
 Haskell packages are used in a number of distributions,
@@ -128,7 +118,7 @@ products, private and public service offerings that are negatively
 affected by vulnerabilities. In the spirit of responsible disclosure,
 this ecosystem, collectively known as the downstream stakeholders, needs
 to be warned in advance to be able to prepare patches and roll them out
-in a coordinated fashion on disclosure day. The embargo period is kept
+in a coordinated fashion on disclosure day. The disclosure period is kept
 voluntarily small (3-5 business days), as a middle ground between
 keeping the vulnerability under cover for too long and not giving a
 chance to downstream stakeholders to react.
@@ -139,11 +129,11 @@ email with a rationale to member(s) of the HSRT.
 
 ## Templates
 
-### Reception embargo reminder (private issues)
+### Reception reminder (private issues)
 
-    This issue is being treated as a potential security risk under
-    embargo. Please do not make any public mention of embargoed
-    (private) security vulnerabilities before their coordinated
+    This issue is being treated as a potential security risk.
+    Please do not make any public mention of private
+    security vulnerabilities before their coordinated
     publication by the Haskell Security Response Team in the
     form of an official Haskell Security Advisory (HSEC). This includes
     discussion of the bug or associated fixes in public forums such as
@@ -153,7 +143,7 @@ email with a rationale to member(s) of the HSRT.
     those who are made aware of the issue prior to publication. All
     discussion should remain confined to this private bug report, and
     any proposed fixes should be added to the bug as attachments. This
-    embargo shall not extend past $NINETY_DAYS and will be made
+    status shall not extend past $NINETY_DAYS and will be made
     public by or on that date even if no fix is identified.
 
 The NINETY_DAYS value should be 90 days from the date the report is
@@ -182,20 +172,16 @@ The message body for both emails should be identical: :
     Proposed public disclosure date/time:
     $DISCLOSURE, 1500UTC
     Please do not make the issue public (or release public patches)
-    before this coordinated embargo date.
+    before this coordinated disclosure date.
 
-    Original private report:
-    https://github.com/haskell/security-advisories/issues/$BUG
-    For access to read and comment on this report, please reply to me
-    with your GitHub username and I will subscribe you.
     --
     $HSRT_COORDINATOR_NAME
     Haskell Security Response Team
 
 Proposed patches are attached, email must be GPG-signed. Use something
 unique and descriptive for the patch attachment file names, for example
-`cve-2013-4183-main-havana.patch` or
-`cve-2013-4183-stable-grizzly.patch`.
+`cve-2013-4183-$project.patch` or
+`cve-2013-4183-$project-stable-1.0.patch`.
 
 ### Haskell security advisories (HSEC)
 
