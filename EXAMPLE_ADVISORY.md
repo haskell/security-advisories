@@ -3,9 +3,21 @@
 [advisory]
 id = "HSEC-0000-0000"
 cwe = []
+
+# Arbitrary keywords.  We recommend to include keywords relating
+# to the protocols, data formats or services pertaining to the
+# affected package (e.g. "json", "tls", "aws").  You can also
+# include keywords describing the vulnerability or impact (e.g.
+# "dos", "sqli" "csrf").  Just think, "what keywords would I use
+# if I was searching for issues affecting this package, or a
+# particular class of vulnerabilities?"
 keywords = ["example", "freeform", "keywords"]
-# aliases = ["CVE-2022-XXXX"]
-# related = ["CVE-2022-YYYY", "CVE-2022-ZZZZ"]
+
+# Corresponding and related advisory IDs.  You could include
+# CVE, GHSA or other well known databases, as well as other
+# HSEC IDs in the `related` field.
+aliases = ["CVE-2022-XXXX"]
+related = ["CVE-2022-YYYY", "CVE-2022-ZZZZ"]
 
 # You can declare multiple affected packages
 [[affected]]
