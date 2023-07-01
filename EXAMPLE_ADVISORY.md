@@ -42,6 +42,9 @@ fixed = "1.1"
 [[affected.versions]]
 introduced = "1.1.2"
 
+# References to articles, issues/PRs, etc.  Recognised types:
+# ADVISORY, ARTICLE, DETECTION, DISCUSSION, REPORT,
+# FIX, INTRODUCED, PACKAGE, EVIDENCE, WEB
 [[references]]
 type = "ARTICLE"
 url = "https://example.com"
