@@ -36,7 +36,13 @@ date = 2021-01-31
 # Optional: Classification of the advisory with respect to the Common Weakness Enumeration.
 cwe = [820]
 
-# Freeform keywords which describe this vulnerability (optional)
+# Arbitrary keywords.  We recommend to include keywords relating
+# to the protocols, data formats or services pertaining to the
+# affected package (e.g. "json", "tls", "aws").  You can also
+# include keywords describing the vulnerability or impact (e.g.
+# "dos", "sqli" "csrf").  Just think, "what keywords would I use
+# if I was searching for issues affecting this package, or a
+# particular class of vulnerabilities?"
 keywords = ["ssl", "mitm"]
 
 # Vulnerability aliases, e.g. CVE IDs (optional but recommended)
