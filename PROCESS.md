@@ -6,8 +6,9 @@
 >   http://creativecommons.org/licenses/by/3.0/legalcode
 > Original version: https://opendev.org/openstack/ossa/src/branch/master/doc/source/vmt-process.rst
 
-The Haskell Security Response Team (HSRT) is responsible for coordinating
-the progressive disclosure of a vulnerability.
+The HSRT coordinates responsible disclosure of security vulnerabilities in
+the Haskell ecosystem and help Haskell users have an accurate and timely
+assessment of risks.
 
 Members of the team are independent and security-minded folks who ensure
 that vulnerabilities are dealt with in a timely manner and that
@@ -18,120 +19,47 @@ In order to reduce the disclosure of vulnerability in the early stages,
 membership of this team is intentionally limited to a small number of
 people.
 
-## Supported versions
-
-The Vulnerability Management team coordinates patches fixing
-vulnerabilities in packages published via Hackage.
-
 ## Process
 
 Each security bug is assigned a HSRT *coordinator* (member from the
-haskell security response team) that will drive the fixing and
+haskell security response team) that will coordinate the
 disclosure process. Here are the steps we follow.
 
 ### Reception
 
-Private report can be received by email to [security-advisories@haskell.org](mailto:security-advisories@haskell.org),
-or via a [private issue on the security-advisories repo](https://github.com/haskell/security-advisories/security/advisories/new).
+Private report can be received by email to [security-advisories@haskell.org](mailto:security-advisories@haskell.org).
+The HSRT does not presently handle embargoed vulnerabilities.
+Please ensure embargoes have been lifted and details have been disclosed to the public prior to filing a report.
+
+The HSRT may *provisionally* offer coordinated disclosure for
+HIGH severity issues, affecting a widely used library or tool.
 
 Public report can be submitted as a [regular issue on the security-advisories repo](https://github.com/haskell/security-advisories/issues).
 
 The first steps performed by the HSRT are to:
 
--   create a bug if one does not yet exist.
 -   check that the report indicates the correct project and adjust as
     necessary.
 -   contact the project's maintainer for confirmation
     of impact and determination of affected version.
 
-### Patch development
-
-For a private report, the reporter (automatic if reported directly as a
-bug) and the affected projects' maintainers plus anyone they deem necessary
-to develop and validate a fix are added to the bug's notified list.
-A fix is proposed as a patch to the private bug report,
-**not sent to the public code review system**.
-
-For public reports, there is no need to directly subscribe anyone and
-patches can be submitted directly to the code review system instead of
-as bug attachments (though the bug should be referenced in any commit
-messages so it will be updated automatically).
-
-If project-side delays are encountered at this or any subsequent stage
-of the process, the HSRT and other interested parties may reach out to
-that project's maintainers requesting more immediate attention to the issue.
-
-### Patch review
-
-For a private report once the initial patch has been attached to the
-bug, core reviewers on the subscription list from the project in
-question should review it and suggest updates or pre-approve it for
-merging. Privately-developed patches need to be pre-approved so that
-they can be fast-tracked through public code review later at disclosure
-time.
-
 ### Draft advisory
 
-In the mean time, the HSRT coordinator prepares a security advisory
-that will be communicated to downstream stakeholders.
-
-The description should properly credit the reporter, specify affected
-versions (including unsupported ones) and accurately describe impact and
-mitigation mechanisms. The HSRT coordinator should use the template
-below.
+In the mean time, the HSRT coordinator works with the reporter to
+to refine their draft security advisory using the template defined
+in the [Reporting Vulnerabilities](./CONTRIBUTING.md) document.
 
 ### Review advisory
 
 The advisory is validated by the reporter and the project's maintainer.
 
-### Send CVE request
-
-To ensure full traceability, we attempt to obtain a CVE assignment
-before the issue is communicated to a larger public. This is generally
-done as the patch gets nearer to final approval. The approved advisory
-is submitted through [MITRE's CVE Request form](https://cveform.mitre.org/).
-The *request type* is `Request a CVE ID`, the *e-mail address* should be
-that of the requester (generally the assigned HSRT coordinator),
-and for embargoed reports the coordinator's OpenPGP key should be pasted
-into the field provided.
-
-In the *required* section set the checkboxes indicating the product is
-not CNA-covered and that no prior CVE ID has been assigned, select an
-appropriate *vulnerability type* (using `Other or Unknown` to enter a
-freeform type if there is nothing relevant on the drop-down), set the
-*vendor* to `Haskell`, and the *product* and *version* fields to match
-the `$PROJECTS` and `$AFFECTED_VERSIONS` from the advisory. In
-the *optional* section set the radio button for *confirmed/acknowledged*
-to `Yes`, choose an appropriate *attack type* in the drop-down (often
-this is `Context-dependent` for our cases), check the relevant *impact*
-checkboxes, attempt to fill in the *affected components* and *attack
-vector* fields if possible, paste in the *suggested description* from
-the prose of the advisory (usually omitting the first sentence
-as it's redundant with other fields), put the `$CREDIT` details in the
-*discoverer/credits* field, and the bug URL in the *references* field.
-If the report is still private, note that in the *additional information*
-field like
-`This report is currently under embargo and no disclosure date has been scheduled at this time.`
-
-At the bottom of the page, fill in the *security code* and click the
-*submit request* button. If some fields contain invalid data they will
-be highlighted red; correct these, update the *security code* and
-*submit request* again until you get a confirmation page.
-
-### Get assigned CVE
-
-MITRE returns the assigned CVE. It is added to the advisory,
-and the bug is retitled to `$TITLE ($CVE)`.
-
 ### Embargoed disclosure
 
-Once the patches are approved and the CVE is assigned, a signed email
+Once the patches are approved, a signed email
 with the vulnerability description is sent to the downstream
-stakeholders. The disclosure date is set to 3-5 business days, excluding
-Monday/Friday and holiday periods, at 1500 UTC. No stakeholder is
-supposed to deploy public patches before disclosure date. Once the email
-is sent, any stakeholders who reply requesting subscription to the
-report may be added.
+stakeholders. The notice will state the planned disclosure date.
+No stakeholder is supposed to deploy public patches before
+disclosure date.
 
 For non-embargoed, public vulnerabilities no separate downstream advance
 notification is sent.
@@ -143,8 +71,6 @@ help pushing the fix at disclosure time.
 
 On the disclosure hour, open bug, push patches for review and
 fast-track approvals (referencing the bug).
-
-Update the bug title to `[HSEC-$NUM] $TITLE`.
 
 Embargo reminder can be removed at that point.
 
@@ -163,10 +89,7 @@ test runs to complete), publish the advisory to the repository.
 ### All patches merged
 
 Patches approved in code review do not necessarily merge immediately,
-but should be tracked closely until they do (if the bug number is
-correctly identified in commit messages then it will be automatically
-updated to reflect this as well). Subsequent security point releases of
-affected software may then be tagged if warranted.
+but should be tracked closely until they do.
 
 ### Abnormal embargo termination
 
