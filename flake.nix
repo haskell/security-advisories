@@ -4,14 +4,21 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    toml-parser = {
+      url = github:glguy/toml-parser/732f923df201f40e139ee9984c6315a117b14e10; # v1.2.1.0
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, flake-utils, toml-parser }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ ];
         pkgs =
           import nixpkgs { inherit system overlays; config.allowBroken = true; };
+        jailbreakUnbreak = pkg:
+          pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
+
         project = returnShellEnv:
           pkgs.haskellPackages.developPackage {
             inherit returnShellEnv;
@@ -20,6 +27,7 @@
             withHoogle = false;
             overrides = self: super: with pkgs.haskell.lib; {
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
+              toml-parser = jailbreakUnbreak (super.callCabal2nix "toml-parser" toml-parser { });
             };
 
             modifier = drv:

@@ -4,40 +4,29 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE ViewPatterns #-}
-
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Security.Advisories.Parse
   ( parseAdvisory
   , OutOfBandAttributes(..)
   , emptyOutOfBandAttributes
   , AttributeOverridePolicy(..)
   , ParseAdvisoryError(..)
-  , TableParseError(..)
   )
   where
 
-import Control.Monad ((>=>))
 import Data.Bifunctor (first)
 import Data.Foldable (toList)
-import Data.Functor.Identity (Identity(Identity))
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First(..))
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
 
-import Control.Monad.Except
-  ( ExceptT (ExceptT)
-  , MonadError
-  , throwError
-  )
 import qualified Data.Map as Map
 import Data.Sequence (Seq((:<|)))
-import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
-import Data.Time (LocalTime(..), ZonedTime(..), midnight, utc)
+import Data.Time (ZonedTime(..), LocalTime (LocalTime), midnight, utc)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange)
 
@@ -45,7 +34,10 @@ import Commonmark.Html (Html, renderHtml)
 import qualified Commonmark.Parser as Commonmark
 import Commonmark.Types (HasAttributes(..), IsBlock(..), IsInline(..), Rangeable(..), SourceRange(..))
 import Commonmark.Pandoc (Cm(unCm))
-import qualified TOML
+import qualified Toml
+import qualified Toml.FromValue as Toml
+import qualified Toml.FromValue.Matcher as Toml
+import qualified Toml.ToValue as Toml
 import Text.Pandoc.Builder (Blocks, Many(..))
 import Text.Pandoc.Definition (Block(..), Inline(..), Pandoc(..))
 import Text.Pandoc.Walk (query)
@@ -84,8 +76,8 @@ data AttributeOverridePolicy
 data ParseAdvisoryError
   = MarkdownError Commonmark.ParseError T.Text
   | MarkdownFormatError T.Text
-  | TomlError TOML.TOMLError T.Text
-  | AdvisoryError TableParseError T.Text
+  | TomlError String T.Text
+  | AdvisoryError [String] T.Text
   deriving stock (Eq, Show, Generic)
 
 -- | The main parsing function.  'OutOfBandAttributes' are handled
@@ -104,7 +96,9 @@ parseAdvisory policy attrs raw = do
   (frontMatter, rest) <- first MarkdownFormatError $ advisoryDoc markdown
   let doc = Pandoc mempty rest
   !summary <- first MarkdownFormatError $ parseAdvisorySummary doc
-  table <- firstPretty TomlError TOML.renderTOMLError $ TOML.decode frontMatter
+  table <- case Toml.parse (T.unpack frontMatter) of
+    Left e -> Left (TomlError e (T.pack e))
+    Right t -> Right t
 
   -- Re-parse as FirstSourceRange to find the source range of
   -- the TOML header.
@@ -131,8 +125,11 @@ parseAdvisory policy attrs raw = do
     <$> firstPretty MarkdownError (T.pack . show)
           (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Html ()))
 
-  first (mkPretty AdvisoryError (T.pack . show)) $
-    parseAdvisoryTable attrs policy table doc summary details html
+  case parseAdvisoryTable attrs policy doc summary details html table of
+    Toml.Failure es -> Left (AdvisoryError es (T.pack (unlines es)))
+    Toml.Success warnings adv
+      | null warnings -> pure adv
+      | otherwise -> Left (AdvisoryError warnings (T.pack (unlines warnings))) -- treat warnings as errors
 
   where
     firstPretty
@@ -140,7 +137,7 @@ parseAdvisory policy attrs raw = do
       -> (e -> T.Text)
       -> Either e a
       -> Either ParseAdvisoryError a
-    firstPretty ctr pretty = first $ mkPretty ctr pretty 
+    firstPretty ctr pretty = first $ mkPretty ctr pretty
 
     mkPretty
       :: (e -> T.Text -> ParseAdvisoryError)
@@ -152,84 +149,194 @@ parseAdvisory policy attrs raw = do
 parseAdvisoryTable
   :: OutOfBandAttributes
   -> AttributeOverridePolicy
-  -> TOML.Table
   -> Pandoc -- ^ parsed document (without frontmatter)
   -> T.Text -- ^ summary
   -> T.Text -- ^ details
   -> T.Text -- ^ rendered HTML
-  -> Either TableParseError Advisory
-parseAdvisoryTable oob policy table doc summary details html = runTableParser $ do
-  hasNoKeysBut ["advisory", "affected", "versions", "references"] table
-  advisory <- mandatory table "advisory" isTable
+  -> Toml.Table
+  -> Toml.Result Advisory
+parseAdvisoryTable oob policy doc summary details html tab =
+  Toml.runMatcher $
+   do fm <- Toml.fromValue (Toml.Table tab)
+      published <-
+        mergeOobMandatory policy
+          (oobPublished oob)
+          "advisory.date"
+          (amdPublished (frontMatterAdvisory fm))
+      modified <-
+        fromMaybe published <$>
+          mergeOobOptional policy
+            (oobPublished oob)
+            "advisory.modified"
+            (amdModified (frontMatterAdvisory fm))
+      pure Advisory
+        { advisoryId = amdId (frontMatterAdvisory fm)
+        , advisoryPublished = published
+        , advisoryModified = modified
+        , advisoryCWEs = amdCWEs (frontMatterAdvisory fm)
+        , advisoryKeywords = amdKeywords (frontMatterAdvisory fm)
+        , advisoryAliases = amdAliases (frontMatterAdvisory fm)
+        , advisoryRelated = amdRelated (frontMatterAdvisory fm)
+        , advisoryAffected = frontMatterAffected fm
+        , advisoryReferences = frontMatterReferences fm
+        , advisoryPandoc = doc
+        , advisoryHtml = html
+        , advisorySummary = summary
+        , advisoryDetails = details
+        }
 
-  identifier <- mandatory advisory "id" isHsecId
+-- | Internal type corresponding to the complete raw TOML content of an
+-- advisory markdown file.
+data FrontMatter = FrontMatter {
+  frontMatterAdvisory :: AdvisoryMetadata,
+  frontMatterReferences :: [Reference],
+  frontMatterAffected :: [Affected]
+} deriving (Generic)
 
-  published <- mergeOobMandatory policy (oobPublished oob) advisory "date" isTimestamp
-  -- if "modified" not supplied, default to "published"
-  modified <-
-    fromMaybe published
-    <$> mergeOobOptional policy (oobModified oob) advisory "modified" isTimestamp
+instance Toml.FromValue FrontMatter where
+  fromValue = Toml.parseTableFromValue $
+   do advisory   <- Toml.reqKey "advisory"
+      affected   <- Toml.reqKey "affected"
+      references <- Toml.reqKey "references"
+      pure FrontMatter {
+        frontMatterAdvisory = advisory,
+        frontMatterAffected = affected,
+        frontMatterReferences = references
+        }
 
-  cats <-
-    fromMaybe []
-      <$> optional advisory "cwe" (isArrayOf (fmap CWE . isInt))
-  kwds <-
-    fromMaybe []
-      <$> optional advisory "keywords" (isArrayOf (fmap Keyword . isString))
-  aliases <-
-    fromMaybe []
-      <$> optional advisory "aliases" (isArrayOf isString)
-  related <-
-    fromMaybe []
-      <$> optional advisory "related" (isArrayOf isString)
+instance Toml.ToValue FrontMatter where
+  toValue = Toml.defaultTableToValue
 
-  affected <- mandatory table "affected" (isArrayOf parseAffected)
-  references <-
-    fromMaybe []
-      <$> optional table "references" (isArrayOf parseReference)
+instance Toml.ToTable FrontMatter where
+  toTable x = Map.fromList
+    [ "advisory" Toml..= frontMatterAdvisory x
+    , "affected" Toml..= frontMatterAffected x
+    , "references" Toml..= frontMatterReferences x
+    ]
 
-  pure $ Advisory
-    { advisoryId = identifier
-    , advisoryModified = modified
-    , advisoryPublished = published
-    , advisoryCWEs = cats
-    , advisoryKeywords = kwds
-    , advisoryAliases = aliases
-    , advisoryRelated = related
-    , advisoryAffected = affected
-    , advisoryReferences = references
-    , advisoryPandoc = doc
-    , advisoryHtml = html
-    , advisorySummary = summary
-    , advisoryDetails = details
-    }
+-- | Internal type corresponding to the @[advisory]@ subsection of the
+-- TOML frontmatter in an advisory markdown file.
+data AdvisoryMetadata = AdvisoryMetadata
+  { amdId         :: HsecId
+  , amdModified   :: Maybe ZonedTime
+  , amdPublished  :: Maybe ZonedTime
+  , amdCWEs       :: [CWE]
+  , amdKeywords   :: [Keyword]
+  , amdAliases    :: [T.Text]
+  , amdRelated    :: [T.Text]
+  }
 
-parseAffected :: TOML.Value -> TableParser Affected
-parseAffected v = do
-  tbl <- isTable v
-  package <- mandatory tbl "package" isString
-  cvss <- mandatory tbl "cvss" isString -- TODO validate CVSS format
-  os <- optional tbl "os" $ isArrayOf (isString >=> operatingSystem)
-  arch <- optional tbl "arch" $ isArrayOf (isString >=> architecture)
-  decls <- maybe [] Map.toList <$> optional tbl "declarations" (isTableOf versionRange)
+instance Toml.FromValue AdvisoryMetadata where
+  fromValue = Toml.parseTableFromValue $
+   do identifier  <- Toml.reqKey "id"
+      published   <- Toml.optKeyOf "date" getDefaultedZonedTime
+      modified    <- Toml.optKeyOf "modified"  getDefaultedZonedTime
+      let optList key = fromMaybe [] <$> Toml.optKey key
+      cats        <- optList "cwe"
+      kwds        <- optList "keywords"
+      aliases     <- optList "aliases"
+      related     <- optList "related"
+      pure AdvisoryMetadata
+        { amdId = identifier
+        , amdModified = modified
+        , amdPublished = published
+        , amdCWEs = cats
+        , amdKeywords = kwds
+        , amdAliases = aliases
+        , amdRelated = related
+        }
 
-  versions <- mandatory tbl "versions" (isArrayOf parseAffectedVersionRange)
+instance Toml.ToValue AdvisoryMetadata where
+  toValue = Toml.defaultTableToValue
 
-  pure $ Affected
-    { affectedPackage = package
-    , affectedCVSS = cvss
-    , affectedVersions = versions
-    , affectedArchitectures = arch
-    , affectedOS = os
-    , affectedDeclarations = decls
-    }
+instance Toml.ToTable AdvisoryMetadata where
+  toTable x = Map.fromList $
+    ["id"        Toml..= amdId x] ++
+    ["modified"  Toml..= y | Just y <- [amdModified x]] ++
+    ["date"      Toml..= y | Just y <- [amdPublished x]] ++
+    ["cwe"       Toml..= amdCWEs x | not (null (amdCWEs x))] ++
+    ["keywords"  Toml..= amdKeywords x | not (null (amdKeywords x))] ++
+    ["aliases"   Toml..= amdAliases x | not (null (amdAliases x))] ++
+    ["Related"   Toml..= amdRelated x | not (null (amdRelated x))]
 
-parseAffectedVersionRange :: TOML.Value -> TableParser AffectedVersionRange
-parseAffectedVersionRange v = do
-  tbl <- isTable v
-  introduced <- mandatory tbl "introduced" isString
-  fixed <- optional tbl "fixed" isString
-  pure $ AffectedVersionRange introduced fixed
+instance Toml.FromValue Affected where
+  fromValue = Toml.parseTableFromValue $
+   do package   <- Toml.reqKey "package"
+      cvss      <- Toml.reqKey "cvss" -- TODO validate CVSS format
+      os        <- Toml.optKey "os"
+      arch      <- Toml.optKey "arch"
+      decls     <- maybe [] Map.toList <$> Toml.optKey "declarations"
+      versions  <- Toml.reqKey "versions"
+      pure $ Affected
+        { affectedPackage = package
+        , affectedCVSS = cvss
+        , affectedVersions = versions
+        , affectedArchitectures = arch
+        , affectedOS = os
+        , affectedDeclarations = decls
+        }
+
+instance Toml.ToValue Affected where
+  toValue = Toml.defaultTableToValue
+
+instance Toml.ToTable Affected where
+  toTable x = Map.fromList $
+    [ "package" Toml..= affectedPackage x
+    , "cvss"    Toml..= affectedCVSS x
+    , "versions" Toml..= affectedVersions x
+    ] ++
+    [ "os"   Toml..= y | Just y <- [affectedOS x]] ++
+    [ "arch" Toml..= y | Just y <- [affectedArchitectures x]] ++
+    [ "declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
+    where
+      asTable kvs = Map.fromList [(T.unpack k, v) | (k,v) <- kvs]
+
+instance Toml.FromValue AffectedVersionRange where
+  fromValue = Toml.parseTableFromValue $
+   do introduced <- Toml.reqKey "introduced"
+      fixed      <- Toml.optKey "fixed"
+      pure AffectedVersionRange {
+        affectedVersionRangeIntroduced = introduced,
+        affectedVersionRangeFixed = fixed
+        }
+
+instance Toml.ToValue AffectedVersionRange where
+  toValue = Toml.defaultTableToValue
+
+instance Toml.ToTable AffectedVersionRange where
+  toTable x = Map.fromList $
+    ("introduced" Toml..= affectedVersionRangeIntroduced x) :
+    ["fixed" Toml..= y | Just y <- [affectedVersionRangeFixed x]]
+
+
+instance Toml.FromValue HsecId where
+  fromValue v =
+   do s <- Toml.fromValue v
+      case parseHsecId s of
+        Nothing -> fail "invalid HSEC-ID: expected HSEC-[0-9]{4,}-[0-9]{4,}"
+        Just x -> pure x
+
+instance Toml.ToValue HsecId where
+  toValue = Toml.toValue . printHsecId
+
+instance Toml.FromValue CWE where
+  fromValue v = CWE <$> Toml.fromValue v
+
+instance Toml.ToValue CWE where
+  toValue (CWE x) = Toml.toValue x
+
+instance Toml.FromValue Keyword where
+  fromValue v = Keyword <$> Toml.fromValue v
+
+instance Toml.ToValue Keyword where
+  toValue (Keyword x) = Toml.toValue x
+
+-- | Get a datetime with the timezone defaulted to UTC and the time defaulted to midnight
+getDefaultedZonedTime :: Toml.Value -> Toml.Matcher ZonedTime
+getDefaultedZonedTime (Toml.ZonedTime x) = pure x
+getDefaultedZonedTime (Toml.LocalTime x) = pure (ZonedTime x utc)
+getDefaultedZonedTime (Toml.Day       x) = pure (ZonedTime (LocalTime x midnight) utc)
+getDefaultedZonedTime _                  = fail "expected a date with optional time and timezone"
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
 advisoryDoc (Many blocks) = case blocks of
@@ -263,100 +370,136 @@ inlineText = query f
     RawInline _ s -> s
     _ -> ""
 
-parseReference :: TOML.Value -> TableParser Reference
-parseReference v = do
-  tbl <- isTable v
-  refTypeStr <- mandatory tbl "type" isString
-  refType <- case lookup refTypeStr (fmap swap referenceTypes) of
-    Just a -> pure a
-    Nothing ->
-      throwError $
-        InvalidFormat "reference.type" refTypeStr $
-        "should be one of: " <> T.intercalate ", " (snd <$> referenceTypes)
-  url <- mandatory tbl "url" isString
-  pure $ Reference refType url
+instance Toml.FromValue Reference where
+  fromValue = Toml.parseTableFromValue $
+   do refTypeStr <- Toml.reqKey "type"
+      refType <- case lookup refTypeStr (fmap swap referenceTypes) of
+        Just a -> pure a
+        Nothing ->
+          fail $
+            "Invalid format for reference.type: " ++ T.unpack refTypeStr ++
+            " should be one of: " ++ intercalate ", " (T.unpack . snd <$> referenceTypes)
+      url <- Toml.reqKey "url"
+      pure $ Reference refType url
 
-operatingSystem :: T.Text -> TableParser OS
-operatingSystem = \case
-  "darwin" -> pure MacOS
-  "freebsd" -> pure FreeBSD
-  "linux" -> pure Linux
-  "linux-android" -> pure Android
-  "mingw32" -> pure Windows
-  "netbsd" -> pure NetBSD
-  "openbsd" -> pure OpenBSD
-  other -> throwError $ InvalidOS other
+instance Toml.ToValue Reference where
+  toValue = Toml.defaultTableToValue
 
-architecture :: T.Text -> TableParser Architecture
-architecture = \case
-  "aarch64" -> pure AArch64
-  "alpha" -> pure Alpha
-  "arm" -> pure Arm
-  "hppa" -> pure HPPA
-  "hppa1_1" -> pure HPPA1_1
-  "i386" -> pure I386
-  "ia64" -> pure IA64
-  "m68k" -> pure M68K
-  "mips" -> pure MIPS
-  "mipseb" -> pure MIPSEB
-  "mipsel" -> pure MIPSEL
-  "nios2" -> pure NIOS2
-  "powerpc" -> pure PowerPC
-  "powerpc64" -> pure PowerPC64
-  "powerpc64le" -> pure PowerPC64LE
-  "riscv32" -> pure RISCV32
-  "riscv64" -> pure RISCV64
-  "rs6000" -> pure RS6000
-  "s390" -> pure S390
-  "s390x" -> pure S390X
-  "sh4" -> pure SH4
-  "sparc" -> pure SPARC
-  "sparc64" -> pure SPARC64
-  "vax" -> pure VAX
-  "x86_64" -> pure X86_64
-  other -> throwError $ InvalidArchitecture other
+instance Toml.ToTable Reference where
+  toTable x = Map.fromList
+    [ "type" Toml..= fromMaybe "UNKNOWN" (lookup (referencesType x) referenceTypes)
+    , "url" Toml..= referencesUrl x
+    ]
 
-versionRange :: TOML.Value -> TableParser VersionRange
-versionRange =
-  isString >=> \v ->
-    case eitherParsec (T.unpack v) of
-      Left err -> throwError $ UnderlyingParserError (T.pack err)
-      Right affected -> pure affected
+instance Toml.FromValue OS where
+  fromValue v =
+   do s <- Toml.fromValue v
+      case s :: String of
+        "darwin" -> pure MacOS
+        "freebsd" -> pure FreeBSD
+        "linux" -> pure Linux
+        "linux-android" -> pure Android
+        "mingw32" -> pure Windows
+        "netbsd" -> pure NetBSD
+        "openbsd" -> pure OpenBSD
+        other -> fail ("Invalid OS: " ++ show other)
 
-data TableParseError
-  = UnexpectedKeys (NonEmpty T.Text)
-  | MissingKey T.Text
-  | IllegalOutOfBandOverride T.Text
-  | InvalidFormat T.Text T.Text T.Text
-  | InvalidOS T.Text
-  | InvalidArchitecture T.Text
-  | UnderlyingParserError T.Text
-  deriving stock (Eq, Show)
+instance Toml.ToValue OS where
+  toValue x =
+    Toml.toValue $
+    case x of
+      MacOS -> "darwin" :: String
+      FreeBSD -> "freebsd"
+      Linux -> "linux"
+      Android -> "linux-android"
+      Windows -> "mingw32"
+      NetBSD -> "netbsd"
+      OpenBSD -> "openbsd"
 
-newtype TableParser a = TableParser {runTableParser :: Either TableParseError a}
-  deriving stock (Show)
-  deriving
-    ( Functor,
-      Applicative,
-      Monad,
-      MonadError TableParseError
-    )
-    via ExceptT TableParseError Identity
+instance Toml.FromValue Architecture where
+  fromValue v =
+   do s <- Toml.fromValue v
+      case s :: String of
+        "aarch64" -> pure AArch64
+        "alpha" -> pure Alpha
+        "arm" -> pure Arm
+        "hppa" -> pure HPPA
+        "hppa1_1" -> pure HPPA1_1
+        "i386" -> pure I386
+        "ia64" -> pure IA64
+        "m68k" -> pure M68K
+        "mips" -> pure MIPS
+        "mipseb" -> pure MIPSEB
+        "mipsel" -> pure MIPSEL
+        "nios2" -> pure NIOS2
+        "powerpc" -> pure PowerPC
+        "powerpc64" -> pure PowerPC64
+        "powerpc64le" -> pure PowerPC64LE
+        "riscv32" -> pure RISCV32
+        "riscv64" -> pure RISCV64
+        "rs6000" -> pure RS6000
+        "s390" -> pure S390
+        "s390x" -> pure S390X
+        "sh4" -> pure SH4
+        "sparc" -> pure SPARC
+        "sparc64" -> pure SPARC64
+        "vax" -> pure VAX
+        "x86_64" -> pure X86_64
+        other -> fail ("Invalid architecture: " ++ show other)
+
+instance Toml.ToValue Architecture where
+  toValue x =
+    Toml.toValue $
+    case x of
+        AArch64 -> "aarch64" :: String
+        Alpha -> "alpha"
+        Arm -> "arm"
+        HPPA -> "hppa"
+        HPPA1_1 -> "hppa1_1"
+        I386 -> "i386"
+        IA64 -> "ia64"
+        M68K -> "m68k"
+        MIPS -> "mips"
+        MIPSEB -> "mipseb"
+        MIPSEL -> "mipsel"
+        NIOS2 -> "nios2"
+        PowerPC -> "powerpc"
+        PowerPC64 -> "powerpc64"
+        PowerPC64LE -> "powerpc64le"
+        RISCV32 -> "riscv32"
+        RISCV64 -> "riscv64"
+        RS6000 -> "rs6000"
+        S390 -> "s390"
+        S390X -> "s390x"
+        SH4 -> "sh4"
+        SPARC -> "sparc"
+        SPARC64 -> "sparc64"
+        VAX -> "vax"
+        X86_64 -> "x86_64"
+
+instance Toml.FromValue VersionRange where
+  fromValue v =
+   do s <- Toml.fromValue v
+      case eitherParsec s of
+        Left err -> fail ("parse error in version range: " ++ err)
+        Right affected -> pure affected
+
+instance Toml.ToValue VersionRange where
+  toValue = Toml.toValue . show
 
 mergeOob
-  :: AttributeOverridePolicy
+  :: MonadFail m
+  => AttributeOverridePolicy
   -> Maybe a  -- ^ out-of-band value
-  -> TOML.Table
-  -> T.Text  -- ^ key
-  -> (TOML.Value -> TableParser a) -- ^ value parser
-  -> TableParser b  -- ^ when key and out-of-band value absent
-  -> (a -> TableParser b) -- ^ when value present
-  -> TableParser b
-mergeOob policy oob tbl k act absent present = do
-  ib <- optional tbl k act
+  -> String  -- ^ key
+  -> Maybe a -- ^ in-band-value
+  -> m b  -- ^ when key and out-of-band value absent
+  -> (a -> m b) -- ^ when value present
+  -> m b
+mergeOob policy oob k ib absent present = do
   case (oob, ib) of
     (Just l, Just r) -> case policy of
-      NoOverrides -> throwError $ IllegalOutOfBandOverride k
+      NoOverrides -> fail ("illegal out of band override: " ++ k)
       PreferOutOfBand -> present l
       PreferInBand -> present r
     (Just a, Nothing) -> present a
@@ -364,115 +507,24 @@ mergeOob policy oob tbl k act absent present = do
     (Nothing, Nothing) -> absent
 
 mergeOobOptional
-  :: AttributeOverridePolicy
+  :: MonadFail m
+  => AttributeOverridePolicy
   -> Maybe a  -- ^ out-of-band value
-  -> TOML.Table
-  -> T.Text  -- ^ key
-  -> (TOML.Value -> TableParser a) -- ^ value parser
-  -> TableParser (Maybe a)
-mergeOobOptional policy oob tbl k act =
-  mergeOob policy oob tbl k act (pure Nothing) (pure . Just)
+  -> String -- ^ key
+  -> Maybe a -- ^ in-band-value
+  -> m (Maybe a)
+mergeOobOptional policy oob k ib =
+  mergeOob policy oob k ib (pure Nothing) (pure . Just)
 
 mergeOobMandatory
-  :: AttributeOverridePolicy
+  :: MonadFail m
+  => AttributeOverridePolicy
   -> Maybe a  -- ^ out-of-band value
-  -> TOML.Table
-  -> T.Text  -- ^ key
-  -> (TOML.Value -> TableParser a) -- ^ value parser
-  -> TableParser a
-mergeOobMandatory policy oob tbl k act =
-  mergeOob policy oob tbl k act (throwError $ MissingKey k) pure
-
-hasNoKeysBut :: [T.Text] -> TOML.Table -> TableParser ()
-hasNoKeysBut keys tbl =
-  let keySet = Set.fromList keys
-      tblKeySet = Set.fromList (Map.keys tbl)
-      extra = Set.toList $ Set.difference tblKeySet keySet
-   in case extra of
-        [] -> pure ()
-        k : ks -> throwError (UnexpectedKeys $ k :| ks)
-
-optional ::
-  TOML.Table ->
-  T.Text ->
-  (TOML.Value -> TableParser a) ->
-  TableParser (Maybe a)
-optional tbl k act =
-  onKey tbl k (pure Nothing) (fmap Just . act)
-
-mandatory ::
-  TOML.Table ->
-  T.Text ->
-  (TOML.Value -> TableParser a) ->
-  TableParser a
-mandatory tbl k =
-  onKey tbl k (throwError $ MissingKey k)
-
-onKey ::
-  TOML.Table ->
-  T.Text ->
-  TableParser a ->
-  (TOML.Value -> TableParser a) ->
-  TableParser a
-onKey tbl k absent present =
-  maybe absent present $ Map.lookup k tbl
-
-isInt :: TOML.Value -> TableParser Integer
-isInt (TOML.Integer i) = pure i
-isInt other = throwError $ InvalidFormat "Integer" (describeValue other) "42"
-
-isString :: TOML.Value -> TableParser T.Text
-isString (TOML.String txt) = pure txt
-isString other = throwError $ InvalidFormat "String" (describeValue other) "\"any string\""
-
-isHsecId :: TOML.Value -> TableParser HsecId
-isHsecId (TOML.String (parseHsecId . T.unpack -> Just hsid)) = pure hsid
-isHsecId other = throwError $ InvalidFormat "HSEC ID" (describeValue other) "\"HSEC-YYYY-NNNN\""
-
-isTable :: TOML.Value -> TableParser TOML.Table
-isTable (TOML.Table table) = pure table
-isTable other = throwError $ InvalidFormat "Table" (describeValue other) ""
-
-isTableOf ::
-  (TOML.Value -> TableParser a) ->
-  TOML.Value ->
-  TableParser (Map.Map T.Text a)
-isTableOf elt (TOML.Table table) =
-  traverse elt table
-isTableOf _ other =
-  throwError $ InvalidFormat "Table" (describeValue other) "[any-table-name]"
-
--- | Read timestamp.  'LocalDateTime' will be interpreted as
--- UTC.  LocalDate will be interpreted as midnight in UTC.
-isTimestamp :: TOML.Value -> TableParser ZonedTime
-isTimestamp = \case
-  TOML.OffsetDateTime (t, tz) -> pure $ ZonedTime t tz
-  TOML.LocalDateTime t        -> pure $ ZonedTime t utc
-  TOML.LocalDate day          -> pure $ ZonedTime (LocalTime day midnight) utc
-  other -> throwError $ InvalidFormat "Date/time" (describeValue other) "1970-01-01"
-
-isArray :: TOML.Value -> TableParser [TOML.Value]
-isArray (TOML.Array arr) = pure arr
-isArray other = throwError $ InvalidFormat "Array" (describeValue other) "[1, 2, 3]"
-
-isArrayOf ::
-  (TOML.Value -> TableParser a) ->
-  TOML.Value ->
-  TableParser [a]
-isArrayOf elt v =
-  isArray v >>= traverse elt . toList
-
-describeValue :: TOML.Value -> T.Text
-describeValue TOML.String {} = "string"
-describeValue TOML.Table {} = "table"
-describeValue TOML.Integer {} = "integer"
-describeValue TOML.Float {} = "float"
-describeValue TOML.Boolean {} = "boolean"
-describeValue TOML.Array {} = "array"
-describeValue TOML.OffsetDateTime {} = "date/time with offset"
-describeValue TOML.LocalDateTime {} = "local date/time"
-describeValue TOML.LocalDate {} = "local date"
-describeValue TOML.LocalTime {} = "local time"
+  -> String  -- ^ key
+  -> Maybe a -- ^ in-band value
+  -> m a
+mergeOobMandatory policy oob k ib =
+  mergeOob policy oob k ib (fail ("missing mandatory key: " ++ k)) pure
 
 -- | A solution to an awkward problem: how to delete the TOML
 -- block.  We parse into this type to get the source range of
