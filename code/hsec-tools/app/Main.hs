@@ -19,6 +19,7 @@ import qualified Data.Aeson
 import Security.Advisories
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Git
+import Security.Advisories.Generate.HTML
 
 main :: IO ()
 main = join $ execParser cliOpts
@@ -32,6 +33,7 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
         (  command "check" (info commandCheck mempty)
         <> command "osv" (info commandOsv mempty)
         <> command "render" (info commandRender mempty)
+        <> command "generate-index" (info commandGenerateIndex mempty)
         <> command "help" (info commandHelp mempty)
         )
 
@@ -63,6 +65,15 @@ commandRender =
   withAdvisory (\_ -> T.putStrLn . advisoryHtml)
   <$> optional (argument str (metavar "FILE"))
   <**> helper
+
+commandGenerateIndex :: Parser (IO ())
+commandGenerateIndex =
+  ( \src dst -> do
+      renderAdvisoriesIndex src dst
+      T.putStrLn "Index generated"
+  )
+  <$> argument str (metavar "SOURCE-DIR")
+  <*> argument str (metavar "DESTINATION-DIR")
 
 commandHelp :: Parser (IO ())
 commandHelp =
