@@ -1,7 +1,6 @@
 cabal-version:      2.4
 name:               hsec-tools
 version:            0.1.0.0
-tested-with:        GHC==9.2.7, GHC==9.0.2, GHC==8.10.7
 
 -- A short (one-line) description of the package.
 synopsis: Tools for working with the Haskell security advisory database
@@ -43,7 +42,7 @@ library
                       containers >= 0.6 && < 0.7,
                       commonmark ^>= 0.2.2,
                       toml-reader ^>= 0.1 || ^>= 0.2,
-                      aeson >= 2,
+                      aeson >= 2.0.1.0 && < 3,
                       pandoc-types >= 1.22 && < 2,
                       parsec >= 3 && < 4,
                       commonmark-pandoc >= 0.2 && < 0.3
@@ -67,7 +66,7 @@ executable hsec-tools
     -- other-extensions:
     build-depends:    hsec-tools,
                       base >=4.14 && < 4.19,
-                      aeson >= 2,
+                      aeson >= 2.0.1.0 && < 3,
                       bytestring >= 0.10 && < 0.12,
                       text >= 1.2 && < 3,
                       optparse-applicative == 0.17.* || == 0.18.*,
