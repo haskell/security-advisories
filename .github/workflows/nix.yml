@@ -32,12 +32,34 @@ jobs:
         uses: DeterminateSystems/flake-checker-action@v4
         with:
           flake-lock-path: ./code/hsec-tools/flake.lock
-      - run: nix -L build
+      - name: Build executable
+        run: nix -L build
         working-directory: ./code/hsec-tools
-      - run: mkdir -p ~/.local/bin
-      - run: cp code/hsec-tools/result/bin/hsec-tools ~/.local/bin
-      - uses: actions/upload-artifact@v3
+      - name: Bild docker image
+        run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
+        working-directory: ./code/hsec-tools
+      - run: mkdir -p ~/.local/dockerImages
+      - run: cp code/hsec-tools/result ~/.local/dockerImages/hsec-tools
+      - id: code-hash
+        name: Compute code directory hash
+        run: |
+          code_hash=$(git rev-parse HEAD:code)
+          echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/save@v3
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         with:
-          name: hsec-tools-main
-          path: ~/.local/bin
+          key: hsec-tools-${{ steps.code-hash.outputs.code-hash}}
+          path: ~/.local/dockerImages
+      - name: upload executable
+        uses: actions/upload-artifact@v3
+        with:
+          name: hsec-tools-${{ github.sha }}
+          path: ~/.local/dockerImages
+  check-advisories:
+    name: Invoke check-advisories workflow
+    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
+    needs: check_nix
+    uses: ./.github/workflows/check-advisories.yml
+    with:
+      fetch-key: hsec-tools-${{ github.sha }}
+      is-artifact: true

@@ -240,19 +240,3 @@ jobs:
         with:
           key: ${{ runner.os }}-${{ matrix.compiler }}-${{ github.sha }}
           path: ~/.cabal/store
-      - name: install executable
-        if: matrix.compiler == 'ghc-9.6.2'
-        run: |
-          $CABAL v2-install $ARG_COMPILER --install-method=copy exe:hsec-tools
-      - name: upload executable
-        uses: actions/upload-artifact@v3
-        if: matrix.compiler == 'ghc-9.6.2'
-        with:
-          name: hsec-tools-${{ github.sha }}
-          path: ~/.cabal/bin/hsec-tools
-  check-advisories:
-    name: Invoke check-advisories workflow
-    needs: linux
-    uses: ./.github/workflows/check-advisories.yml
-    with:
-      artifact-name: hsec-tools-${{ github.sha }}
