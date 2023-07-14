@@ -2,10 +2,13 @@ name: Check and publish security advisories
 on:
   workflow_call:
     inputs:
-      artifact-name:
+      fetch-key:
         required: true
         type: string
-      changed-advisoriese:
+      is-artifact:
+        required: true
+        type: boolean
+      changed-advisories:
         required: false
         type: string
         default: '[]'
@@ -19,24 +22,33 @@ jobs:
           # We need to retrieve full history to determine the correct
           # `published` and `modified` timestamps
           fetch-depth: 0
-      - run: mkdir -p ~/.local/bin
-      - id: download
+      - run: mkdir -p ~/.local/dockerImages
+      - name: Fetch artifact
+        if: ${{ inputs.is-artifact }}
         uses: actions/download-artifact@v3
         with:
-          name: ${{ inputs.artifact-name }}
-          path: ~/.local/bin
-      - run: chmod +x ~/.local/bin/hsec-tools
+          name: ${{ inputs.fetch-key }}
+          path: ~/.local/dockerImages
+      - name: Fetch cache
+        if: ${{ !inputs.is-artifact }}
+        uses: actions/cache/restore@v3
+        with:
+          key: ${{ inputs.fetch-key }}
+          path: ~/.local/dockerImages
+          fail-on-cache-miss: true
+      - run: docker load -i ~/.local/dockerImages/hsec-tools
+      - name: 'Setup jq'
+        uses: dcarbone/install-jq-action@v1.0.1
       - name: Run advisory syntax checks
-        env:
-          CHANGED_ADVISORIES: ${{ fromJSON(inputs.changed-advisories) }}
         run: |
+          CHANGED_ADVISORIES=( $(echo "${{ inputs.changed-advisories }}" | jq -r '.[]') )
           cd source
           RESULT=0
           # Remove the begining of the README to extract the example.
           (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
           while read FILE ; do
             echo -n "$FILE: "
-            hsec-tools check "$FILE" || RESULT=1
+            docker run --rm -v $PWD:/advisories haskell/hsec-tools:latest /bin/hsec-tools check "advisories/$FILE" || RESULT=1
           done < <([ ${#CHANGED_ADVISORIES[@]} -gt 0 ] && echo $CHANGED_ADVISORIES || find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
       - name: Run advisory uniqueness checks
