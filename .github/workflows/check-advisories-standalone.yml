@@ -1,6 +1,5 @@
 name: Check advisories standalone
 on:
-  - push
   - pull_request
 jobs:
   tools_changed:
@@ -15,6 +14,7 @@ jobs:
           concurrent_skipping: "never"
           skip_after_successful_duplicate: "true"
           paths: '["code/**"]'
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
   advisories_changed:
     continue-on-error: true
     runs-on: ubuntu-22.04
@@ -28,11 +28,42 @@ jobs:
           skip_after_successful_duplicate: "true"
           paths: '["advisories/**"]'
           do_not_skip: '["push", "workflow_dispatch", "schedule"]'
-  check-advisories:
+  code_hash:
+    name: Compute code directory hash
+    runs-on: ubuntu-22.04
+    outputs:
+      code_hash: ${{ steps.code-hash.outputs.code-hash }}
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+      - id: code-hash
+        run: |
+          code_hash=$(git rev-parse HEAD:code)
+          echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
+  changed_files:
+    name: Debug
+    needs: [tools_changed, advisories_changed, code_hash]
+    if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: read
+    outputs:
+      advisories: ${{ steps.changed-files.outputs.all_changed_files }}
+    steps:
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v37
+        with:
+          json: "true"
+
+      - name: List all changed files
+        run: echo "${{ steps.changed-files.outputs.all_changed_files }}"
+  check_advisories:
     name: Invoke check-advisories workflow
-    needs: [tools_changed, advisories_changed]
+    needs: [tools_changed, advisories_changed, code_hash, changed_files]
     if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/check-advisories.yml
     with:
-      artifact-name: hsec-tools-main
-      changed-advisories: ${{ toJSON(needs.advisories_changed.outputs.changed_files) }}
+      fetch-key: hsec-tools-${{ needs.code_hash.outputs.code_hash }}
+      is-artifact: false
+      changed-advisories: ${{ needs.changed_files.outputs.advisories }}
