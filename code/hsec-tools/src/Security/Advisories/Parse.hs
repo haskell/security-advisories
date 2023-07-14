@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Security.Advisories.Parse
   ( parseAdvisory
@@ -50,6 +51,7 @@ import Text.Pandoc.Definition (Block(..), Inline(..), Pandoc(..))
 import Text.Pandoc.Walk (query)
 import Text.Parsec.Pos (sourceLine)
 
+import Security.Advisories.HsecId
 import Security.Advisories.Definition
 import Security.OSV (Reference(..), referenceTypes)
 
@@ -160,7 +162,7 @@ parseAdvisoryTable oob policy table doc summary details html = runTableParser $ 
   hasNoKeysBut ["advisory", "affected", "versions", "references"] table
   advisory <- mandatory table "advisory" isTable
 
-  identifier <- mandatory advisory "id" isString
+  identifier <- mandatory advisory "id" isHsecId
 
   published <- mergeOobMandatory policy (oobPublished oob) advisory "date" isTimestamp
   -- if "modified" not supplied, default to "published"
@@ -420,6 +422,10 @@ isInt other = throwError $ InvalidFormat "Integer" (describeValue other) "42"
 isString :: TOML.Value -> TableParser T.Text
 isString (TOML.String txt) = pure txt
 isString other = throwError $ InvalidFormat "String" (describeValue other) "\"any string\""
+
+isHsecId :: TOML.Value -> TableParser HsecId
+isHsecId (TOML.String (parseHsecId . T.unpack -> Just hsid)) = pure hsid
+isHsecId other = throwError $ InvalidFormat "HSEC ID" (describeValue other) "\"HSEC-YYYY-NNNN\""
 
 isTable :: TOML.Value -> TableParser TOML.Table
 isTable (TOML.Table table) = pure table

@@ -18,10 +18,11 @@ import Distribution.Types.VersionRange (VersionRange)
 
 import Text.Pandoc.Definition (Pandoc)
 
+import Security.Advisories.HsecId
 import Security.OSV (Reference)
 
 data Advisory = Advisory
-  { advisoryId :: Text
+  { advisoryId :: HsecId
   , advisoryModified :: ZonedTime
   , advisoryPublished :: ZonedTime
   , advisoryCWEs :: [CWE]
