@@ -8,7 +8,6 @@ import qualified Data.ByteString.Lazy as L
 import Data.Foldable (for_)
 import Data.Functor ((<&>))
 import Data.List (isPrefixOf)
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Options.Applicative
 import System.Exit (die, exitFailure, exitSuccess)
@@ -45,7 +44,7 @@ commandCheck =
     go mPath advisory = do
       for_ mPath $ \path -> do
         let base = takeBaseName path
-        when ("HSEC-" `isPrefixOf` base && base /= T.unpack (advisoryId advisory)) $
+        when ("HSEC-" `isPrefixOf` base && base /= printHsecId (advisoryId advisory)) $
           die $ "Filename does not match advisory ID: " <> path
       T.putStrLn "no error"
 

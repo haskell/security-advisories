@@ -15,7 +15,7 @@ import qualified Security.OSV as OSV
 convert :: Advisory -> OSV.Model Void Void Void Void
 convert adv =
   ( OSV.newModel'
-    (advisoryId adv)
+    (T.pack . printHsecId $ advisoryId adv)
     (zonedTimeToUTC $ advisoryModified adv)
   )
   { OSV.modelPublished = Just $ zonedTimeToUTC (advisoryPublished adv)
