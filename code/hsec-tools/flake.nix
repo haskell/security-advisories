@@ -21,6 +21,7 @@
             overrides = self: super: with pkgs.haskell.lib; {
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
             };
+
             modifier = drv:
               pkgs.haskell.lib.addBuildTools drv (with pkgs.haskellPackages;
               [
@@ -31,10 +32,52 @@
                 pkgs.nixpkgs-fmt
               ]);
           };
+
+        gitconfig =
+          pkgs.writeTextFile {
+            name = ".gitconfig";
+            text = ''
+              [safe]
+                directory = *
+            '';
+            destination = "/.gitconfig"; # should match 'config.WorkDir'
+          };
       in
       {
+
+        packages.hsec-tools = pkgs.haskell.lib.justStaticExecutables (project false);
+        packages.hsec-tools-image =
+          pkgs.dockerTools.buildImage {
+            name = "haskell/hsec-tools";
+            tag = "latest";
+
+            copyToRoot = pkgs.buildEnv {
+              name = "image-root";
+              paths = [
+                self.packages.${system}.hsec-tools
+                pkgs.git.out
+                gitconfig
+              ];
+              pathsToLink = [ "/bin" "/" ];
+            };
+            config = {
+              Cmd = [ "/bin/hsec-tools" ];
+              Env = [
+                "LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive"
+                "LC_TIME=en_US.UTF-8"
+                "LANG=en_US.UTF-8"
+                "LANGUAGE=en"
+                "LC_ALL=en_US.UTF-8"
+                "GIT_DISCOVERY_ACROSS_FILESYSTEM=1"
+              ];
+              Volumes = {
+                "/advisories" = { };
+              };
+              WorkDir = "/";
+            };
+          };
         # Used by `nix build` & `nix run` (prod exe)
-        defaultPackage = project false;
+        defaultPackage = self.packages.${system}.hsec-tools;
 
         # Used by `nix develop` (dev shell)
         devShell = project true;
