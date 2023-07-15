@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -18,12 +19,13 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Lucid
-import Security.Advisories (AttributeOverridePolicy (PreferInBand), OutOfBandAttributes(..), parseAdvisory)
+import Security.Advisories (AttributeOverridePolicy (NoOverrides), OutOfBandAttributes(..), parseAdvisory, emptyOutOfBandAttributes)
+import Data.Functor((<&>))
+import Security.Advisories.Git
 import qualified Security.Advisories as Advisories
 import System.Directory (createDirectoryIfMissing)
 import System.Directory.Extra (listFilesRecursive)
 import System.FilePath (takeFileName, (</>))
-import Data.Time (getZonedTime)
 
 {-
 TODO
@@ -35,14 +37,21 @@ TODO
 
 renderAdvisoriesIndex :: FilePath -> FilePath -> IO ()
 renderAdvisoriesIndex src dst = do
-  anyOob <- OutOfBandAttributes <$> fmap Just getZonedTime <*> fmap Just getZonedTime
-  let isAdvisory p = let fileName = takeFileName p in isPrefixOf "HSEC-" fileName && isSuffixOf ".md" fileName
+  let isAdvisory p =
+        let fileName = takeFileName p
+        in isPrefixOf "HSEC-" fileName && isSuffixOf ".md" fileName
+      readAdvisory path = do
+        oob <-
+          getAdvisoryGitInfo path <&> \case
+            Left _ -> emptyOutOfBandAttributes
+            Right gitInfo -> emptyOutOfBandAttributes
+              { oobPublished = Just (firstAppearanceCommitDate gitInfo)
+              , oobModified = Just (lastModificationCommitDate gitInfo)
+              }
+        fileContent <- T.readFile path
+        return $ eitherToMaybe $ parseAdvisory NoOverrides oob fileContent
   advisoriesFileName <- filter isAdvisory <$> listFilesRecursive src
-  advisories <-
-    map toAdvisoryR
-      <$> mapMaybeM
-        (fmap (eitherToMaybe . parseAdvisory PreferInBand anyOob) . T.readFile)
-        advisoriesFileName
+  advisories <- map toAdvisoryR <$> mapMaybeM readAdvisory advisoriesFileName
 
   createDirectoryIfMissing False dst
   renderToFile (dst </> "by-dates.html") $ listByDates advisories
