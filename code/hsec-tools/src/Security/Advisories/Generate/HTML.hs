@@ -27,11 +27,6 @@ import System.Directory (createDirectoryIfMissing)
 import System.Directory.Extra (listFilesRecursive)
 import System.FilePath (takeFileName, (</>))
 
-{-
-TODO
-\* Select head menu
--}
-
 -- * Actions
 
 renderAdvisoriesIndex :: FilePath -> FilePath -> IO ()
@@ -65,7 +60,7 @@ renderAdvisoriesIndex src dst = do
   createDirectoryIfMissing False advisoriesDir
   forM_ advisories $ \advisory ->
     renderToFile' (advisoriesDir </> T.unpack (advisoryHtmlFilename advisory.advisoryId)) $
-      inPage $
+      inPage PageAdvisory $
         div_ [class_ "pure-u-1"] $
           toHtmlRaw advisory.advisoryHtml
   return ()
@@ -90,7 +85,7 @@ data AffectedPackageR = AffectedPackageR
 
 listByDates :: [AdvisoryR] -> Html ()
 listByDates advisories =
-  inPage $
+  inPage PageListByDates $
     div_ [class_ "pure-u-1"] $ do
       div_ [class_ "advisories"] $ do
         table_ [class_ "pure-table pure-table-horizontal"] $ do
@@ -113,7 +108,7 @@ listByDates advisories =
 
 listByPackages :: [AdvisoryR] -> Html ()
 listByPackages advisories =
-  inPage $ do
+  inPage PageListByPackages $
     div_ [class_ "pure-u-1"] $ do
       let byPackage :: Map.Map Text [(AdvisoryR, AffectedPackageR)]
           byPackage =
@@ -149,8 +144,14 @@ listByPackages advisories =
 
 -- * Utils
 
-inPage :: Html () -> Html ()
-inPage content =
+data NavigationPage 
+  = PageListByDates
+  | PageListByPackages
+  | PageAdvisory
+  deriving stock (Eq, Show)
+
+inPage :: NavigationPage -> Html () -> Html ()
+inPage page content =
   doctypehtml_ $
     html_ $ do
       head_ $ do
@@ -178,11 +179,15 @@ inPage content =
       body_ $ do
         div_ [class_ "pure-u-1"] $ do
           div_ [class_ "pure-menu pure-menu-horizontal"] $ do
+            let selectedOn p cls =
+                  if page == p
+                    then cls <> " pure-menu-selected"
+                    else cls
             span_ [class_ "pure-menu-heading pure-menu-link"] "Advisories list"
             ul_ [class_ "pure-menu-list"] $ do
-              li_ [class_ "pure-menu-item"] $
+              li_ [class_ $ selectedOn PageListByDates "pure-menu-item"] $
                 a_ [href_ "/by-dates.html", class_ "pure-menu-link"] "by date"
-              li_ [class_ "pure-menu-item"] $
+              li_ [class_ $ selectedOn PageListByPackages "pure-menu-item"] $
                 a_ [href_ "/by-packages.html", class_ "pure-menu-link"] "by package"
         div_ [class_ "content"] content
 
