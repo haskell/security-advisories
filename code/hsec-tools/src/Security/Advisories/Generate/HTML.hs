@@ -59,16 +59,15 @@ renderAdvisoriesIndex src dst = do
   let advisoriesDir = dst </> "advisory"
   createDirectoryIfMissing False advisoriesDir
   forM_ advisories $ \advisory ->
-    renderToFile' (advisoriesDir </> T.unpack (advisoryHtmlFilename advisory.advisoryId)) $
+    renderToFile' (advisoriesDir </> advisoryHtmlFilename advisory.advisoryId) $
       inPage PageAdvisory $
         div_ [class_ "pure-u-1"] $
           toHtmlRaw advisory.advisoryHtml
-  return ()
 
 -- * Rendering types
 
 data AdvisoryR = AdvisoryR
-  { advisoryId :: Text,
+  { advisoryId :: Advisories.HsecId,
     advisorySummary :: Text,
     advisoryAffected :: [AffectedPackageR]
   }
@@ -102,7 +101,7 @@ listByDates advisories =
                     (cycle [[], [class_ "pure-table-odd"]])
             forM_ sortedAdvisories $ \(advisory, trClasses) ->
               tr_ trClasses $ do
-                td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml advisory.advisoryId
+                td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml (Advisories.printHsecId advisory.advisoryId)
                 td_ [class_ "advisory-packages"] $ toHtml $ T.intercalate "," $ (.packageName) <$> advisory.advisoryAffected
                 td_ [class_ "advisory-summary"] $ toHtml advisory.advisorySummary
 
@@ -137,7 +136,7 @@ listByPackages advisories =
                       (cycle [[], [class_ "pure-table-odd"]])
               forM_ sortedAdvisories $ \((advisory, package), trClasses) ->
                 tr_ trClasses $ do
-                  td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml advisory.advisoryId
+                  td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml (Advisories.printHsecId advisory.advisoryId)
                   td_ [class_ "advisory-introduced"] $ toHtml package.introduced
                   td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml package.fixed
                   td_ [class_ "advisory-summary"] $ toHtml advisory.advisorySummary
@@ -191,11 +190,11 @@ inPage page content =
                 a_ [href_ "/by-packages.html", class_ "pure-menu-link"] "by package"
         div_ [class_ "content"] content
 
-advisoryHtmlFilename :: Text -> Text
-advisoryHtmlFilename advisoryId' = advisoryId' <> ".html"
+advisoryHtmlFilename :: Advisories.HsecId -> FilePath
+advisoryHtmlFilename advisoryId' = Advisories.printHsecId advisoryId' <> ".html"
 
-advisoryLink :: Text -> Text
-advisoryLink advisoryId' = "/advisory/" <> advisoryHtmlFilename advisoryId'
+advisoryLink :: Advisories.HsecId -> Text
+advisoryLink advisoryId' = "/advisory/" <> T.pack (advisoryHtmlFilename advisoryId')
 
 toAdvisoryR :: Advisories.Advisory -> AdvisoryR
 toAdvisoryR x =
