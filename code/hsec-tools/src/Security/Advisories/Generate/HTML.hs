@@ -11,6 +11,7 @@ where
 import Control.Monad (forM_)
 import Control.Monad.Extra (mapMaybeM)
 import Data.Either.Extra (eitherToMaybe)
+import Data.Functor ((<&>))
 import Data.List (isPrefixOf, isSuffixOf, sortOn)
 import Data.List.Extra (groupSort)
 import qualified Data.Map.Strict as Map
@@ -19,18 +20,16 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Lucid
-import Security.Advisories (AttributeOverridePolicy (NoOverrides), OutOfBandAttributes(..), parseAdvisory, emptyOutOfBandAttributes)
-import Data.Functor((<&>))
-import Security.Advisories.Git
+import Security.Advisories (AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), emptyOutOfBandAttributes, parseAdvisory)
 import qualified Security.Advisories as Advisories
+import Security.Advisories.Git
 import System.Directory (createDirectoryIfMissing)
 import System.Directory.Extra (listFilesRecursive)
 import System.FilePath (takeFileName, (</>))
 
 {-
 TODO
-* Generate advisories page
-* Select head menu
+\* Select head menu
 -}
 
 -- * Actions
@@ -39,23 +38,36 @@ renderAdvisoriesIndex :: FilePath -> FilePath -> IO ()
 renderAdvisoriesIndex src dst = do
   let isAdvisory p =
         let fileName = takeFileName p
-        in isPrefixOf "HSEC-" fileName && isSuffixOf ".md" fileName
+         in isPrefixOf "HSEC-" fileName && isSuffixOf ".md" fileName
       readAdvisory path = do
         oob <-
           getAdvisoryGitInfo path <&> \case
             Left _ -> emptyOutOfBandAttributes
-            Right gitInfo -> emptyOutOfBandAttributes
-              { oobPublished = Just (firstAppearanceCommitDate gitInfo)
-              , oobModified = Just (lastModificationCommitDate gitInfo)
-              }
+            Right gitInfo ->
+              emptyOutOfBandAttributes
+                { oobPublished = Just (firstAppearanceCommitDate gitInfo),
+                  oobModified = Just (lastModificationCommitDate gitInfo)
+                }
         fileContent <- T.readFile path
         return $ eitherToMaybe $ parseAdvisory NoOverrides oob fileContent
   advisoriesFileName <- filter isAdvisory <$> listFilesRecursive src
-  advisories <- map toAdvisoryR <$> mapMaybeM readAdvisory advisoriesFileName
+  advisories <- mapMaybeM readAdvisory advisoriesFileName
+  let renderToFile' path content = do
+        putStrLn $ "Rendering " <> path
+        renderToFile path content
 
   createDirectoryIfMissing False dst
-  renderToFile (dst </> "by-dates.html") $ listByDates advisories
-  renderToFile (dst </> "by-packages.html") $ listByPackages advisories
+  let indexAdvisories = map toAdvisoryR advisories
+  renderToFile' (dst </> "by-dates.html") $ listByDates indexAdvisories
+  renderToFile' (dst </> "by-packages.html") $ listByPackages indexAdvisories
+
+  let advisoriesDir = dst </> "advisory"
+  createDirectoryIfMissing False advisoriesDir
+  forM_ advisories $ \advisory ->
+    renderToFile' (advisoriesDir </> T.unpack (advisoryHtmlFilename advisory.advisoryId)) $
+      inPage $
+        div_ [class_ "pure-u-1"] $
+          toHtmlRaw advisory.advisoryHtml
   return ()
 
 -- * Rendering types
@@ -95,7 +107,7 @@ listByDates advisories =
                     (cycle [[], [class_ "pure-table-odd"]])
             forM_ sortedAdvisories $ \(advisory, trClasses) ->
               tr_ trClasses $ do
-                td_ [class_ "advisory-id"] $ a_ [href_ "#"] $ toHtml advisory.advisoryId
+                td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml advisory.advisoryId
                 td_ [class_ "advisory-packages"] $ toHtml $ T.intercalate "," $ (.packageName) <$> advisory.advisoryAffected
                 td_ [class_ "advisory-summary"] $ toHtml advisory.advisorySummary
 
@@ -130,7 +142,7 @@ listByPackages advisories =
                       (cycle [[], [class_ "pure-table-odd"]])
               forM_ sortedAdvisories $ \((advisory, package), trClasses) ->
                 tr_ trClasses $ do
-                  td_ [class_ "advisory-id"] $ a_ [href_ "#"] $ toHtml advisory.advisoryId
+                  td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml advisory.advisoryId
                   td_ [class_ "advisory-introduced"] $ toHtml package.introduced
                   td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml package.fixed
                   td_ [class_ "advisory-summary"] $ toHtml advisory.advisorySummary
@@ -158,6 +170,9 @@ inPage content =
               "a:visited {",
               "    text-decoration: none;",
               "    color: darkblue;",
+              "}",
+              "pre {",
+              "    background: lightgrey;",
               "}"
             ]
       body_ $ do
@@ -166,10 +181,16 @@ inPage content =
             span_ [class_ "pure-menu-heading pure-menu-link"] "Advisories list"
             ul_ [class_ "pure-menu-list"] $ do
               li_ [class_ "pure-menu-item"] $
-                a_ [href_ "#", class_ "pure-menu-link"] "by date"
+                a_ [href_ "/by-dates.html", class_ "pure-menu-link"] "by date"
               li_ [class_ "pure-menu-item"] $
-                a_ [href_ "#", class_ "pure-menu-link"] "by package"
+                a_ [href_ "/by-packages.html", class_ "pure-menu-link"] "by package"
         div_ [class_ "content"] content
+
+advisoryHtmlFilename :: Text -> Text
+advisoryHtmlFilename advisoryId' = advisoryId' <> ".html"
+
+advisoryLink :: Text -> Text
+advisoryLink advisoryId' = "/advisory/" <> advisoryHtmlFilename advisoryId'
 
 toAdvisoryR :: Advisories.Advisory -> AdvisoryR
 toAdvisoryR x =
