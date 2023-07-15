@@ -1,6 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Security.Advisories.Generate.HTML
@@ -59,10 +58,10 @@ renderAdvisoriesIndex src dst = do
   let advisoriesDir = dst </> "advisory"
   createDirectoryIfMissing False advisoriesDir
   forM_ advisories $ \advisory ->
-    renderToFile' (advisoriesDir </> advisoryHtmlFilename advisory.advisoryId) $
+    renderToFile' (advisoriesDir </> advisoryHtmlFilename (Advisories.advisoryId advisory)) $
       inPage PageAdvisory $
         div_ [class_ "pure-u-1"] $
-          toHtmlRaw advisory.advisoryHtml
+          toHtmlRaw (Advisories.advisoryHtml advisory)
 
 -- * Rendering types
 
@@ -97,13 +96,13 @@ listByDates advisories =
           tbody_ $ do
             let sortedAdvisories =
                   zip
-                    (sortOn (Down . (.advisoryId)) advisories)
+                    (sortOn (Down . advisoryId) advisories)
                     (cycle [[], [class_ "pure-table-odd"]])
             forM_ sortedAdvisories $ \(advisory, trClasses) ->
               tr_ trClasses $ do
-                td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml (Advisories.printHsecId advisory.advisoryId)
-                td_ [class_ "advisory-packages"] $ toHtml $ T.intercalate "," $ (.packageName) <$> advisory.advisoryAffected
-                td_ [class_ "advisory-summary"] $ toHtml advisory.advisorySummary
+                td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink (advisoryId advisory)] $ toHtml (Advisories.printHsecId (advisoryId advisory))
+                td_ [class_ "advisory-packages"] $ toHtml $ T.intercalate "," $ packageName <$> advisoryAffected advisory
+                td_ [class_ "advisory-summary"] $ toHtml $ advisorySummary advisory
 
 listByPackages :: [AdvisoryR] -> Html ()
 listByPackages advisories =
@@ -113,9 +112,9 @@ listByPackages advisories =
           byPackage =
             Map.fromList $
               groupSort
-                [ (package.packageName, (advisory, package))
+                [ (packageName package, (advisory, package))
                   | advisory <- advisories,
-                    package <- advisory.advisoryAffected
+                    package <- advisoryAffected advisory
                 ]
 
       forM_ (Map.toList byPackage) $ \(currentPackageName, perPackageAdvisory) -> do
@@ -132,14 +131,14 @@ listByPackages advisories =
             tbody_ $ do
               let sortedAdvisories =
                     zip
-                      (sortOn (Down . (.advisoryId) . fst) perPackageAdvisory)
+                      (sortOn (Down . advisoryId . fst) perPackageAdvisory)
                       (cycle [[], [class_ "pure-table-odd"]])
               forM_ sortedAdvisories $ \((advisory, package), trClasses) ->
                 tr_ trClasses $ do
-                  td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink advisory.advisoryId] $ toHtml (Advisories.printHsecId advisory.advisoryId)
-                  td_ [class_ "advisory-introduced"] $ toHtml package.introduced
-                  td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml package.fixed
-                  td_ [class_ "advisory-summary"] $ toHtml advisory.advisorySummary
+                  td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink $ advisoryId advisory] $ toHtml (Advisories.printHsecId $ advisoryId advisory)
+                  td_ [class_ "advisory-introduced"] $ toHtml $ introduced package
+                  td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml $ fixed package
+                  td_ [class_ "advisory-summary"] $ toHtml $ advisorySummary advisory
 
 -- * Utils
 
@@ -199,16 +198,16 @@ advisoryLink advisoryId' = "/advisory/" <> T.pack (advisoryHtmlFilename advisory
 toAdvisoryR :: Advisories.Advisory -> AdvisoryR
 toAdvisoryR x =
   AdvisoryR
-    { advisoryId = x.advisoryId,
-      advisorySummary = x.advisorySummary,
-      advisoryAffected = concatMap toAffectedPackageR x.advisoryAffected
+    { advisoryId = Advisories.advisoryId x,
+      advisorySummary = Advisories.advisorySummary x,
+      advisoryAffected = concatMap toAffectedPackageR $ Advisories.advisoryAffected x
     }
   where
     toAffectedPackageR :: Advisories.Affected -> [AffectedPackageR]
     toAffectedPackageR p =
-      flip map p.affectedVersions $ \versionRange ->
+      flip map (Advisories.affectedVersions p) $ \versionRange ->
         AffectedPackageR
-          { packageName = p.affectedPackage,
-            introduced = versionRange.affectedVersionRangeIntroduced,
-            fixed = versionRange.affectedVersionRangeFixed
+          { packageName = Advisories.affectedPackage p,
+            introduced = Advisories.affectedVersionRangeIntroduced versionRange,
+            fixed = Advisories.affectedVersionRangeFixed versionRange
           }
