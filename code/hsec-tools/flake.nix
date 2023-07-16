@@ -55,15 +55,16 @@
               name = "image-root";
               paths = [
                 self.packages.${system}.hsec-tools
-                pkgs.git.out
+                pkgs.gitMinimal.out
                 gitconfig
               ];
               pathsToLink = [ "/bin" "/" ];
             };
+            runAsRoot = "rm -Rf /share";
             config = {
               Cmd = [ "/bin/hsec-tools" ];
               Env = [
-                "LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive"
+                "LOCALE_ARCHIVE=${pkgs.glibcLocalesUtf8}/lib/locale/locale-archive"
                 "LC_TIME=en_US.UTF-8"
                 "LANG=en_US.UTF-8"
                 "LANGUAGE=en"
