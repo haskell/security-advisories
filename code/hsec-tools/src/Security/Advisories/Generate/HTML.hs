@@ -142,11 +142,17 @@ listByPackages advisories =
 
 -- * Utils
 
-data NavigationPage 
+data NavigationPage
   = PageListByDates
   | PageListByPackages
   | PageAdvisory
   deriving stock (Eq, Show)
+
+baseUrlForPage :: NavigationPage -> Text
+baseUrlForPage = \case
+  PageListByDates -> "."
+  PageListByPackages -> "."
+  PageAdvisory -> ".."
 
 inPage :: NavigationPage -> Html () -> Html ()
 inPage page content =
@@ -154,6 +160,7 @@ inPage page content =
     html_ $ do
       head_ $ do
         meta_ [charset_ "UTF-8"]
+        base_ [href_ $ baseUrlForPage page]
         link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css", integrity_ "sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls", crossorigin_ "anonymous"]
         meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
         title_ "Haskell Security Advisories"
@@ -184,16 +191,16 @@ inPage page content =
             span_ [class_ "pure-menu-heading pure-menu-link"] "Advisories list"
             ul_ [class_ "pure-menu-list"] $ do
               li_ [class_ $ selectedOn PageListByDates "pure-menu-item"] $
-                a_ [href_ "/by-dates.html", class_ "pure-menu-link"] "by date"
+                a_ [href_ "by-dates.html", class_ "pure-menu-link"] "by date"
               li_ [class_ $ selectedOn PageListByPackages "pure-menu-item"] $
-                a_ [href_ "/by-packages.html", class_ "pure-menu-link"] "by package"
+                a_ [href_ "by-packages.html", class_ "pure-menu-link"] "by package"
         div_ [class_ "content"] content
 
 advisoryHtmlFilename :: Advisories.HsecId -> FilePath
 advisoryHtmlFilename advisoryId' = Advisories.printHsecId advisoryId' <> ".html"
 
 advisoryLink :: Advisories.HsecId -> Text
-advisoryLink advisoryId' = "/advisory/" <> T.pack (advisoryHtmlFilename advisoryId')
+advisoryLink advisoryId' = "advisory/" <> T.pack (advisoryHtmlFilename advisoryId')
 
 toAdvisoryR :: Advisories.Advisory -> AdvisoryR
 toAdvisoryR x =
