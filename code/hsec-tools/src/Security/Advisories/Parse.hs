@@ -197,7 +197,7 @@ instance Toml.FromValue FrontMatter where
   fromValue = Toml.parseTableFromValue $
    do advisory   <- Toml.reqKey "advisory"
       affected   <- Toml.reqKey "affected"
-      references <- Toml.reqKey "references"
+      references <- fromMaybe [] <$> Toml.optKey "references"
       pure FrontMatter {
         frontMatterAdvisory = advisory,
         frontMatterAffected = affected,
