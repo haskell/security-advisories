@@ -184,7 +184,9 @@ parseAdvisoryTable oob policy table doc summary details html = runTableParser $ 
       <$> optional advisory "related" (isArrayOf isString)
 
   affected <- mandatory table "affected" (isArrayOf parseAffected)
-  references <- mandatory table "references" (isArrayOf parseReference)
+  references <-
+    fromMaybe []
+      <$> optional table "references" (isArrayOf parseReference)
 
   pure $ Advisory
     { advisoryId = identifier
