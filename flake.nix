@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     toml-parser = {
-      url = github:glguy/toml-parser/732f923df201f40e139ee9984c6315a117b14e10; # v1.2.1.0
+      url = github:glguy/toml-parser/eb7222d9d71aa00d0a37f85ff4cdef89d1ba743d; # v1.3.0.0
       flake = false;
     };
   };
