@@ -35,6 +35,7 @@ import qualified Commonmark.Parser as Commonmark
 import Commonmark.Types (HasAttributes(..), IsBlock(..), IsInline(..), Rangeable(..), SourceRange(..))
 import Commonmark.Pandoc (Cm(unCm))
 import qualified Toml
+import qualified Toml.Pretty as Toml
 import qualified Toml.FromValue as Toml
 import qualified Toml.FromValue.Matcher as Toml
 import qualified Toml.ToValue as Toml
@@ -77,7 +78,7 @@ data ParseAdvisoryError
   = MarkdownError Commonmark.ParseError T.Text
   | MarkdownFormatError T.Text
   | TomlError String T.Text
-  | AdvisoryError [String] T.Text
+  | AdvisoryError [Toml.MatchMessage] T.Text
   deriving stock (Eq, Show, Generic)
 
 -- | The main parsing function.  'OutOfBandAttributes' are handled
@@ -126,10 +127,10 @@ parseAdvisory policy attrs raw = do
           (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Html ()))
 
   case parseAdvisoryTable attrs policy doc summary details html table of
-    Toml.Failure es -> Left (AdvisoryError es (T.pack (unlines es)))
+    Toml.Failure es -> Left (AdvisoryError es (T.pack (unlines (map Toml.prettyMatchMessage es))))
     Toml.Success warnings adv
       | null warnings -> pure adv
-      | otherwise -> Left (AdvisoryError warnings (T.pack (unlines warnings))) -- treat warnings as errors
+      | otherwise -> Left (AdvisoryError warnings (T.pack (unlines (map Toml.prettyMatchMessage warnings)))) -- treat warnings as errors
 
   where
     firstPretty
@@ -154,7 +155,7 @@ parseAdvisoryTable
   -> T.Text -- ^ details
   -> T.Text -- ^ rendered HTML
   -> Toml.Table
-  -> Toml.Result Advisory
+  -> Toml.Result Toml.MatchMessage Advisory
 parseAdvisoryTable oob policy doc summary details html tab =
   Toml.runMatcher $
    do fm <- Toml.fromValue (Toml.Table tab)
