@@ -59,17 +59,17 @@
     "toml-parser": {
       "flake": false,
       "locked": {
-        "lastModified": 1689201327,
-        "narHash": "sha256-fDOaKggq2BhZe1MCHjxqB1Q+pqf2GJXLIEMfGPhFY7k=",
+        "lastModified": 1689547204,
+        "narHash": "sha256-b953MDru/A80AQiejwiBojJlab0Kr9fGODtVUpOIQMc=",
         "owner": "glguy",
         "repo": "toml-parser",
-        "rev": "732f923df201f40e139ee9984c6315a117b14e10",
+        "rev": "eb7222d9d71aa00d0a37f85ff4cdef89d1ba743d",
         "type": "github"
       },
       "original": {
         "owner": "glguy",
         "repo": "toml-parser",
-        "rev": "732f923df201f40e139ee9984c6315a117b14e10",
+        "rev": "eb7222d9d71aa00d0a37f85ff4cdef89d1ba743d",
         "type": "github"
       }
     }
