@@ -19,6 +19,7 @@
             root = ./.;
             withHoogle = false;
             overrides = self: super: with pkgs.haskell.lib; {
+              Cabal-syntax = super.Cabal-syntax_3_8_1_0;
             };
             modifier = drv:
               pkgs.haskell.lib.addBuildTools drv (with pkgs.haskellPackages;
@@ -33,7 +34,7 @@
       in
       {
         # Used by `nix build` & `nix run` (prod exe)
-        defaultPackage = project true;
+        defaultPackage = project false;
 
         # Used by `nix develop` (dev shell)
         devShell = project true;
