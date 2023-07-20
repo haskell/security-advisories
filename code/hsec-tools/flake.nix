@@ -38,5 +38,5 @@
 
         # Used by `nix develop` (dev shell)
         devShell = project true;
-        });
+      });
 }
