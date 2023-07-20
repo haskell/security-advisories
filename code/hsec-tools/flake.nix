@@ -17,9 +17,7 @@
 
           haskellPackages = pkgs.haskell.packages.ghc925.override
             {
-              overrides = hself: hsuper: {
-                Cabal-syntax = hsuper.Cabal-syntax_3_8_1_0;
-              };
+              overrides = hself: hsuper: { };
             };
         in
         rec
@@ -27,6 +25,7 @@
           packages.hsec-tools =
             haskellPackages.callCabal2nix "hsec-tools" ./. {
               # Dependency overrides go here
+              Cabal-syntax = haskellPackages.Cabal-syntax_3_8_1_0;
             };
 
           defaultPackage = packages.hsec-tools;
