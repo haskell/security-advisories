@@ -7,7 +7,7 @@ module Security.Advisories.Generate.HTML
   )
 where
 
-import Control.Monad (forM_)
+import Control.Monad (filterM, forM_)
 import Control.Monad.Extra (mapMaybeM)
 import Data.Either.Extra (eitherToMaybe)
 import Data.Functor ((<&>))
@@ -22,7 +22,7 @@ import Lucid
 import Security.Advisories (AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), emptyOutOfBandAttributes, parseAdvisory)
 import qualified Security.Advisories as Advisories
 import Security.Advisories.Git
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, pathIsSymbolicLink)
 import System.Directory.Extra (listFilesRecursive)
 import System.FilePath (takeFileName, (</>))
 
@@ -30,9 +30,13 @@ import System.FilePath (takeFileName, (</>))
 
 renderAdvisoriesIndex :: FilePath -> FilePath -> IO ()
 renderAdvisoriesIndex src dst = do
-  let isAdvisory p =
-        let fileName = takeFileName p
-         in isPrefixOf "HSEC-" fileName && isSuffixOf ".md" fileName
+  let okToLoad path = do
+        isSym <- pathIsSymbolicLink path
+        let fileName = takeFileName path
+        pure $
+          not isSym  -- ignore symlinks (avoid duplicates entries in index)
+          && "HSEC-" `isPrefixOf` fileName
+          && ".md" `isSuffixOf` fileName
       readAdvisory path = do
         oob <-
           getAdvisoryGitInfo path <&> \case
@@ -44,7 +48,7 @@ renderAdvisoriesIndex src dst = do
                 }
         fileContent <- T.readFile path
         return $ eitherToMaybe $ parseAdvisory NoOverrides oob fileContent
-  advisoriesFileName <- filter isAdvisory <$> listFilesRecursive src
+  advisoriesFileName <- listFilesRecursive src >>= filterM okToLoad
   advisories <- mapMaybeM readAdvisory advisoriesFileName
   let renderToFile' path content = do
         putStrLn $ "Rendering " <> path
