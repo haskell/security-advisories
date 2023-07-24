@@ -67,7 +67,7 @@ jobs:
             ID=$(basename "$FILE" .md)
             YEAR=$(echo "$ID" | cut -d - -f 2)
             mkdir -p $DATA_DIR/$YEAR
-            hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
+            docker run --rm -v $PWD:/advisories haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
           done < <(find advisories -type f -name "*.md")
           BRANCH=generated/osv-export
           REF=refs/remotes/origin/$BRANCH
