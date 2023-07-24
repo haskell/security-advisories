@@ -16,7 +16,7 @@
           pkgs.haskellPackages.developPackage {
             inherit returnShellEnv;
             name = "hsec-tools";
-            root = ./.;
+            root = ./code/hsec-tools;
             withHoogle = false;
             overrides = self: super: with pkgs.haskell.lib; {
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
