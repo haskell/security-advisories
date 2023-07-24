@@ -5,3 +5,11 @@
 ## Building
 
 We aim to support both regular cabal-based and nix-based builds.
+
+## Testing
+
+Run (and auto update) the golden test:
+
+```ShellSession
+cabal test -O0 --test-show-details=direct --test-option=--accept
+```

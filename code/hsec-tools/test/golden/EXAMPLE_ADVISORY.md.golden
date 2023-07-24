@@ -1,0 +1,142 @@
+Right
+    ( Advisory
+        { advisoryId = HSEC-0000-0000
+        , advisoryModified = 1970-01-01 00:00:00 UTC
+        , advisoryPublished = 1970-01-01 00:00:00 UTC
+        , advisoryCWEs = []
+        , advisoryKeywords =
+            [ "example"
+            , "freeform"
+            , "keywords"
+            ]
+        , advisoryAliases = [ "CVE-2022-XXXX" ]
+        , advisoryRelated =
+            [ "CVE-2022-YYYY"
+            , "CVE-2022-ZZZZ"
+            ]
+        , advisoryAffected =
+            [ Affected
+                { affectedPackage = "package-name"
+                , affectedCVSS = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+                , affectedVersions =
+                    [ AffectedVersionRange
+                        { affectedVersionRangeIntroduced = "1.0.8"
+                        , affectedVersionRangeFixed = Just "1.1"
+                        }
+                    , AffectedVersionRange
+                        { affectedVersionRangeIntroduced = "1.1.2"
+                        , affectedVersionRangeFixed = Nothing
+                        }
+                    ]
+                , affectedArchitectures = Nothing
+                , affectedOS = Nothing
+                , affectedDeclarations = []
+                }
+            ]
+        , advisoryReferences =
+            [ Reference
+                { referencesType = ReferenceTypeArticle
+                , referencesUrl = "https://example.com"
+                }
+            ]
+        , advisoryPandoc = Pandoc
+            ( Meta
+                { unMeta = fromList [] }
+            )
+            [ Header 1
+                ( ""
+                , []
+                , []
+                )
+                [ Str "Advisory"
+                , Space
+                , Str "Template"
+                , Space
+                , Str "-"
+                , Space
+                , Str "Title"
+                , Space
+                , Str "Goes"
+                , Space
+                , Str "Here"
+                ]
+            , Para
+                [ Str "This"
+                , Space
+                , Str "is"
+                , Space
+                , Str "an"
+                , Space
+                , Str "example"
+                , Space
+                , Str "template."
+                ]
+            , BulletList
+                [
+                    [ Plain
+                        [ Str "Markdown" ]
+                    ]
+                ,
+                    [ Plain
+                        [ Str "TOML"
+                        , Space
+                        , Str ""front"
+                        , Space
+                        , Str "matter"."
+                        ]
+                    ]
+                ]
+            , BlockQuote
+                [ Para
+                    [ Str "Acme"
+                    , Space
+                    , Str "Broken."
+                    ]
+                ]
+            ]
+        , advisoryHtml = "<pre><code class="language-toml">
+          [advisory]
+          id = &quot;HSEC-0000-0000&quot;
+          cwe = []
+          keywords = [&quot;example&quot;, &quot;freeform&quot;, &quot;keywords&quot;]
+          aliases = [&quot;CVE-2022-XXXX&quot;]
+          related = [&quot;CVE-2022-YYYY&quot;, &quot;CVE-2022-ZZZZ&quot;]
+
+          [[affected]]
+          package = &quot;package-name&quot;
+          cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H&quot;
+
+          [[affected.versions]]
+          introduced = &quot;1.0.8&quot;
+          fixed = &quot;1.1&quot;
+          [[affected.versions]]
+          introduced = &quot;1.1.2&quot;
+
+          [[references]]
+          type = &quot;ARTICLE&quot;
+          url = &quot;https://example.com&quot;
+          </code></pre>
+          <h1>Advisory Template - Title Goes Here</h1>
+          <p>This is an example template.</p>
+          <ul>
+          <li>Markdown
+          </li>
+          <li>TOML &quot;front matter&quot;.
+          </li>
+          </ul>
+          <blockquote>
+          <p>Acme Broken.</p>
+          </blockquote>
+          "
+        , advisorySummary = "Advisory Template - Title Goes Here"
+        , advisoryDetails = "# Advisory Template - Title Goes Here
+
+          This is an example template.
+
+           * Markdown
+           * TOML "front matter".
+
+           > Acme Broken.
+          "
+        }
+    )

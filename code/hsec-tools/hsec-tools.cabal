@@ -21,6 +21,8 @@ maintainer:         david@davidchristiansen.dk
 -- copyright:
 category: Data
 extra-doc-files: CHANGELOG.md
+extra-source-files: test/golden/*.md
+                    test/golden/*.golden
 
 tested-with:
   GHC ==8.10.7 || ==9.0.2 || ==9.2.7 || ==9.4.5 || ==9.6.2
@@ -78,6 +80,27 @@ executable hsec-tools
                       optparse-applicative == 0.17.* || == 0.18.*,
                       text >= 1.2 && < 3
     hs-source-dirs:   app
+    default-language: Haskell2010
+    ghc-options:      -Wall
+                      -Wcompat
+                      -Widentities
+                      -Wincomplete-record-updates
+                      -Wincomplete-uni-patterns
+                      -Wpartial-fields
+                      -Wredundant-constraints
+
+test-suite spec
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Spec.hs
+    build-depends:    base < 5
+                    , directory
+                    , hsec-tools
+                    , pretty-simple < 5
+                    , tasty < 1.5
+                    , tasty-golden < 2.4
+                    , time
+                    , text
     default-language: Haskell2010
     ghc-options:      -Wall
                       -Wcompat
