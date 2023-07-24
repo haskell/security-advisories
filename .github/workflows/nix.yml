@@ -33,16 +33,12 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Check Nix flake inputs
         uses: DeterminateSystems/flake-checker-action@v4
-        with:
-          flake-lock-path: ./code/hsec-tools/flake.lock
       - name: Build executable
         run: nix -L build
-        working-directory: ./code/hsec-tools
       - name: Bild docker image
         run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
-        working-directory: ./code/hsec-tools
       - run: mkdir -p ~/.local/dockerImages
-      - run: cp code/hsec-tools/result ~/.local/dockerImages/hsec-tools
+      - run: cp result ~/.local/dockerImages/hsec-tools
       - id: code-hash
         name: Compute code directory hash
         run: |
