@@ -20,14 +20,24 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      changed_files: ${{ steps.process-changed-files.outputs.out }}
     steps:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@v5.3.0
         with:
           concurrent_skipping: "never"
           skip_after_successful_duplicate: "true"
-          paths: '["advisories/**"]'
+          paths: '["advisories/**", "EXAMPLE_ADVISORY.md"]'
           do_not_skip: '["push", "workflow_dispatch", "schedule"]'
+      - id: process-changed-files
+        name: Extract matched files list
+        env:
+          PATHS_RESULT: ${{ steps.skip_check.outputs.paths_result }}
+        run: |
+          echo -n 'out=' >> "$GITHUB_OUTPUT"
+          # See https://github.com/fkirc/skip-duplicate-actions#paths_result
+          printenv PATHS_RESULT \
+            | jq --compact-output .global.matched_files >> "$GITHUB_OUTPUT"
   code_hash:
     name: Compute code directory hash
     runs-on: ubuntu-22.04
@@ -40,30 +50,12 @@ jobs:
         run: |
           code_hash=$(git rev-parse HEAD:code)
           echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
-  changed_files:
-    name: Debug
-    needs: [tools_changed, advisories_changed, code_hash]
-    if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: read
-    outputs:
-      advisories: ${{ steps.changed-files.outputs.all_changed_files }}
-    steps:
-      - name: Get changed files
-        id: changed-files
-        uses: tj-actions/changed-files@v37
-        with:
-          json: "true"
-
-      - name: List all changed files
-        run: echo "${{ steps.changed-files.outputs.all_changed_files }}"
   check_advisories:
     name: Invoke check-advisories workflow
-    needs: [tools_changed, advisories_changed, code_hash, changed_files]
+    needs: [tools_changed, advisories_changed, code_hash]
     if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/check-advisories.yml
     with:
       fetch-key: hsec-tools-${{ needs.code_hash.outputs.code_hash }}
       is-artifact: false
-      changed-advisories: ${{ needs.changed_files.outputs.advisories }}
+      changed-advisories: ${{ needs.advisories_changed.outputs.changed_files }}
