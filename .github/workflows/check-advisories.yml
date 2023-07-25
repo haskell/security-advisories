@@ -37,11 +37,11 @@ jobs:
           path: ~/.local/dockerImages
           fail-on-cache-miss: true
       - run: docker load -i ~/.local/dockerImages/hsec-tools
-      - name: 'Setup jq'
-        uses: dcarbone/install-jq-action@v1.0.1
       - name: Run advisory syntax checks
+        env:
+          CHANGED_ADVISORIES_JSON: ${{ inputs.changed-advisories }}
         run: |
-          CHANGED_ADVISORIES=( $(echo "${{ inputs.changed-advisories }}" | jq -r '.[]') )
+          CHANGED_ADVISORIES=( $(printenv CHANGED_ADVISORIES_JSON | jq -r '.[]') )
           cd source
           RESULT=0
           # Remove the begining of the README to extract the example.
@@ -49,7 +49,7 @@ jobs:
           while read FILE ; do
             echo -n "$FILE: "
             docker run --rm -v $PWD:/advisories haskell/hsec-tools:latest /bin/hsec-tools check "advisories/$FILE" || RESULT=1
-          done < <([ ${#CHANGED_ADVISORIES[@]} -gt 0 ] && echo $CHANGED_ADVISORIES || find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
+          done < <([ ${#CHANGED_ADVISORIES[@]} -gt 0 ] && printf "%s\n" "${CHANGED_ADVISORIES[@]}" || find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
       - name: Run advisory uniqueness checks
         run: |
