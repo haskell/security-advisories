@@ -56,7 +56,7 @@ jobs:
           ! find source/advisories -type f -name '*.md' -print0 \
             | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
       - name: Publish OSV data
-        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
+        if: ${{ github.event_name == 'push' }}
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
@@ -67,7 +67,7 @@ jobs:
             ID=$(basename "$FILE" .md)
             YEAR=$(echo "$ID" | cut -d - -f 2)
             mkdir -p $DATA_DIR/$YEAR
-            docker run --rm -v ${{ github.workspace }}:/repo haskell/hsec-tools:latest /bin/hsec-tools osv "repo/$FILE" > $DATA_DIR/$YEAR/$ID.json
+            docker run --rm -v ${{ github.workspace }}:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
           done < <(find advisories -type f -name "*.md")
           BRANCH=generated/osv-export
           REF=refs/remotes/origin/$BRANCH
