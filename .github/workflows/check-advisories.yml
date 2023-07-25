@@ -48,7 +48,7 @@ jobs:
           (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
           while read FILE ; do
             echo -n "$FILE: "
-            docker run --rm -v $PWD:/advisories haskell/hsec-tools:latest /bin/hsec-tools check "advisories/$FILE" || RESULT=1
+            docker run --rm -v ${{ github.workspace }}:/repo haskell/hsec-tools:latest /bin/hsec-tools check "repo/$FILE" || RESULT=1
           done < <([ ${#CHANGED_ADVISORIES[@]} -gt 0 ] && printf "%s\n" "${CHANGED_ADVISORIES[@]}" || find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
       - name: Run advisory uniqueness checks
@@ -67,7 +67,7 @@ jobs:
             ID=$(basename "$FILE" .md)
             YEAR=$(echo "$ID" | cut -d - -f 2)
             mkdir -p $DATA_DIR/$YEAR
-            docker run --rm -v $PWD:/advisories haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
+            docker run --rm -v ${{ github.workspace }}:/repo haskell/hsec-tools:latest /bin/hsec-tools osv "repo/$FILE" > $DATA_DIR/$YEAR/$ID.json
           done < <(find advisories -type f -name "*.md")
           BRANCH=generated/osv-export
           REF=refs/remotes/origin/$BRANCH

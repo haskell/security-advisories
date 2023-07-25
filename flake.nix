@@ -72,7 +72,7 @@
                 "GIT_DISCOVERY_ACROSS_FILESYSTEM=1"
               ];
               Volumes = {
-                "/advisories" = { };
+                "/repo" = { };
               };
               WorkDir = "/";
             };
