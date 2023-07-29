@@ -1,2 +1,5 @@
 *~
 dist-newstyle/
+result
+.direnv
+.env
