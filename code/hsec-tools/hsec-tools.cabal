@@ -30,6 +30,7 @@ tested-with:
 library
     exposed-modules:    Security.Advisories
                       , Security.Advisories.Definition
+                      , Security.Advisories.Filesystem
                       , Security.Advisories.Git
                       , Security.Advisories.HsecId
                       , Security.Advisories.Parse
@@ -51,6 +52,7 @@ library
                       toml-reader ^>= 0.1 || ^>= 0.2,
                       aeson >= 2.0.1.0 && < 3,
                       pandoc-types >= 1.22 && < 2,
+                      pathwalk >= 0.3,
                       parsec >= 3 && < 4,
                       commonmark-pandoc >= 0.2 && < 0.3
                       , safe >= 0.3
