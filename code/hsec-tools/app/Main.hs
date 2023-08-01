@@ -30,11 +30,11 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser :: Parser (IO ())
     commandsParser =
       subparser
-        (  command "check" (info commandCheck mempty)
-        <> command "osv" (info commandOsv mempty)
-        <> command "render" (info commandRender mempty)
-        <> command "generate-index" (info commandGenerateIndex mempty)
-        <> command "help" (info commandHelp mempty)
+        (  command "check" (info commandCheck (progDesc "Syntax check a single advisory"))
+        <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
+        <> command "render" (info commandRender (progDesc "Render a single advisory as HTML"))
+        <> command "generate-index" (info commandGenerateIndex (progDesc "Generate an HTML index"))
+        <> command "help" (info commandHelp (progDesc "Show command help"))
         )
 
 commandCheck :: Parser (IO ())
@@ -74,6 +74,7 @@ commandGenerateIndex =
   )
   <$> argument str (metavar "SOURCE-DIR")
   <*> argument str (metavar "DESTINATION-DIR")
+  <**> helper
 
 commandHelp :: Parser (IO ())
 commandHelp =
@@ -82,6 +83,7 @@ commandHelp =
       in void $ handleParseResult $ execParserPure defaultPrefs cliOpts args
   )
   <$> optional (argument str (metavar "COMMAND"))
+  <**> helper
 
 withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
