@@ -9,9 +9,13 @@ module Security.Advisories.HsecId
   , parseHsecId
   , printHsecId
   , nextHsecId
+  , getNextHsecId
   ) where
 
 import Control.Monad (guard, join)
+
+import Data.Time (getCurrentTime, utctDay)
+import Data.Time.Calendar.OrdinalDate (toOrdinalDate)
 
 import Safe (readMay)
 
@@ -75,3 +79,15 @@ nextHsecId
 nextHsecId curYear (HsecId idYear n)
   | curYear > idYear = HsecId curYear 1
   | otherwise = HsecId idYear (n + 1)
+
+-- | Get the current time, and return an HSEC ID greater than the
+-- given HSEC ID.  The year of the returned HSEC ID is the current
+-- year.
+--
+getNextHsecId
+  :: HsecId
+  -> IO HsecId
+getNextHsecId oldId = do
+  t <- getCurrentTime
+  let (year, _dayOfYear) = toOrdinalDate (utctDay t)
+  pure $ nextHsecId year oldId
