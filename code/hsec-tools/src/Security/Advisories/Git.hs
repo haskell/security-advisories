@@ -7,9 +7,12 @@ module Security.Advisories.Git
   ( AdvisoryGitInfo(..)
   , GitError(..)
   , getAdvisoryGitInfo
+  , getRepoRoot
   )
   where
 
+import Data.Char (isSpace)
+import Data.List (dropWhileEnd)
 import Data.Time (ZonedTime)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import System.Exit (ExitCode(ExitSuccess))
@@ -25,6 +28,23 @@ data GitError
   = GitProcessError ExitCode String String -- ^ exit code, stdout and stderr
   | GitTimeParseError String -- ^ unable to parse this input as a datetime
   deriving (Show)
+
+-- | Get top-level directory of the working tree.
+--
+getRepoRoot :: FilePath -> IO (Either GitError FilePath)
+getRepoRoot path = do
+  (status, stdout, stderr) <- readProcessWithExitCode
+    "git"
+    [ "-C", path
+    , "rev-parse"
+    , "--show-toplevel"
+    ]
+    "" -- standard input
+  pure $ case status of
+    ExitSuccess -> Right $ trim stdout
+    _ -> Left $ GitProcessError status stdout stderr
+  where
+    trim = dropWhileEnd isSpace . dropWhile isSpace
 
 getAdvisoryGitInfo :: FilePath -> IO (Either GitError AdvisoryGitInfo)
 getAdvisoryGitInfo path = do
