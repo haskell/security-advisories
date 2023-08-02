@@ -57,6 +57,12 @@ commandReserve =
         , ("auto",        Command.Reserve.IdModeAuto)
         ]
         ( long "id-mode" <> help "How to assign IDs" )
+  <*> flag
+        Command.Reserve.DoNotCommit -- default value
+        Command.Reserve.Commit      -- active value
+        ( long "commit"
+        <> help "Commit the reservation file"
+        )
   <**> helper
 
 commandCheck :: Parser (IO ())

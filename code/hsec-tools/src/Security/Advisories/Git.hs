@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 {-|
 
 Helpers for deriving advisory metadata from a Git repo.
@@ -6,8 +8,11 @@ Helpers for deriving advisory metadata from a Git repo.
 module Security.Advisories.Git
   ( AdvisoryGitInfo(..)
   , GitError(..)
+  , explainGitError
   , getAdvisoryGitInfo
   , getRepoRoot
+  , add
+  , commit
   )
   where
 
@@ -29,6 +34,19 @@ data GitError
   | GitTimeParseError String -- ^ unable to parse this input as a datetime
   deriving (Show)
 
+explainGitError :: GitError -> String
+explainGitError = \case
+  GitProcessError status stdout stderr ->
+    unlines
+      [ "git exited with status " <> show status
+      , ">>> standard output:"
+      , stdout
+      , ">>> standard error:"
+      , stderr
+      ]
+  GitTimeParseError s ->
+    "failed to parse time: " <> s
+
 -- | Get top-level directory of the working tree.
 --
 getRepoRoot :: FilePath -> IO (Either GitError FilePath)
@@ -45,6 +63,36 @@ getRepoRoot path = do
     _ -> Left $ GitProcessError status stdout stderr
   where
     trim = dropWhileEnd isSpace . dropWhile isSpace
+
+-- | Add changes to index
+--
+add
+  :: FilePath   -- ^ path to working tree
+  -> [FilePath] -- ^ files to update in index
+  -> IO (Either GitError ())
+add path pathspecs = do
+  (status, stdout, stderr) <- readProcessWithExitCode
+    "git"
+    ( ["-C", path, "add"] <> pathspecs )
+    "" -- standard input
+  pure $ case status of
+    ExitSuccess -> Right ()
+    _ -> Left $ GitProcessError status stdout stderr
+
+-- | Commit changes to repo.
+--
+commit
+  :: FilePath   -- ^ path to working tree
+  -> String     -- ^ commit message
+  -> IO (Either GitError ())
+commit path msg = do
+  (status, stdout, stderr) <- readProcessWithExitCode
+    "git"
+    ["-C", path, "commit", "-m", msg]
+    "" -- standard input
+  pure $ case status of
+    ExitSuccess -> Right ()
+    _ -> Left $ GitProcessError status stdout stderr
 
 getAdvisoryGitInfo :: FilePath -> IO (Either GitError AdvisoryGitInfo)
 getAdvisoryGitInfo path = do
