@@ -7,7 +7,7 @@ import Control.Monad (join, void, when)
 import qualified Data.ByteString.Lazy as L
 import Data.Foldable (for_)
 import Data.Functor ((<&>))
-import Data.List (isPrefixOf)
+import Data.List (intercalate, isPrefixOf)
 import qualified Data.Text.IO as T
 import Options.Applicative
 import System.Exit (die, exitFailure, exitSuccess)
@@ -21,6 +21,8 @@ import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Git
 import Security.Advisories.Generate.HTML
 
+import qualified Command.Reserve
+
 main :: IO ()
 main = join $ execParser cliOpts
 
@@ -31,11 +33,31 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser =
       subparser
         (  command "check" (info commandCheck (progDesc "Syntax check a single advisory"))
+        <> command "reserve" (info commandReserve (progDesc "Reserve an HSEC ID"))
         <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
         <> command "render" (info commandRender (progDesc "Render a single advisory as HTML"))
         <> command "generate-index" (info commandGenerateIndex (progDesc "Generate an HTML index"))
         <> command "help" (info commandHelp (progDesc "Show command help"))
         )
+
+-- | Create an option with a fixed set of values
+multiOption :: [(String, a)] -> Mod OptionFields a -> Parser a
+multiOption kvs m = option rdr (m <> metavar choices)
+  where
+  choices = "{" <> intercalate "|" (fmap fst kvs) <> "}"
+  errMsg = "must be one of " <> choices
+  rdr = eitherReader (maybe (Left errMsg) Right . flip lookup kvs)
+
+commandReserve :: Parser (IO ())
+commandReserve =
+  Command.Reserve.runReserveCommand
+  <$> optional (argument str (metavar "REPO"))
+  <*> multiOption
+        [ ("placeholder", Command.Reserve.IdModePlaceholder)
+        , ("auto",        Command.Reserve.IdModeAuto)
+        ]
+        ( long "id-mode" <> help "How to assign IDs" )
+  <**> helper
 
 commandCheck :: Parser (IO ())
 commandCheck =
