@@ -2,12 +2,17 @@
 
 module Command.Reserve where
 
-import Control.Monad (unless)
+import Control.Monad (unless, when)
 import Data.Maybe (fromMaybe)
 import System.Exit (die)
 import System.FilePath ((</>), (<.>))
 
-import Security.Advisories.Git (getRepoRoot)
+import Security.Advisories.Git
+  ( add
+  , commit
+  , explainGitError
+  , getRepoRoot
+  )
 import Security.Advisories.HsecId
   ( placeholder
   , printHsecId
@@ -30,8 +35,11 @@ data IdMode
   -- ^ Use the next available ID.  This option is more likely to
   -- result in conflicts when submitting advisories or reservations.
 
-runReserveCommand :: Maybe FilePath -> IdMode -> IO ()
-runReserveCommand mPath idMode = do
+data CommitFlag = Commit | DoNotCommit
+  deriving (Eq)
+
+runReserveCommand :: Maybe FilePath -> IdMode -> CommitFlag -> IO ()
+runReserveCommand mPath idMode commitFlag = do
   let
     path = fromMaybe "." mPath
   repoPath <- getRepoRoot path >>= \case
@@ -52,3 +60,12 @@ runReserveCommand mPath idMode = do
     fileName = printHsecId hsid <.> "md"
     filePath = advisoriesPath </> dirNameReserved </> fileName
   writeFile filePath ""  -- write empty file
+
+  when (commitFlag == Commit) $ do
+    let msg = printHsecId hsid <> ": reserve id"
+    add repoPath [filePath] >>= \case
+      Left e -> die $ "Failed to update Git index: " <> explainGitError e
+      Right _ -> pure ()
+    commit repoPath msg >>= \case
+      Left e -> die $ "Failed to create Git commit: " <> explainGitError e
+      Right _ -> pure ()
