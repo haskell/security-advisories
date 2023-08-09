@@ -47,6 +47,7 @@ jobs:
           # Remove the begining of the README to extract the example.
           (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
           while read FILE ; do
+            [ "$(dirname "$FILE")" != advisories/reserved ] || continue
             echo -n "$FILE: "
             docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check "$FILE" || RESULT=1
           done < <([ ${#CHANGED_ADVISORIES[@]} -gt 0 ] && printf "%s\n" "${CHANGED_ADVISORIES[@]}" || find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
