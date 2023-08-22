@@ -36,6 +36,7 @@
               inherit cvss hsec-core osv;
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
               toml-parser = jailbreakUnbreak (super.callCabal2nix "toml-parser" toml-parser { });
+              cwe = super.callCabal2nix "cwe" ./code/cwe {};
             };
 
             modifier = drv:
