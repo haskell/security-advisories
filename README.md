@@ -34,7 +34,8 @@ id = "HSEC-0000-0000"
 date = 2021-01-31
 
 # Optional: Classification of the advisory with respect to the Common Weakness Enumeration.
-cwe = [820]
+# Get number and names from https://cwe.mitre.org/, or look at the Security.CWE.Data module.
+cwe = ["820: Missing Synchronization"]
 
 # Arbitrary keywords.  We recommend to include keywords relating
 # to the protocols, data formats or services pertaining to the
