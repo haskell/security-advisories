@@ -2,7 +2,7 @@
 {- cabal:
 build-depends: base, xml
 -}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns, PatternSynonyms #-}
 -- | Use this script to update the Security.CWE.Data module:
 -- Download and extract https://cwe.mitre.org/data/xml/cwec_latest.xml.zip
 -- Run the following command: cat cwec_v4.12.xml | ./RenderCsvData.hs | fourmolu --stdin-input-file ./src/Security/CWE/Data.hs > src/Security/CWE/Data.hs
@@ -24,21 +24,13 @@ data Weakness = Weakness
     , wname :: String
     }
 
+pattern XElement name content <- XML.Element (XML.QName name _ _) _ content _
+
 readXML :: String -> [Weakness]
 readXML str = case XML.parseXMLDoc str of
-    Just
-        ( XML.Element
-                (XML.QName "Weakness_Catalog" _ _)
-                _
-                ( _
-                        : ( XML.Elem
-                                ((XML.Element (XML.QName "Weaknesses" _ _) _ xs _))
-                            )
-                        : _
-                    )
-                _
-            ) -> mapMaybe toWeakness xs
-    n -> error (show n)
+    Just (XElement "Weakness_Catalog" (_ : (XML.Elem (XElement "Weaknesses" xs)) : _)) ->
+        mapMaybe toWeakness xs
+    n -> error $ "Couldn't match: " <> take 512 (show n)
   where
     toWeakness (XML.Elem (XML.Element (XML.QName "Weakness" _ _) attrs _ _)) = Just (Weakness{wid, wname})
       where
