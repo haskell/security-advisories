@@ -1,45 +1,68 @@
 #!/usr/bin/env cabal
 {- cabal:
-build-depends: base, csv
+build-depends: base, xml
 -}
--- | Use this script to update the CWE.Raw module:
--- Go to https://cwe.mitre.org/data/downloads.html
--- Download and extract the 'Software Development' and 'CWE Simplified Mapping' CSV.zip files
--- Run the following command: ./RenderCsvData.hs | fourmolu --stdin-input-file ./src/CWE/Raw.hs > src/CWE/Raw.hs
+{-# LANGUAGE NamedFieldPuns #-}
+-- | Use this script to update the Security.CWE.Data module:
+-- Download and extract https://cwe.mitre.org/data/xml/cwec_latest.xml.zip
+-- Run the following command: cat cwec_v4.12.xml | ./RenderCsvData.hs | fourmolu --stdin-input-file ./src/Security/CWE/Data.hs > src/Security/CWE/Data.hs
 module Main where
 
 import Data.List
 import Data.Maybe
-import Text.CSV
 import Text.Read
+
+import qualified Text.XML.Light as XML
 
 main :: IO ()
 main = do
-    dbs <- traverse readCSV ["699.csv", "1003.csv"]
-    putStrLn $ unlines $ renderSource $ concat dbs
+    db <- readXML <$> getContents
+    putStrLn $ unlines $ renderSource $ db
 
-readCSV :: FilePath -> IO CSV
-readCSV fp = do
-    txt <- readFile fp
-    case Text.CSV.parseCSV "stdin" txt of
-        Left e -> error ("bad csv: " <> show e)
-        Right records -> pure (drop 1 records)
+data Weakness = Weakness
+    { wid :: Word
+    , wname :: String
+    }
 
-renderSource :: [Record] -> [String]
+readXML :: String -> [Weakness]
+readXML str = case XML.parseXMLDoc str of
+    Just
+        ( XML.Element
+                (XML.QName "Weakness_Catalog" _ _)
+                _
+                ( _
+                        : ( XML.Elem
+                                ((XML.Element (XML.QName "Weaknesses" _ _) _ xs _))
+                            )
+                        : _
+                    )
+                _
+            ) -> mapMaybe toWeakness xs
+    n -> error (show n)
+  where
+    toWeakness (XML.Elem (XML.Element (XML.QName "Weakness" _ _) attrs _ _)) = Just (Weakness{wid, wname})
+      where
+        wid = fromMaybe (error "invalid num") $ readMaybe =<< XML.lookupAttrBy ((==) "ID" . XML.qName) attrs
+        wname = fromMaybe (error "missing name") $ XML.lookupAttrBy ((==) "Name" . XML.qName) attrs
+    toWeakness e = Nothing
+
+renderSource :: [Weakness] -> [String]
 renderSource xs =
     [ "{-# LANGUAGE OverloadedStrings #-}"
-    , "module CWE.Data where"
+    , "module Security.CWE.Data where"
     , "import Data.Text"
     , "cweData :: [(Word, Text)]"
     , "cweData = ["
     ]
-        <> map renderEntry (zip [0 ..] (sortOn byNum xs))
+        <> map renderEntry (zip [0 ..] (sortOn wid xs))
         <> ["  ]"]
   where
-    byNum (num : _) = fromMaybe (42 :: Int) (readMaybe num)
-    renderEntry (pos, (num : desc : _)) = "  " <> sep <> " (" <> num <> ", \"" <> name <> "\")"
+    renderEntry (pos, weakness) = "  " <> sep <> " (" <> show (wid weakness) <> ", \"" <> name <> "\")"
       where
         sep = if pos == 0 then " " else ","
         -- Remove extra info in parenthesis
-        name = dropWhileEnd (== ' ') $ takeWhile (/= '(') desc
+        name = dropWhileEnd (== ' ') $ takeWhile (/= '(') $ escape $ wname weakness
+        escape ('\\':rest) = '\\' : '\\' : escape rest
+        escape (x:rest) = x : escape rest
+        escape [] = []
     renderEntry _ = ""

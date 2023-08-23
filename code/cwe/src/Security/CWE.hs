@@ -2,13 +2,13 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-module CWE (CWEID, mkCWEID, cweNames, cweIds) where
+module Security.CWE (CWEID, mkCWEID, cweNames, cweIds) where
 
-import CWE.Data
+import Security.CWE.Data
 import Data.Text (Text)
 import Data.Coerce
 import Data.Map.Strict as Map
-import GHC.Bits
+import Data.Bits
 
 -- | A CWE identifier.
 newtype CWEID = CWEID Word

@@ -11,14 +11,12 @@ extra-doc-files: CHANGELOG.md
 tested-with:     GHC ==8.10.7 || ==9.0.2 || ==9.2.7 || ==9.4.5 || ==9.6.2
 
 library
-  exposed-modules:  CWE
-  other-modules:    CWE.Data
+  exposed-modules:  Security.CWE
+  other-modules:    Security.CWE.Data
   build-depends:
     , base        >=4.14 && <5
     , containers  >=0.6  && <0.7
-    , parsec      >=3    && <4
-    , text >= 1.2 && < 3
-
+    , text        >=1.2  && <3
 
   hs-source-dirs:   src
   default-language: Haskell2010
