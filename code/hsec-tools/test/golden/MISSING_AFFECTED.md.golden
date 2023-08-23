@@ -1,4 +1,9 @@
 Left
     ( AdvisoryError
-        ( MissingKey "affected" ) "MissingKey "affected""
+        [ MatchMessage
+            { matchPath = []
+            , matchMessage = "missing key: affected"
+            }
+        ] "missing key: affected in top
+      "
     )
