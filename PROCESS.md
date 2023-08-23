@@ -127,6 +127,19 @@ If you're currently not a referenced stakeholder and think you should
 definitely be included on that email distribution list, please submit an
 email with a rationale to member(s) of the HSRT.
 
+Currently, we use the following private email lists for responsible
+disclosures:
+
+- [security@archlinux.org](mailto:security@archlinux.org)
+- [security@debian.org](mailto:security@debian.org)
+- [security@ubuntu.org](mailto:security@ubuntu.org)
+- [security@lists.fedoraproject.org](mailto:security@lists.fedoraproject.org)
+- [secalert@redhat.com](mailto:secalert@redhat.com)
+
+We also have a few personal emails for interested parties which are not
+published in the repository, for privacy/anti-spam reasons. If you want your
+email to be included here, please send us a PR.
+
 ## Templates
 
 ### Reception reminder (private issues)
