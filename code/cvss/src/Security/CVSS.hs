@@ -3,6 +3,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeApplications #-}
 
 {- | This module provides a CVSS parser and utility functions
  adapted from https://www.first.org/cvss/v3.1/specification-document
@@ -37,6 +38,8 @@ import GHC.Float (powerFloat)
 data CVSSVersion
     = -- | Version 3.1: https://www.first.org/cvss/v3-1/
       CVSS31
+    | -- | Version 2.0: https://www.first.org/cvss/v2/
+      CVSS20
 
 -- | Parsed CVSS string obtained with 'parseCVSS'.
 data CVSS = CVSS
@@ -101,13 +104,13 @@ data Metric = Metric
 -- | Parse a CVSS string.
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
-    | "CVSS:3.1/" `Text.isPrefixOf` txt = parseCVSS31
+    | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents validateCvss31
+    | "CVSS:2.0/" `Text.isPrefixOf` txt = CVSS CVSS20 <$> validateComponents validateCvss20
     | otherwise = Left UnknownVersion
   where
-    parseCVSS31 =
-        CVSS CVSS31 <$> do
-            metrics <- traverse splitComponent components
-            validateCvss31 metrics
+    validateComponents validator = do
+        metrics <- traverse splitComponent components
+        validator metrics
 
     components = drop 1 $ Text.split (== '/') txt
     splitComponent :: Text -> Either CVSSError Metric
@@ -121,11 +124,11 @@ parseCVSS txt
 cvssScore :: CVSS -> (Rating, Float)
 cvssScore cvss = case cvssVersion cvss of
     CVSS31 -> cvss31score (cvssMetrics cvss)
+    CVSS20 -> cvss20score (cvssMetrics cvss)
 
 -- | Explain the CVSS metrics.
 cvssInfo :: CVSS -> [Text]
-cvssInfo cvss = case cvssVersion cvss of
-    CVSS31 -> cvss31info (cvssMetrics cvss)
+cvssInfo cvss = doCVSSInfo (cvssDB (cvssVersion cvss)) (cvssMetrics cvss)
 
 -- | Format the CVSS back to its original string.
 cvssVectorString :: CVSS -> Text
@@ -137,15 +140,23 @@ cvssVectorStringOrdered = cvssShow True
 
 cvssShow :: Bool -> CVSS -> Text
 cvssShow ordered cvss = case cvssVersion cvss of
-    CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : map toComponent (cvss31Order (cvssMetrics cvss)))
+    CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : map toComponent (cvssOrder (cvssMetrics cvss)))
+    CVSS20 -> Text.intercalate "/" ("CVSS:2.0" : map toComponent (cvssOrder (cvssMetrics cvss)))
   where
     toComponent :: Metric -> Text
     toComponent (Metric (MetricShortName name) (MetricValueChar value)) = Text.snoc (name <> ":") value
-    cvss31Order metrics
-        | ordered = mapMaybe getMetric allMetrics
+    cvssOrder metrics
+        | ordered = mapMaybe getMetric (allMetrics (cvssDB (cvssVersion cvss)))
         | otherwise = metrics
       where
         getMetric mi = find (\metric -> miShortName mi == mName metric) metrics
+
+newtype CVSSDB = CVSSDB [MetricGroup]
+
+cvssDB :: CVSSVersion -> CVSSDB
+cvssDB v = case v of
+    CVSS31 -> cvss31
+    CVSS20 -> cvss20
 
 -- | Description of a metric group.
 data MetricGroup = MetricGroup
@@ -171,12 +182,13 @@ data MetricValue = MetricValue
     }
 
 -- | CVSS3.1 metrics pulled from section 2. "Base Metrics" and section section 7.4. "Metric Values"
-cvss31 :: [MetricGroup]
+cvss31 :: CVSSDB
 cvss31 =
-    [ MetricGroup "Base" baseMetrics
-    , MetricGroup "Temporal" temporalMetrics
-    , MetricGroup "Environmental" environmentalMetrics
-    ]
+    CVSSDB
+        [ MetricGroup "Base" baseMetrics
+        , MetricGroup "Temporal" temporalMetrics
+        , MetricGroup "Environmental" environmentalMetrics
+        ]
   where
     baseMetrics =
         [ MetricInfo
@@ -258,10 +270,10 @@ pattern Unchanged = 6.42
 pattern Changed :: Float
 pattern Changed = 7.52
 
-cvss31info :: [Metric] -> [Text]
-cvss31info = map showMetricInfo
+doCVSSInfo :: CVSSDB -> [Metric] -> [Text]
+doCVSSInfo (CVSSDB db) = map showMetricInfo
   where
-    showMetricInfo metric = case mapMaybe (getInfo metric) cvss31 of
+    showMetricInfo metric = case mapMaybe (getInfo metric) db of
         [(mg, mi, mv)] ->
             mconcat [mgName mg, " ", miName mi, ": ", mvName mv, " (", mvDesc mv, ")"]
         _ -> error $ "The impossible have happened for " <> show metric
@@ -270,8 +282,8 @@ cvss31info = map showMetricInfo
         mv <- find (\mv -> mvChar mv == mChar metric) (miValues mi)
         pure (mg, mi, mv)
 
-allMetrics :: [MetricInfo]
-allMetrics = concatMap mgMetrics cvss31
+allMetrics :: CVSSDB -> [MetricInfo]
+allMetrics (CVSSDB db) = concatMap mgMetrics db
 
 -- | Implementation of the Appendix A - "Floating Point Rounding"
 roundup :: Float -> Float
@@ -300,12 +312,15 @@ cvss31score metrics = (toRating score, score)
     scope = gm "Scope"
 
     gm :: Text -> Float
-    gm name = case getMetric name of
-        Nothing -> error $ "The impossible have happened, unknown metric: " <> Text.unpack name
-        Just v -> v
-    getMetric :: Text -> Maybe Float
-    getMetric name = do
-        mi <- find (\mi -> miName mi == name) allMetrics
+    gm = getMetricValue cvss31 metrics scope
+
+getMetricValue :: CVSSDB -> [Metric] -> Float -> Text -> Float
+getMetricValue db metrics scope name = case mValue of
+    Nothing -> error $ "The impossible have happened, unknown metric: " <> Text.unpack name
+    Just v -> v
+  where
+    mValue = do
+        mi <- find (\mi -> miName mi == name) (allMetrics db)
         Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
         mv <- find (\mv -> mvChar mv == valueChar) (miValues mi)
         pure $ case mvNumChangedScope mv of
@@ -314,8 +329,90 @@ cvss31score metrics = (toRating score, score)
 
 validateCvss31 :: [Metric] -> Either CVSSError [Metric]
 validateCvss31 metrics = do
-    traverse_ (\t -> t metrics) [validateUnique, validateKnown, validateRequired]
+    traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss31, validateRequired cvss31]
     pure metrics
+
+cvss20 :: CVSSDB
+cvss20 =
+    CVSSDB
+        [ MetricGroup "Base" baseMetrics
+        ]
+  where
+    baseMetrics =
+        [ MetricInfo
+            "Access Vector"
+            "AV"
+            True
+            [ MetricValue "Local" (C 'L') 0.395 Nothing "A vulnerability exploitable with only local access requires the attacker to have either physical access to the vulnerable system or a local (shell) account."
+            , MetricValue "Adjacent Network" (C 'A') 0.646 Nothing "A vulnerability exploitable with adjacent network access requires the attacker to have access to either the broadcast or collision domain of the vulnerable software."
+            , MetricValue "Network" (C 'N') 1.0 Nothing "A vulnerability exploitable with network access means the vulnerable software is bound to the network stack and the attacker does not require local network access or local access."
+            ]
+        , MetricInfo
+            "Access Complexity"
+            "AC"
+            True
+            [ MetricValue "High" (C 'H') 0.35 Nothing "Specialized access conditions exist."
+            , MetricValue "Medium" (C 'M') 0.61 Nothing "The access conditions are somewhat specialized."
+            , MetricValue "Low" (C 'L') 0.71 Nothing "Specialized access conditions or extenuating circumstances do not exist."
+            ]
+        , MetricInfo
+            "Authentication"
+            "Au"
+            True
+            [ MetricValue "Multiple" (C 'M') 0.45 Nothing "Exploiting the vulnerability requires that the attacker authenticate two or more times, even if the same credentials are used each time."
+            , MetricValue "Single" (C 'S') 0.56 Nothing "The vulnerability requires an attacker to be logged into the system (such as at a command line or via a desktop session or web interface)."
+            , MetricValue "None" (C 'N') 0.704 Nothing "Authentication is not required to exploit the vulnerability."
+            ]
+        , MetricInfo
+            "Confidentiality Impact"
+            "C"
+            True
+            [ mkNone "There is no impact to the confidentiality of the system."
+            , mkPartial "There is considerable informational disclosure."
+            , mkComplete "There is total information disclosure, resulting in all system files being revealed."
+            ]
+        , MetricInfo
+            "Integrity Impact"
+            "I"
+            True
+            [ mkNone "There is no impact to the integrity of the system."
+            , mkPartial "Modification of some system files or information is possible, but the attacker does not have control over what can be modified, or the scope of what the attacker can affect is limited."
+            , mkComplete "There is a total compromise of system integrity."
+            ]
+        , MetricInfo
+            "Availability Impact"
+            "A"
+            True
+            [ mkNone "There is no impact to the availability of the system."
+            , mkPartial "There is reduced performance or interruptions in resource availability."
+            , mkComplete "There is a total shutdown of the affected resource."
+            ]
+        ]
+    mkNone = MetricValue "None" (C 'N') 0 Nothing
+    mkPartial = MetricValue "Partial" (C 'P') 0.275 Nothing
+    mkComplete = MetricValue "Complete" (C 'C') 0.660 Nothing
+
+validateCvss20 :: [Metric] -> Either CVSSError [Metric]
+validateCvss20 metrics = do
+    traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss20, validateRequired cvss20]
+    pure metrics
+
+-- | Implementation of section 3.2.1. "Base Equation"
+cvss20score :: [Metric] -> (Rating, Float)
+cvss20score metrics = (toRating score, score)
+  where
+    score = round_to_1_decimal ((0.6 * impact + 0.4 * exploitability - 1.5) * fImpact)
+    impact = 10.41 * (1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact"))
+    exploitability = 20 * gm "Access Vector" * gm "Access Complexity" * gm "Authentication"
+    fImpact
+        | impact == 0 = 0
+        | otherwise = 1.176
+
+    round_to_1_decimal :: Float -> Float
+    round_to_1_decimal x = fromIntegral @Int (round (x * 10)) / 10
+
+    gm :: Text -> Float
+    gm = getMetricValue cvss20 metrics 0
 
 {- | Check for duplicates metric
 
@@ -337,11 +434,11 @@ validateUnique = traverse_ checkDouble . group . sort . map mName
  >>> validateKnown [("AW", (C 'L'))]
  Left "Unknown metric: \"AW\""
 -}
-validateKnown :: [Metric] -> Either CVSSError ()
-validateKnown = traverse_ checkKnown
+validateKnown :: CVSSDB -> [Metric] -> Either CVSSError ()
+validateKnown db = traverse_ checkKnown
   where
     checkKnown (Metric name char) = do
-        mi <- case find (\mi -> miShortName mi == name) allMetrics of
+        mi <- case find (\mi -> miShortName mi == name) (allMetrics db) of
             Nothing -> Left (UnknownMetric (coerce name))
             Just m -> pure m
         case find (\mv -> mvChar mv == char) (miValues mi) of
@@ -353,8 +450,8 @@ validateKnown = traverse_ checkKnown
  >>> validateRequired []
  Left "Missing \"Attack Vector\""
 -}
-validateRequired :: [Metric] -> Either CVSSError ()
-validateRequired metrics = traverse_ checkRequired allMetrics
+validateRequired :: CVSSDB -> [Metric] -> Either CVSSError ()
+validateRequired db metrics = traverse_ checkRequired (allMetrics db)
   where
     checkRequired mi
         | miRequired mi
