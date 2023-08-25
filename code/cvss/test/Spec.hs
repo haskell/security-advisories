@@ -14,7 +14,10 @@ main = defaultMain $
         forM_ examples $ \(cvssString, score, rating) -> do
             case CVSS.parseCVSS cvssString of
                 Left e -> assertFailure (unpack e)
-                Right cvss -> CVSS.cvssScore cvss @?= (rating, score)
+                Right cvss -> do
+                    CVSS.cvssScore cvss @?= (rating, score)
+                    CVSS.cvssVectorString cvss @?= cvssString
+                    CVSS.cvssVectorStringOrdered cvss @?= cvssString
 
 examples :: [(Text, Float, CVSS.Rating)]
 examples =
