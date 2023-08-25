@@ -7,11 +7,14 @@
 -}
 module Security.CVSS (
     -- * Type
-    CVSS,
+    CVSS (cvssVersion),
+    CVSSVersion (..),
     Rating (..),
     parseCVSS,
 
     -- * Helpers
+    cvssVectorString,
+    cvssVectorStringOrdered,
     cvssScore,
     cvssInfo,
 ) where
@@ -23,25 +26,33 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Float (powerFloat)
 
-data CVSSVersion = CVSS31
+-- | The CVSS version.
+data CVSSVersion
+    = -- | Version 3.1: https://www.first.org/cvss/v3-1/
+      CVSS31
 
--- | Parsed CVSS string obtained with 'parseCVSS'
+-- | Parsed CVSS string obtained with 'parseCVSS'.
 data CVSS = CVSS
     { cvssVersion :: CVSSVersion
+    -- ^ The CVSS Version.
     , cvssMetrics :: [Metric]
     -- ^ The metrics are stored as provided by the user
     }
+
+instance Show CVSS where
+    show = Text.unpack . cvssVectorString
 
 -- | CVSS Rating obtained with 'cvssScore'
 data Rating = None | Low | Medium | High | Critical
     deriving (Enum, Eq, Ord, Show)
 
+-- | Implementation of Section 5. "Qualitative Severity Rating Scale"
 toRating :: Float -> Rating
 toRating score
     | score <= 0 = None
-    | score <= 3.9 = Low
-    | score <= 6.9 = Medium
-    | score <= 8.9 = High
+    | score < 4 = Low
+    | score < 7 = Medium
+    | score < 9 = High
     | otherwise = Critical
 
 type Metric = (Text, Char)
@@ -76,6 +87,25 @@ cvssScore cvss = case cvssVersion cvss of
 cvssInfo :: CVSS -> [Text]
 cvssInfo cvss = case cvssVersion cvss of
     CVSS31 -> cvss31info (cvssMetrics cvss)
+
+-- | Format the CVSS back to its original string.
+cvssVectorString :: CVSS -> Text
+cvssVectorString = cvssShow False
+
+-- | Format the CVSS to the prefered ordered vector string.
+cvssVectorStringOrdered :: CVSS -> Text
+cvssVectorStringOrdered = cvssShow True
+
+cvssShow :: Bool -> CVSS -> Text
+cvssShow ordered cvss = case cvssVersion cvss of
+    CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : map toComponent (cvss31Order (cvssMetrics cvss)))
+  where
+    toComponent (name, value) = Text.snoc (name <> ":") value
+    cvss31Order xs
+        | ordered = mapMaybe getMetric allMetrics
+        | otherwise = xs
+      where
+        getMetric mi = find (\(name, _) -> miShortName mi == name) xs
 
 -- | Description of a metric group.
 data MetricGroup = MetricGroup
@@ -200,6 +230,7 @@ cvss31info = map showMetricInfo
 allMetrics :: [MetricInfo]
 allMetrics = concatMap mgMetrics cvss31
 
+-- | Implementation of the Appendix A - "Floating Point Rounding"
 roundup :: Float -> Float
 roundup input
     | int_input `mod` 10000 == 0 = fromIntegral int_input / 100000
