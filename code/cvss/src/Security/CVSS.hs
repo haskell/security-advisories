@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -10,7 +12,10 @@ module Security.CVSS (
     CVSS (cvssVersion),
     CVSSVersion (..),
     Rating (..),
+
+    -- * Parser
     parseCVSS,
+    CVSSError (..),
 
     -- * Helpers
     cvssVectorString,
@@ -19,9 +24,11 @@ module Security.CVSS (
     cvssInfo,
 ) where
 
+import Data.Coerce (coerce)
 import Data.Foldable (traverse_)
 import Data.List (find, group, sort)
 import Data.Maybe (mapMaybe)
+import Data.String (IsString)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Float (powerFloat)
@@ -55,15 +62,47 @@ toRating score
     | score < 9 = High
     | otherwise = Critical
 
-type Metric = (Text, Char)
+data CVSSError
+    = UnknownVersion
+    | EmptyComponent
+    | MissingValue Text
+    | DuplicateMetric Text
+    | MissingRequiredMetric Text
+    | UnknownMetric Text
+    | UnknownValue Text Char
+
+instance Show CVSSError where
+    show = Text.unpack . showCVSSError
+
+showCVSSError :: CVSSError -> Text
+showCVSSError e = case e of
+    UnknownVersion -> "Unknown CVSS version"
+    EmptyComponent -> "Empty component"
+    MissingValue name -> "Missing value for \"" <> name <> "\""
+    DuplicateMetric name -> "Duplicate metric for \"" <> name <> "\""
+    MissingRequiredMetric name -> "Missing required metric \"" <> name <> "\""
+    UnknownMetric name -> "Unknown metric \"" <> name <> "\""
+    UnknownValue name value -> "Unknown value '" <> Text.pack (show value) <> "' for \"" <> name <> "\""
+
+newtype MetricShortName = MetricShortName Text
+    deriving newtype (Eq, IsString, Ord, Show)
+
+newtype MetricValueChar = MetricValueChar Char
+    deriving newtype (Eq, Ord, Show)
+
+data Metric = Metric
+    { mName :: MetricShortName
+    , mChar :: MetricValueChar
+    }
+    deriving (Show)
 
 -- example CVSS string: CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N
 
 -- | Parse a CVSS string.
-parseCVSS :: Text -> Either Text CVSS
+parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
     | "CVSS:3.1/" `Text.isPrefixOf` txt = parseCVSS31
-    | otherwise = Left "Unknown CVSS version"
+    | otherwise = Left UnknownVersion
   where
     parseCVSS31 =
         CVSS CVSS31 <$> do
@@ -71,12 +110,12 @@ parseCVSS txt
             validateCvss31 metrics
 
     components = drop 1 $ Text.split (== '/') txt
-    splitComponent :: Text -> Either Text Metric
+    splitComponent :: Text -> Either CVSSError Metric
     splitComponent componentTxt = case Text.unsnoc componentTxt of
-        Nothing -> Left "Empty component"
+        Nothing -> Left EmptyComponent
         Just (rest, c) -> case Text.unsnoc rest of
-            Just (name, ':') -> Right (name, c)
-            _ -> Left "Expected :"
+            Just (name, ':') -> Right (Metric (MetricShortName name) (MetricValueChar c))
+            _ -> Left (MissingValue componentTxt)
 
 -- | Compute the base score.
 cvssScore :: CVSS -> (Rating, Float)
@@ -100,12 +139,13 @@ cvssShow :: Bool -> CVSS -> Text
 cvssShow ordered cvss = case cvssVersion cvss of
     CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : map toComponent (cvss31Order (cvssMetrics cvss)))
   where
-    toComponent (name, value) = Text.snoc (name <> ":") value
-    cvss31Order xs
+    toComponent :: Metric -> Text
+    toComponent (Metric (MetricShortName name) (MetricValueChar value)) = Text.snoc (name <> ":") value
+    cvss31Order metrics
         | ordered = mapMaybe getMetric allMetrics
-        | otherwise = xs
+        | otherwise = metrics
       where
-        getMetric mi = find (\(name, _) -> miShortName mi == name) xs
+        getMetric mi = find (\metric -> miShortName mi == mName metric) metrics
 
 -- | Description of a metric group.
 data MetricGroup = MetricGroup
@@ -116,7 +156,7 @@ data MetricGroup = MetricGroup
 -- | Description of a single metric.
 data MetricInfo = MetricInfo
     { miName :: Text
-    , miShortName :: Text
+    , miShortName :: MetricShortName
     , miRequired :: Bool
     , miValues :: [MetricValue]
     }
@@ -124,7 +164,7 @@ data MetricInfo = MetricInfo
 -- | Description of a single metric value
 data MetricValue = MetricValue
     { mvName :: Text
-    , mvChar :: Char
+    , mvChar :: MetricValueChar
     , mvNum :: Float
     , mvNumChangedScope :: Maybe Float
     , mvDesc :: Text
@@ -143,40 +183,40 @@ cvss31 =
             "Attack Vector"
             "AV"
             True
-            [ MetricValue "Network" 'N' 0.85 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet."
-            , MetricValue "Adjacent" 'A' 0.62 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology."
-            , MetricValue "Local" 'L' 0.55 Nothing "The vulnerable component is not bound to the network stack and the attacker’s path is via read/write/execute capabilities."
-            , MetricValue "Physical" 'P' 0.2 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
+            [ MetricValue "Network" (C 'N') 0.85 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet."
+            , MetricValue "Adjacent" (C 'A') 0.62 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology."
+            , MetricValue "Local" (C 'L') 0.55 Nothing "The vulnerable component is not bound to the network stack and the attacker’s path is via read/write/execute capabilities."
+            , MetricValue "Physical" (C 'P') 0.2 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
             ]
         , MetricInfo
             "Attack Complexity"
             "AC"
             True
-            [ MetricValue "Low" 'L' 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist."
-            , MetricValue "High" 'H' 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
+            [ MetricValue "Low" (C 'L') 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist."
+            , MetricValue "High" (C 'H') 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
             ]
         , MetricInfo
             "Privileges Required"
             "PR"
             True
-            [ MetricValue "None" 'N' 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack."
-            , MetricValue "Low" 'L' 0.62 (Just 0.68) "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user."
-            , MetricValue "High" 'H' 0.27 (Just 0.5) "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
+            [ MetricValue "None" (C 'N') 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack."
+            , MetricValue "Low" (C 'L') 0.62 (Just 0.68) "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user."
+            , MetricValue "High" (C 'H') 0.27 (Just 0.5) "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
             ]
         , MetricInfo
             "User Interaction"
             "UI"
             True
-            [ MetricValue "None" 'N' 0.85 Nothing "The vulnerable system can be exploited without interaction from any user."
-            , MetricValue "Required" 'R' 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
+            [ MetricValue "None" (C 'N') 0.85 Nothing "The vulnerable system can be exploited without interaction from any user."
+            , MetricValue "Required" (C 'R') 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
             ]
         , MetricInfo
             "Scope"
             "S"
             True
             [ -- Note: not defined as contants in specification
-              MetricValue "Unchanged" 'U' Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same security authority."
-            , MetricValue "Changed" 'C' Changed Nothing "An exploited vulnerability can affect resources beyond the security scope managed by the security authority of the vulnerable component."
+              MetricValue "Unchanged" (C 'U') Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same security authority."
+            , MetricValue "Changed" (C 'C') Changed Nothing "An exploited vulnerability can affect resources beyond the security scope managed by the security authority of the vulnerable component."
             ]
         , MetricInfo
             "Confidentiality Impact"
@@ -203,12 +243,15 @@ cvss31 =
             , mkNone "There is no impact to availability within the impacted component."
             ]
         ]
-    mkHigh = MetricValue "High" 'H' 0.56 Nothing
-    mkLow = MetricValue "Low" 'L' 0.22 Nothing
-    mkNone = MetricValue "None" 'N' 0 Nothing
+    mkHigh = MetricValue "High" (C 'H') 0.56 Nothing
+    mkLow = MetricValue "Low" (C 'L') 0.22 Nothing
+    mkNone = MetricValue "None" (C 'N') 0 Nothing
     -- TODOs
     temporalMetrics = []
     environmentalMetrics = []
+
+pattern C :: Char -> MetricValueChar
+pattern C c = MetricValueChar c
 
 pattern Unchanged :: Float
 pattern Unchanged = 6.42
@@ -222,9 +265,9 @@ cvss31info = map showMetricInfo
         [(mg, mi, mv)] ->
             mconcat [mgName mg, " ", miName mi, ": ", mvName mv, " (", mvDesc mv, ")"]
         _ -> error $ "The impossible have happened for " <> show metric
-    getInfo (name, value) mg = do
-        mi <- find (\mi -> miShortName mi == name) (mgMetrics mg)
-        mv <- find (\mv -> mvChar mv == value) (miValues mi)
+    getInfo metric mg = do
+        mi <- find (\mi -> miShortName mi == mName metric) (mgMetrics mg)
+        mv <- find (\mv -> mvChar mv == mChar metric) (miValues mi)
         pure (mg, mi, mv)
 
 allMetrics :: [MetricInfo]
@@ -263,46 +306,46 @@ cvss31score metrics = (toRating score, score)
     getMetric :: Text -> Maybe Float
     getMetric name = do
         mi <- find (\mi -> miName mi == name) allMetrics
-        valueChar <- lookup (miShortName mi) metrics
+        Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
         mv <- find (\mv -> mvChar mv == valueChar) (miValues mi)
         pure $ case mvNumChangedScope mv of
             Just value | scope /= Unchanged -> value
             _ -> mvNum mv
 
-validateCvss31 :: [Metric] -> Either Text [Metric]
+validateCvss31 :: [Metric] -> Either CVSSError [Metric]
 validateCvss31 metrics = do
     traverse_ (\t -> t metrics) [validateUnique, validateKnown, validateRequired]
     pure metrics
 
 {- | Check for duplicates metric
 
- >>> validateUnique [("AV", 'N'), ("AC", 'L'), ("AV", 'L')]
+ >>> validateUnique [("AV", (C 'N')), ("AC", (C 'L')), ("AV", (C 'L'))]
  Left "Duplicated \"AV\""
 -}
-validateUnique :: [Metric] -> Either Text ()
-validateUnique = traverse_ checkDouble . group . sort . map fst
+validateUnique :: [Metric] -> Either CVSSError ()
+validateUnique = traverse_ checkDouble . group . sort . map mName
   where
     checkDouble [] = error "The impossible have happened"
     checkDouble [_] = pure ()
-    checkDouble (n : _) = Left $ "Duplicated \"" <> n <> "\""
+    checkDouble (MetricShortName n : _) = Left (DuplicateMetric n)
 
 {- | Check for unknown metric
 
- >>> validateKnown [("AV", 'M')]
- Left "Unknown value: 'M'"
+ >>> validateKnown [("AV", (C 'M'))]
+ Left "Unknown value: (C 'M')"
 
- >>> validateKnown [("AW", 'L')]
+ >>> validateKnown [("AW", (C 'L'))]
  Left "Unknown metric: \"AW\""
 -}
-validateKnown :: [Metric] -> Either Text ()
+validateKnown :: [Metric] -> Either CVSSError ()
 validateKnown = traverse_ checkKnown
   where
-    checkKnown (name, value) = do
+    checkKnown (Metric name char) = do
         mi <- case find (\mi -> miShortName mi == name) allMetrics of
-            Nothing -> Left $ "Unknown metric: \"" <> name <> "\""
+            Nothing -> Left (UnknownMetric (coerce name))
             Just m -> pure m
-        case find (\mv -> mvChar mv == value) (miValues mi) of
-            Nothing -> Left $ "Unknown value: '" <> Text.pack (show value) <> "'"
+        case find (\mv -> mvChar mv == char) (miValues mi) of
+            Nothing -> Left (UnknownValue (coerce name) (coerce char))
             Just _ -> pure ()
 
 {- | Check for required metric
@@ -310,11 +353,11 @@ validateKnown = traverse_ checkKnown
  >>> validateRequired []
  Left "Missing \"Attack Vector\""
 -}
-validateRequired :: [Metric] -> Either Text ()
+validateRequired :: [Metric] -> Either CVSSError ()
 validateRequired metrics = traverse_ checkRequired allMetrics
   where
     checkRequired mi
         | miRequired mi
-        , Nothing <- lookup (miShortName mi) metrics =
-            Left $ "Missing \"" <> miName mi <> "\""
+        , Nothing <- find (\metric -> miShortName mi == mName metric) metrics =
+            Left (MissingRequiredMetric (miName mi))
         | otherwise = pure ()
