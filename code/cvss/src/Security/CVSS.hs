@@ -38,6 +38,8 @@ import GHC.Float (powerFloat)
 data CVSSVersion
     = -- | Version 3.1: https://www.first.org/cvss/v3-1/
       CVSS31
+    | -- | Version 3.0: https://www.first.org/cvss/v3.0/
+      CVSS30
     | -- | Version 2.0: https://www.first.org/cvss/v2/
       CVSS20
 
@@ -105,6 +107,7 @@ data Metric = Metric
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
     | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents validateCvss31
+    | "CVSS:3.0/" `Text.isPrefixOf` txt = CVSS CVSS30 <$> validateComponents validateCvss30
     | "CVSS:2.0/" `Text.isPrefixOf` txt = CVSS CVSS20 <$> validateComponents validateCvss20
     | otherwise = Left UnknownVersion
   where
@@ -124,6 +127,7 @@ parseCVSS txt
 cvssScore :: CVSS -> (Rating, Float)
 cvssScore cvss = case cvssVersion cvss of
     CVSS31 -> cvss31score (cvssMetrics cvss)
+    CVSS30 -> cvss30score (cvssMetrics cvss)
     CVSS20 -> cvss20score (cvssMetrics cvss)
 
 -- | Explain the CVSS metrics.
@@ -140,9 +144,11 @@ cvssVectorStringOrdered = cvssShow True
 
 cvssShow :: Bool -> CVSS -> Text
 cvssShow ordered cvss = case cvssVersion cvss of
-    CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : map toComponent (cvssOrder (cvssMetrics cvss)))
-    CVSS20 -> Text.intercalate "/" ("CVSS:2.0" : map toComponent (cvssOrder (cvssMetrics cvss)))
+    CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : components)
+    CVSS30 -> Text.intercalate "/" ("CVSS:3.0" : components)
+    CVSS20 -> Text.intercalate "/" ("CVSS:2.0" : components)
   where
+    components = map toComponent (cvssOrder (cvssMetrics cvss))
     toComponent :: Metric -> Text
     toComponent (Metric (MetricShortName name) (MetricValueChar value)) = Text.snoc (name <> ":") value
     cvssOrder metrics
@@ -156,6 +162,7 @@ newtype CVSSDB = CVSSDB [MetricGroup]
 cvssDB :: CVSSVersion -> CVSSDB
 cvssDB v = case v of
     CVSS31 -> cvss31
+    CVSS30 -> cvss30
     CVSS20 -> cvss20
 
 -- | Description of a metric group.
@@ -330,6 +337,102 @@ getMetricValue db metrics scope name = case mValue of
 validateCvss31 :: [Metric] -> Either CVSSError [Metric]
 validateCvss31 metrics = do
     traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss31, validateRequired cvss31]
+    pure metrics
+
+cvss30 :: CVSSDB
+cvss30 =
+    CVSSDB
+        [ MetricGroup "Base" baseMetrics
+        ]
+  where
+    baseMetrics =
+        [ MetricInfo
+            "Attack Vector"
+            "AV"
+            True
+            [ MetricValue "Network" (C 'N') 0.85 Nothing "A vulnerability exploitable with network access means the vulnerable component is bound to the network stack and the attacker's path is through OSI layer 3 (the network layer)."
+            , MetricValue "Adjacent" (C 'A') 0.62 Nothing "A vulnerability exploitable with adjacent network access means the vulnerable component is bound to the network stack"
+            , MetricValue "Local" (C 'L') 0.55 Nothing "A vulnerability exploitable with Local access means that the vulnerable component is not bound to the network stack, and the attacker's path is via read/write/execute capabilities."
+            , MetricValue "Physical" (C 'P') 0.2 Nothing "A vulnerability exploitable with Physical access requires the attacker to physically touch or manipulate the vulnerable component."
+            ]
+        , MetricInfo
+            "Attack Complexity"
+            "AC"
+            True
+            [ MetricValue "Low" (C 'L') 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist."
+            , MetricValue "High" (C 'H') 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
+            ]
+        , MetricInfo
+            "Privileges Required"
+            "PR"
+            True
+            [ MetricValue "None" (C 'N') 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files to carry out an attack."
+            , MetricValue "Low" (C 'L') 0.62 (Just 0.68) "The attacker is authorized with (i.e. requires) privileges that provide basic user capabilities that could normally affect only settings and files owned by a user."
+            , MetricValue "High" (C 'H') 0.27 (Just 0.5) "The attacker is authorized with (i.e. requires) privileges that provide significant (e.g. administrative) control over the vulnerable component that could affect component-wide settings and files."
+            ]
+        , MetricInfo
+            "User Interaction"
+            "UI"
+            True
+            [ MetricValue "None" (C 'N') 0.85 Nothing "The vulnerable system can be exploited without interaction from any user."
+            , MetricValue "Required" (C 'R') 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
+            ]
+        , MetricInfo
+            "Scope"
+            "S"
+            True
+            [ MetricValue "Unchanged" (C 'U') Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same authority."
+            , MetricValue "Changed" (C 'C') Changed Nothing "An exploited vulnerability can affect resources beyond the authorization privileges intended by the vulnerable component."
+            ]
+        , MetricInfo
+            "Confidentiality Impact"
+            "C"
+            True
+            [ mkHigh "There is a total loss of confidentiality, resulting in all resources within the impacted component being divulged to the attacker."
+            , mkLow "There is some loss of confidentiality."
+            , mkNone "There is no loss of confidentiality within the impacted component."
+            ]
+        , MetricInfo
+            "Integrity Impact"
+            "I"
+            True
+            [ mkHigh "There is a total loss of integrity, or a complete loss of protection."
+            , mkLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited."
+            , mkNone "There is no loss of integrity within the impacted component."
+            ]
+        , MetricInfo
+            "Availability Impact"
+            "A"
+            True
+            [ mkHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the impacted component"
+            , mkLow "Performance is reduced or there are interruptions in resource availability."
+            , mkNone "There is no impact to availability within the impacted component."
+            ]
+        ]
+    mkHigh = MetricValue "High" (C 'H') 0.56 Nothing
+    mkLow = MetricValue "Low" (C 'L') 0.22 Nothing
+    mkNone = MetricValue "None" (C 'N') 0 Nothing
+
+-- | Implementation of Section 8.1 "Base"
+cvss30score :: [Metric] -> (Rating, Float)
+cvss30score metrics = (toRating score, score)
+  where
+    score
+        | impact <= 0 = 0
+        | scope == Unchanged = roundup (min (impact + exploitability) 10)
+        | otherwise = roundup (min (1.08 * (impact + exploitability)) 10)
+    impact
+        | scope == Unchanged = scope * iscBase
+        | otherwise = scope * (iscBase - 0.029) - 3.25 * (powerFloat (iscBase - 0.02) 15)
+    iscBase = 1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact")
+    scope = gm "Scope"
+
+    exploitability = 8.22 * gm "Attack Vector" * gm "Attack Complexity" * gm "Privileges Required" * gm "User Interaction"
+    gm = getMetricValue cvss30 metrics scope
+
+validateCvss30 :: [Metric] -> Either CVSSError [Metric]
+validateCvss30 metrics = do
+    traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss30, validateRequired cvss30]
     pure metrics
 
 cvss20 :: CVSSDB
