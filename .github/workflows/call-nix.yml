@@ -1,0 +1,38 @@
+name: nix build
+on:
+  workflow_call:
+jobs:
+  check_nix:
+    name: Check nix build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: system-features = nixos-test benchmark big-parallel kvm
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Check Nix flake inputs
+        uses: DeterminateSystems/flake-checker-action@v4
+      - name: Build executable
+        run: nix -L build
+      - name: Build docker image
+        run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
+      - run: mkdir -p ~/.local/dockerImages
+      - run: cp result ~/.local/dockerImages/hsec-tools
+      - id: code-hash
+        name: Compute code directory hash
+        run: |
+          code_hash=$(git rev-parse HEAD:code)
+          echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/save@v3
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+        with:
+          key: hsec-tools-${{ steps.code-hash.outputs.code-hash}}
+          path: ~/.local/dockerImages
+      - name: upload executable
+        uses: actions/upload-artifact@v3
+        with:
+          name: hsec-tools-${{ github.sha }}
+          path: ~/.local/dockerImages

@@ -1,84 +1,61 @@
-name: Check and publish security advisories
+name: Check advisories
 on:
-  workflow_call:
-    inputs:
-      fetch-key:
-        required: true
-        type: string
-      is-artifact:
-        required: true
-        type: boolean
-      changed-advisories:
-        required: false
-        type: string
-        default: '[]'
+  - pull_request
 jobs:
-  check-advisories:
-    runs-on: ubuntu-20.04
+  tools_changed:
+    continue-on-error: true
+    runs-on: ubuntu-22.04
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
-      - uses: actions/checkout@v3
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5.3.0
         with:
-          path: source
-          # We need to retrieve full history to determine the correct
-          # `published` and `modified` timestamps
-          fetch-depth: 0
-      - run: mkdir -p ~/.local/dockerImages
-      - name: Fetch artifact
-        if: ${{ inputs.is-artifact }}
-        uses: actions/download-artifact@v3
+          concurrent_skipping: "never"
+          skip_after_successful_duplicate: "true"
+          paths: '["code/**"]'
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
+  advisories_changed:
+    continue-on-error: true
+    runs-on: ubuntu-22.04
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+      changed_files: ${{ steps.process-changed-files.outputs.out }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5.3.0
         with:
-          name: ${{ inputs.fetch-key }}
-          path: ~/.local/dockerImages
-      - name: Fetch cache
-        if: ${{ !inputs.is-artifact }}
-        uses: actions/cache/restore@v3
-        with:
-          key: ${{ inputs.fetch-key }}
-          path: ~/.local/dockerImages
-          fail-on-cache-miss: true
-      - run: docker load -i ~/.local/dockerImages/hsec-tools
-      - name: Run advisory syntax checks
+          concurrent_skipping: "never"
+          skip_after_successful_duplicate: "true"
+          paths: '["advisories/**", "EXAMPLE_ADVISORY.md"]'
+          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
+      - id: process-changed-files
+        name: Extract matched files list
         env:
-          CHANGED_ADVISORIES_JSON: ${{ inputs.changed-advisories }}
+          PATHS_RESULT: ${{ steps.skip_check.outputs.paths_result }}
         run: |
-          CHANGED_ADVISORIES=( $(printenv CHANGED_ADVISORIES_JSON | jq -r '.[]') )
-          cd source
-          RESULT=0
-          # Remove the begining of the README to extract the example.
-          (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
-          while read FILE ; do
-            [ "$(dirname "$FILE")" != advisories/reserved ] || continue
-            echo -n "$FILE: "
-            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check "$FILE" || RESULT=1
-          done < <([ ${#CHANGED_ADVISORIES[@]} -gt 0 ] && printf "%s\n" "${CHANGED_ADVISORIES[@]}" || find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
-          exit $RESULT
-      - name: Run advisory uniqueness checks
+          echo -n 'out=' >> "$GITHUB_OUTPUT"
+          # See https://github.com/fkirc/skip-duplicate-actions#paths_result
+          printenv PATHS_RESULT \
+            | jq --compact-output .global.matched_files >> "$GITHUB_OUTPUT"
+  code_hash:
+    name: Compute code directory hash
+    runs-on: ubuntu-22.04
+    outputs:
+      code_hash: ${{ steps.code-hash.outputs.code-hash }}
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v3
+      - id: code-hash
         run: |
-          ! find source/advisories -type f -name '*.md' -print0 \
-            | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
-      - name: Publish OSV data
-        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
-        env:
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          DATA_DIR=$PWD/osv
-          mkdir "$DATA_DIR"
-          cd source
-          while read FILE ; do
-            ID=$(basename "$FILE" .md)
-            YEAR=$(echo "$ID" | cut -d - -f 2)
-            mkdir -p $DATA_DIR/$YEAR
-            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
-          done < <(find advisories -type f -name "*.md")
-          BRANCH=generated/osv-export
-          REF=refs/remotes/origin/$BRANCH
-          export GIT_WORK_TREE=$DATA_DIR
-          git read-tree "$REF"
-          git add --all --intent-to-add
-          git diff --quiet && exit
-          git add --all
-          TREE=$(git write-tree)
-          git config user.email security-advisories@haskell.org
-          git config user.name "Haskell Security Response Team"
-          COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
-          git push origin $COMMIT:$BRANCH
+          code_hash=$(git rev-parse HEAD:code)
+          echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
+  check_advisories:
+    name: Invoke check-advisories workflow
+    needs: [tools_changed, advisories_changed, code_hash]
+    if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
+    uses: ./.github/workflows/call-check-advisories.yml
+    with:
+      fetch-key: hsec-tools-${{ needs.code_hash.outputs.code_hash }}
+      is-artifact: false
+      changed-advisories: ${{ needs.advisories_changed.outputs.changed_files }}
