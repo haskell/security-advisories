@@ -8,6 +8,7 @@ module Security.Advisories.Convert.OSV
 import qualified Data.Text as T
 import Data.Time (zonedTimeToUTC)
 import Data.Void
+import Distribution.Pretty (prettyShow)
 
 import Security.Advisories
 import qualified Security.OSV as OSV
@@ -54,8 +55,10 @@ mkSeverity s = case T.take 6 s of
   _        -> []  -- unexpected; don't include severity
 
 mkRange :: [AffectedVersionRange] -> OSV.Range Void
-mkRange ranges = OSV.RangeEcosystem (foldMap mkEvs ranges) Nothing
+mkRange ranges =
+    OSV.RangeEcosystem (foldMap mkEvs ranges) Nothing
   where
-  mkEvs range =
-    OSV.EventIntroduced (affectedVersionRangeIntroduced range)
-    : maybe [] (pure . OSV.EventFixed) (affectedVersionRangeFixed range)
+    mkEvs :: AffectedVersionRange -> [OSV.Event T.Text]
+    mkEvs range =
+      OSV.EventIntroduced (T.pack $ prettyShow $ affectedVersionRangeIntroduced range)
+      : maybe [] (pure . OSV.EventFixed . T.pack . prettyShow) (affectedVersionRangeFixed range)

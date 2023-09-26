@@ -20,11 +20,24 @@ Right
                 , affectedCVSS = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
                 , affectedVersions =
                     [ AffectedVersionRange
-                        { affectedVersionRangeIntroduced = "1.0.8"
-                        , affectedVersionRangeFixed = Just "1.1"
+                        { affectedVersionRangeIntroduced = mkVersion
+                            [ 1
+                            , 0
+                            , 8
+                            ]
+                        , affectedVersionRangeFixed = Just
+                            ( mkVersion
+                                [ 1
+                                , 1
+                                ]
+                            )
                         }
                     , AffectedVersionRange
-                        { affectedVersionRangeIntroduced = "1.1.2"
+                        { affectedVersionRangeIntroduced = mkVersion
+                            [ 1
+                            , 1
+                            , 2
+                            ]
                         , affectedVersionRangeFixed = Nothing
                         }
                     ]

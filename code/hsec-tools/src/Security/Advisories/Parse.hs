@@ -28,6 +28,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
 import Data.Time (ZonedTime(..), LocalTime (LocalTime), midnight, utc)
 import Distribution.Parsec (eitherParsec)
+import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
 
 import Commonmark.Html (Html, renderHtml)
@@ -477,6 +478,16 @@ instance Toml.ToValue Architecture where
         SPARC64 -> "sparc64"
         VAX -> "vax"
         X86_64 -> "x86_64"
+
+instance Toml.FromValue Version where
+  fromValue v =
+   do s <- Toml.fromValue v
+      case eitherParsec s of
+        Left err -> fail ("parse error in version range: " ++ err)
+        Right affected -> pure affected
+
+instance Toml.ToValue Version where
+  toValue = Toml.toValue . show
 
 instance Toml.FromValue VersionRange where
   fromValue v =

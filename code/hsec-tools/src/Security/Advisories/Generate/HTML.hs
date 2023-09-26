@@ -7,49 +7,40 @@ module Security.Advisories.Generate.HTML
   )
 where
 
-import Control.Monad (filterM, forM_)
-import Control.Monad.Extra (mapMaybeM)
-import Data.Either.Extra (eitherToMaybe)
-import Data.Functor ((<&>))
-import Data.List (isPrefixOf, isSuffixOf, sortOn)
+import Control.Monad (forM_)
+import Data.List (sortOn)
 import Data.List.Extra (groupSort)
 import qualified Data.Map.Strict as Map
 import Data.Ord (Down (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import System.Exit (exitFailure)
+import System.IO (stderr, hPrint)
+
+import Distribution.Pretty (prettyShow)
 import Lucid
-import Security.Advisories (AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), emptyOutOfBandAttributes, parseAdvisory)
+import Validation (Validation(..))
+
 import qualified Security.Advisories as Advisories
-import Security.Advisories.Git
-import System.Directory (createDirectoryIfMissing, pathIsSymbolicLink)
-import System.Directory.Extra (listFilesRecursive)
-import System.FilePath (takeFileName, (</>))
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>))
+import Security.Advisories.Filesystem (listAdvisories)
 
 -- * Actions
 
 renderAdvisoriesIndex :: FilePath -> FilePath -> IO ()
 renderAdvisoriesIndex src dst = do
-  let okToLoad path = do
-        isSym <- pathIsSymbolicLink path
-        let fileName = takeFileName path
-        pure $
-          not isSym  -- ignore symlinks (avoid duplicates entries in index)
-          && "HSEC-" `isPrefixOf` fileName
-          && ".md" `isSuffixOf` fileName
-      readAdvisory path = do
-        oob <-
-          getAdvisoryGitInfo path <&> \case
-            Left _ -> emptyOutOfBandAttributes
-            Right gitInfo ->
-              emptyOutOfBandAttributes
-                { oobPublished = Just (firstAppearanceCommitDate gitInfo),
-                  oobModified = Just (lastModificationCommitDate gitInfo)
-                }
-        fileContent <- T.readFile path
-        return $ eitherToMaybe $ parseAdvisory NoOverrides oob fileContent
-  advisoriesFileName <- listFilesRecursive src >>= filterM okToLoad
-  advisories <- mapMaybeM readAdvisory advisoriesFileName
+  advisories <-
+    listAdvisories src >>= \case
+      Failure errors -> do
+        T.hPutStrLn stderr "Cannot parse some advisories"
+        forM_ errors $
+          hPrint stderr
+        exitFailure
+      Success advisories ->
+        return advisories
+
   let renderToFile' path content = do
         putStrLn $ "Rendering " <> path
         renderToFile path content
@@ -219,6 +210,6 @@ toAdvisoryR x =
       flip map (Advisories.affectedVersions p) $ \versionRange ->
         AffectedPackageR
           { packageName = Advisories.affectedPackage p,
-            introduced = Advisories.affectedVersionRangeIntroduced versionRange,
-            fixed = Advisories.affectedVersionRangeFixed versionRange
+            introduced = T.pack $ prettyShow $ Advisories.affectedVersionRangeIntroduced versionRange,
+            fixed = T.pack . prettyShow <$> Advisories.affectedVersionRangeFixed versionRange
           }
