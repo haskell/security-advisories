@@ -3,7 +3,8 @@ name:               hsec-tools
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
-synopsis: Tools for working with the Haskell security advisory database
+synopsis:
+  Tools for working with the Haskell security advisory database
 
 -- A longer description of the package.
 description:
@@ -19,97 +20,98 @@ maintainer:         david@davidchristiansen.dk
 
 -- A copyright notice.
 -- copyright:
-category: Data
-extra-doc-files: CHANGELOG.md
-extra-source-files: test/golden/*.md
-                    test/golden/*.golden
+category:           Data
+extra-doc-files:    CHANGELOG.md
+extra-source-files:
+  test/golden/*.golden
+  test/golden/*.md
 
 tested-with:
   GHC ==8.10.7 || ==9.0.2 || ==9.2.7 || ==9.4.5 || ==9.6.2
 
 library
-    exposed-modules:    Security.Advisories
-                      , Security.Advisories.Definition
-                      , Security.Advisories.Filesystem
-                      , Security.Advisories.Git
-                      , Security.Advisories.HsecId
-                      , Security.Advisories.Parse
-                      , Security.Advisories.Convert.OSV
-                      , Security.Advisories.Generate.HTML
-                      , Security.OSV
-    build-depends:    base >=4.14 && < 4.19,
-                      directory < 2,
-                      extra ^>=1.7.5,
-                      filepath >= 1.4 && < 1.5,
-                      lucid >= 2.9.0,
-                      process >= 1.6 && < 1.7,
-                      text >= 1.2 && < 3,
-                      time >= 1.9 && < 1.14,
-                      Cabal-syntax >= 3.8.1.0 && < 3.11,
-                      mtl >= 2.2 && < 2.4,
-                      containers >= 0.6 && < 0.7,
-                      commonmark ^>= 0.2.2,
-                      aeson >= 2.0.1.0 && < 3,
-                      toml-parser ^>=1.3.0.0,
-                      pandoc-types >= 1.22 && < 2,
-                      pathwalk >= 0.3,
-                      parsec >= 3 && < 4,
-                      commonmark-pandoc >= 0.2 && < 0.3
-                      , safe >= 0.3
-    hs-source-dirs:   src
-    default-language: Haskell2010
-    ghc-options:      -Wall
-                      -Wcompat
-                      -Widentities
-                      -Wincomplete-record-updates
-                      -Wincomplete-uni-patterns
-                      -Wpartial-fields
-                      -Wredundant-constraints
+  exposed-modules:
+    Security.Advisories
+    Security.Advisories.Convert.OSV
+    Security.Advisories.Definition
+    Security.Advisories.Filesystem
+    Security.Advisories.Generate.HTML
+    Security.Advisories.Git
+    Security.Advisories.HsecId
+    Security.Advisories.Parse
+    Security.Advisories.Queries
+    Security.OSV
+
+  build-depends:
+    , aeson                 >=2.0.1.0 && <3
+    , base                  >=4.14    && <4.19
+    , Cabal-syntax          >=3.8.1.0 && <3.11
+    , commonmark            ^>=0.2.2
+    , commonmark-pandoc     >=0.2     && <0.3
+    , containers            >=0.6     && <0.7
+    , directory             <2
+    , extra                 ^>=1.7.5
+    , filepath              >=1.4     && <1.5
+    , lucid                 >=2.9.0
+    , mtl                   >=2.2     && <2.4
+    , pandoc-types          >=1.22    && <2
+    , parsec                >=3       && <4
+    , pathwalk              >=0.3
+    , process               >=1.6     && <1.7
+    , safe                  >=0.3
+    , text                  >=1.2     && <3
+    , time                  >=1.9     && <1.14
+    , toml-parser           ^>=1.3.0.0
+    , validation-selective  >=0.1     && <1
+
+  hs-source-dirs:   src
+  default-language: Haskell2010
+  ghc-options:
+    -Wall -Wcompat -Widentities -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
 
 executable hsec-tools
-    main-is:          Main.hs
-    other-modules:
-      Command.Reserve
+  main-is:          Main.hs
+  other-modules:    Command.Reserve
 
-    -- Modules included in this executable, other than Main.
-    -- other-modules:
+  -- Modules included in this executable, other than Main.
+  -- other-modules:
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
-    build-depends:    hsec-tools,
-                      base >=4.14 && < 4.19,
-                      aeson >= 2.0.1.0 && < 3,
-                      bytestring >= 0.10 && < 0.12,
-                      filepath >= 1.4 && < 1.5,
-                      optparse-applicative == 0.17.* || == 0.18.*,
-                      text >= 1.2 && < 3
-    hs-source-dirs:   app
-    default-language: Haskell2010
-    ghc-options:      -Wall
-                      -Wcompat
-                      -Widentities
-                      -Wincomplete-record-updates
-                      -Wincomplete-uni-patterns
-                      -Wpartial-fields
-                      -Wredundant-constraints
+  -- LANGUAGE extensions used by modules in this package.
+  -- other-extensions:
+  build-depends:
+    , aeson                 >=2.0.1.0 && <3
+    , base                  >=4.14    && <4.19
+    , bytestring            >=0.10    && <0.12
+    , filepath              >=1.4     && <1.5
+    , hsec-tools
+    , optparse-applicative  >=0.17    && <0.19
+    , text                  >=1.2     && <3
+
+  hs-source-dirs:   app
+  default-language: Haskell2010
+  ghc-options:
+    -Wall -Wcompat -Widentities -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
 
 test-suite spec
-    type:             exitcode-stdio-1.0
-    hs-source-dirs:   test
-    main-is:          Spec.hs
-    build-depends:    base < 5
-                    , directory
-                    , hsec-tools
-                    , pretty-simple < 5
-                    , tasty < 1.5
-                    , tasty-golden < 2.4
-                    , time
-                    , text
-    default-language: Haskell2010
-    ghc-options:      -Wall
-                      -Wcompat
-                      -Widentities
-                      -Wincomplete-record-updates
-                      -Wincomplete-uni-patterns
-                      -Wpartial-fields
-                      -Wredundant-constraints
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Spec.hs
+  other-modules:    Spec.QueriesSpec
+  build-depends:
+    , base           <5
+    , Cabal-syntax
+    , directory
+    , hsec-tools
+    , pretty-simple  <5
+    , tasty          <1.5
+    , tasty-golden   <2.4
+    , tasty-hunit    <0.11
+    , text
+    , time
+
+  default-language: Haskell2010
+  ghc-options:
+    -Wall -Wcompat -Widentities -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints

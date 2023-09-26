@@ -3,22 +3,25 @@
 
 module Main where
 
-import Control.Monad (join, void, when)
+import Control.Monad (forM_, join, void, when)
 import qualified Data.ByteString.Lazy as L
+import Data.Maybe (fromMaybe)
 import Data.Foldable (for_)
 import Data.Functor ((<&>))
 import Data.List (intercalate, isPrefixOf)
-import qualified Data.Text.IO as T
-import Options.Applicative
 import System.Exit (die, exitFailure, exitSuccess)
-import System.IO (stderr)
+import System.IO (hPutStrLn, stderr)
 import System.FilePath (takeBaseName)
 
 import qualified Data.Aeson
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import Options.Applicative
 
 import Security.Advisories
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Git
+import Security.Advisories.Queries (listAffectedBy, parseVersionRange)
 import Security.Advisories.Generate.HTML
 
 import qualified Command.Reserve
@@ -37,6 +40,7 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
         <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
         <> command "render" (info commandRender (progDesc "Render a single advisory as HTML"))
         <> command "generate-index" (info commandGenerateIndex (progDesc "Generate an HTML index"))
+        <> command "query" (info commandQuery (progDesc "Run various queries against the database"))
         <> command "help" (info commandHelp (progDesc "Show command help"))
         )
 
@@ -93,6 +97,36 @@ commandRender =
   withAdvisory (\_ -> T.putStrLn . advisoryHtml)
   <$> optional (argument str (metavar "FILE"))
   <**> helper
+
+commandQuery :: Parser (IO ())
+commandQuery =
+  subparser
+    ( command "is-affected" (info isAffected (progDesc "Check if a package/version range is marked vulnerable"))
+    )
+    <**> helper
+  where
+    isAffected :: Parser (IO ())
+    isAffected =
+      go
+        <$> argument str (metavar "PACKAGE")
+        <*> optional (option str (metavar "VERSION-SPEC" <> short 'v' <> long "version-spec"))
+        <*> optional (option str (metavar "ADVISORIES-PATH" <> short 'p' <> long "advisories-path"))
+        <**> helper
+      where go :: T.Text -> Maybe T.Text -> Maybe FilePath -> IO ()
+            go packageName versionRange advisoriesPath =
+              case parseVersionRange versionRange of
+                Left e -> do
+                  T.hPutStrLn stderr $ "Cannot parse '--version-spec': " <> e
+                  exitFailure
+                Right versionRange' -> do
+                  affectedAdvisories <- listAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
+                  case affectedAdvisories of
+                    [] -> putStrLn "Not affected"
+                    _ -> do
+                      hPutStrLn stderr "Affected by:"
+                      forM_ affectedAdvisories $ \advisory ->
+                        T.hPutStrLn stderr $ "* [" <> T.pack (printHsecId $ advisoryId advisory) <> "] " <> advisorySummary advisory
+                      exitFailure
 
 commandGenerateIndex :: Parser (IO ())
 commandGenerateIndex =

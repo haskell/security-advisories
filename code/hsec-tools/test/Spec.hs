@@ -14,21 +14,24 @@ import Test.Tasty.Golden (goldenVsString)
 import Text.Pretty.Simple (pShowNoColor)
 
 import Security.Advisories.Parse
+import qualified Spec.QueriesSpec as QueriesSpec
 
 main :: IO ()
 main = do
     goldenFiles <- listGoldenFiles
-    defaultMain (testGroup "Tests" (tests goldenFiles))
+    defaultMain $
+      testGroup "Tests"
+        [ goldenTestsSpec goldenFiles
+        , QueriesSpec.spec
+        ]
 
 listGoldenFiles :: IO [FilePath]
 listGoldenFiles = map (mappend dpath) . filter (not . isSuffixOf ".golden") <$> listDirectory dpath
   where
     dpath = "test/golden/"
 
-tests :: [FilePath] -> [TestTree]
-tests goldenFiles =
-    [ testGroup "Golden test" $ map doGoldenTest goldenFiles
-    ]
+goldenTestsSpec :: [FilePath] -> TestTree
+goldenTestsSpec goldenFiles = testGroup "Golden test" $ map doGoldenTest goldenFiles
 
 doGoldenTest :: FilePath -> TestTree
 doGoldenTest fp = goldenVsString fp (fp <> ".golden") (flip mappend "\n" . LText.encodeUtf8 <$> doCheck)

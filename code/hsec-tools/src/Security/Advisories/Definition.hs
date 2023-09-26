@@ -14,6 +14,7 @@ module Security.Advisories.Definition
 
 import Data.Text (Text)
 import Data.Time (ZonedTime)
+import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
 
 import Text.Pandoc.Definition (Pandoc)
@@ -98,7 +99,7 @@ newtype Keyword = Keyword Text
   deriving (Show) via Text
 
 data AffectedVersionRange = AffectedVersionRange
-  { affectedVersionRangeIntroduced :: Text,
-    affectedVersionRangeFixed :: Maybe Text
+  { affectedVersionRangeIntroduced :: Version,
+    affectedVersionRangeFixed :: Maybe Version
   }
   deriving stock (Show)

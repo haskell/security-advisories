@@ -1,3 +1,5 @@
+{-# LANGUAGE LambdaCase #-}
+
 {-|
 
 Helpers for the /security-advisories/ file system.
@@ -19,20 +21,27 @@ module Security.Advisories.Filesystem
   , getGreatestId
   , forReserved
   , forAdvisory
+  , listAdvisories
   ) where
 
 import Control.Applicative (liftA2)
+import Data.Bifunctor (bimap)
 import Data.Foldable (fold)
+import Data.Functor ((<&>))
 import Data.Semigroup (Max(Max, getMax))
 import Data.Traversable (for)
 
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Writer.Strict (execWriterT, tell)
+import qualified Data.Text.IO as T
 import System.FilePath ((</>), takeBaseName)
-import System.Directory (doesDirectoryExist)
+import System.Directory (doesDirectoryExist, pathIsSymbolicLink)
 import System.Directory.PathWalk
+import Validation (Validation, eitherToValidation)
 
+import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, emptyOutOfBandAttributes, parseAdvisory)
 import Security.Advisories.HsecId (HsecId, parseHsecId, placeholder)
+import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
 
 
 dirNameAdvisories :: FilePath
@@ -109,6 +118,27 @@ forAdvisory root go = do
   subdirs <- filter (/= dirNameReserved) <$> _getSubdirs dir
   fmap fold $ for subdirs $ \subdir -> _forFiles (dir </> subdir) go
 
+-- | List deduplicated parsed Advisories
+listAdvisories
+  :: (MonadIO m)
+  => FilePath -> m (Validation [ParseAdvisoryError] [Advisory])
+listAdvisories root =
+  forAdvisory root $ \advisoryPath _advisoryId -> do
+    isSym <- liftIO $ pathIsSymbolicLink advisoryPath
+    if isSym
+      then return $ pure []
+      else do
+        oob <-
+          liftIO (getAdvisoryGitInfo advisoryPath) <&> \case
+            Left _ -> emptyOutOfBandAttributes
+            Right gitInfo ->
+              emptyOutOfBandAttributes
+                { oobPublished = Just (firstAppearanceCommitDate gitInfo),
+                  oobModified = Just (lastModificationCommitDate gitInfo)
+                }
+        fileContent <- liftIO $ T.readFile advisoryPath
+        return $ eitherToValidation $ bimap return return $ parseAdvisory NoOverrides oob fileContent
+
 -- | Get names (not paths) of subdirectories of the given directory
 -- (one level).  There's no monoidal, interruptible variant of
 -- @pathWalk@ so we use @WriterT@ to smuggle the result out.
@@ -126,8 +156,8 @@ _forFiles
   -> (FilePath -> HsecId -> m r)
   -> m r
 _forFiles root go =
-  pathWalkAccumulate root $ \_ _ files ->
+  pathWalkAccumulate root $ \dir _ files ->
     fmap fold $ for files $ \file ->
       case parseHsecId (takeBaseName file) of
         Nothing -> pure mempty
-        Just hsid -> go (root </> file) hsid
+        Just hsid -> go (dir </> file) hsid
