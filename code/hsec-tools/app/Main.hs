@@ -21,7 +21,7 @@ import Options.Applicative
 import Security.Advisories
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Git
-import Security.Advisories.Queries (listAffectedBy, parseVersionRange)
+import Security.Advisories.Queries (listVersionRangeAffectedBy, parseVersionRange)
 import Security.Advisories.Generate.HTML
 
 import qualified Command.Reserve
@@ -119,7 +119,7 @@ commandQuery =
                   T.hPutStrLn stderr $ "Cannot parse '--version-spec': " <> e
                   exitFailure
                 Right versionRange' -> do
-                  affectedAdvisories <- listAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
+                  affectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
                   case affectedAdvisories of
                     [] -> putStrLn "Not affected"
                     _ -> do

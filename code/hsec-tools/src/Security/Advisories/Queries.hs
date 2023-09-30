@@ -2,9 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Security.Advisories.Queries
-  ( isAffectedBy
+  ( listVersionRangeAffectedBy
+  , isVersionRangeAffectedBy
   , parseVersionRange
-  , listAffectedBy
   )
 where
 
@@ -25,8 +25,8 @@ import Security.Advisories.Definition
 import Security.Advisories.Filesystem
 
 -- | Check whether a package and a version range is concerned by an advisory
-isAffectedBy :: Text -> VersionRange -> Advisory -> Bool
-isAffectedBy queryPackageName queryVersionRange =
+isVersionRangeAffectedBy :: Text -> VersionRange -> Advisory -> Bool
+isVersionRangeAffectedBy queryPackageName queryVersionRange =
     any checkAffected . advisoryAffected
     where
         checkAffected :: Affected -> Bool
@@ -47,14 +47,9 @@ isAffectedBy queryPackageName queryVersionRange =
             | [] <- asVersionIntervals range = False
             | otherwise = True
 
--- | Parse 'VersionRange' as given to the CLI
-parseVersionRange :: Maybe Text -> Either Text VersionRange
-parseVersionRange  = maybe (return anyVersion) (first T.pack . eitherParsec . T.unpack)
-
 -- | List the advisories matching package/version range
-listAffectedBy :: FilePath -> Text -> VersionRange -> IO [Advisory]
-listAffectedBy root queryPackageName queryVersionRange = do
-  advisories <-
+listVersionRangeAffectedBy :: FilePath -> Text -> VersionRange -> IO [Advisory]
+listVersionRangeAffectedBy root queryPackageName queryVersionRange =
     listAdvisories root >>= \case
       Failure errors -> do
         T.hPutStrLn stderr "Cannot parse some advisories"
@@ -62,5 +57,8 @@ listAffectedBy root queryPackageName queryVersionRange = do
           hPrint stderr
         exitFailure
       Success advisories ->
-        return advisories
-  return $ filter (isAffectedBy queryPackageName queryVersionRange) advisories
+        return $ filter (isVersionRangeAffectedBy queryPackageName queryVersionRange) advisories
+
+-- | Parse 'VersionRange' as given to the CLI
+parseVersionRange :: Maybe Text -> Either Text VersionRange
+parseVersionRange  = maybe (return anyVersion) (first T.pack . eitherParsec . T.unpack)
