@@ -3,16 +3,19 @@
 
 module Spec.QueriesSpec (spec) where
 
+import Data.Bifunctor (first)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
-import Distribution.Types.VersionRange (VersionRange, VersionRangeF(..), projectVersionRange)
+import qualified Data.Text as T
+import Distribution.Parsec (eitherParsec)
+import Distribution.Types.Version (version0, alterVersion)
+import Distribution.Types.VersionRange (VersionRange, VersionRangeF(..), anyVersion, projectVersionRange)
 import Test.Tasty
 import Test.Tasty.HUnit
 
 import Security.Advisories.Definition
 import Security.Advisories.HsecId
 import Security.Advisories.Queries
-import Distribution.Types.Version (version0, alterVersion)
-import Data.Maybe (fromMaybe)
 
 spec :: TestTree
 spec =
@@ -180,3 +183,7 @@ mkAffectedVersions vr =
 
 packageName :: Text
 packageName = "package-name"
+
+-- | Parse 'VersionRange' as given to the CLI
+parseVersionRange :: Maybe Text -> Either Text VersionRange
+parseVersionRange  = maybe (return anyVersion) (first T.pack . eitherParsec . T.unpack)

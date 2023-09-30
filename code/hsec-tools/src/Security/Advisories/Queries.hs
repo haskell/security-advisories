@@ -6,19 +6,15 @@ module Security.Advisories.Queries
   , listVersionRangeAffectedBy
   , isVersionAffectedBy
   , isVersionRangeAffectedBy
-  , parseVersionRange
   )
 where
 
 import Control.Monad (forM_)
-import Data.Bifunctor (first)
 import System.Exit (exitFailure)
 import System.IO (stderr, hPrint)
 
 import Data.Text (Text)
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import Distribution.Parsec (eitherParsec)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
@@ -79,7 +75,3 @@ listAffectedByHelper checkAffectedBy root queryPackageName queryVersionish =
       exitFailure
     Success advisories ->
       return $ filter (checkAffectedBy queryPackageName queryVersionish) advisories
-
--- | Parse 'VersionRange' as given to the CLI
-parseVersionRange :: Maybe Text -> Either Text VersionRange
-parseVersionRange  = maybe (return anyVersion) (first T.pack . eitherParsec . T.unpack)

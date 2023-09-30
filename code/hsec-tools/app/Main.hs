@@ -9,6 +9,8 @@ import Data.Maybe (fromMaybe)
 import Data.Foldable (for_)
 import Data.Functor ((<&>))
 import Data.List (intercalate, isPrefixOf)
+import Distribution.Parsec (eitherParsec)
+import Distribution.Types.VersionRange (VersionRange, anyVersion)
 import System.Exit (die, exitFailure, exitSuccess)
 import System.IO (hPutStrLn, stderr)
 import System.FilePath (takeBaseName)
@@ -21,7 +23,7 @@ import Options.Applicative
 import Security.Advisories
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Git
-import Security.Advisories.Queries (listVersionRangeAffectedBy, parseVersionRange)
+import Security.Advisories.Queries (listVersionRangeAffectedBy)
 import Security.Advisories.Generate.HTML
 
 import qualified Command.Reserve
@@ -109,24 +111,20 @@ commandQuery =
     isAffected =
       go
         <$> argument str (metavar "PACKAGE")
-        <*> optional (option str (metavar "VERSION-SPEC" <> short 'v' <> long "version-spec"))
+        <*> optional (option versionRangeReader (metavar "VERSION-RANGE" <> short 'v' <> long "version-range"))
         <*> optional (option str (metavar "ADVISORIES-PATH" <> short 'p' <> long "advisories-path"))
         <**> helper
-      where go :: T.Text -> Maybe T.Text -> Maybe FilePath -> IO ()
-            go packageName versionRange advisoriesPath =
-              case parseVersionRange versionRange of
-                Left e -> do
-                  T.hPutStrLn stderr $ "Cannot parse '--version-spec': " <> e
+      where go :: T.Text -> Maybe VersionRange -> Maybe FilePath -> IO ()
+            go packageName versionRange advisoriesPath = do
+              let versionRange' = fromMaybe anyVersion versionRange
+              affectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
+              case affectedAdvisories of
+                [] -> putStrLn "Not affected"
+                _ -> do
+                  hPutStrLn stderr "Affected by:"
+                  forM_ affectedAdvisories $ \advisory ->
+                    T.hPutStrLn stderr $ "* [" <> T.pack (printHsecId $ advisoryId advisory) <> "] " <> advisorySummary advisory
                   exitFailure
-                Right versionRange' -> do
-                  affectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
-                  case affectedAdvisories of
-                    [] -> putStrLn "Not affected"
-                    _ -> do
-                      hPutStrLn stderr "Affected by:"
-                      forM_ affectedAdvisories $ \advisory ->
-                        T.hPutStrLn stderr $ "* [" <> T.pack (printHsecId $ advisoryId advisory) <> "] " <> advisorySummary advisory
-                      exitFailure
 
 commandGenerateIndex :: Parser (IO ())
 commandGenerateIndex =
@@ -146,6 +144,9 @@ commandHelp =
   )
   <$> optional (argument str (metavar "COMMAND"))
   <**> helper
+
+versionRangeReader :: ReadM VersionRange
+versionRangeReader = eitherReader eitherParsec
 
 withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
