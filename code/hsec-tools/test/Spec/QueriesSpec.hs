@@ -32,7 +32,7 @@ spec =
          in testCase (title actual query) $
               let query' = versionRange query
                   affectedVersion' = versionRange actual
-              in isAffectedBy packageName query' (mkAdvisory affectedVersion')
+              in isVersionRangeAffectedBy packageName query' (mkAdvisory affectedVersion')
                     @?= expected
   ]
 
