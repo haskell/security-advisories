@@ -83,6 +83,7 @@ executable hsec-tools
     , aeson                 >=2.0.1.0 && <3
     , base                  >=4.14    && <4.19
     , bytestring            >=0.10    && <0.12
+    , Cabal-syntax          >=3.8.1.0 && <3.11
     , filepath              >=1.4     && <1.5
     , hsec-tools
     , optparse-applicative  >=0.17    && <0.19
