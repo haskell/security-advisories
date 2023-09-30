@@ -1,6 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Security.Advisories.Queries
   ( listVersionAffectedBy
   , listVersionRangeAffectedBy
@@ -9,12 +6,8 @@ module Security.Advisories.Queries
   )
 where
 
-import Control.Monad (forM_)
-import System.Exit (exitFailure)
-import System.IO (stderr, hPrint)
-
+import Control.Monad.IO.Class (MonadIO)
 import Data.Text (Text)
-import qualified Data.Text.IO as T
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
@@ -22,6 +15,7 @@ import Validation (Validation(..))
 
 import Security.Advisories.Definition
 import Security.Advisories.Filesystem
+import Security.Advisories.Parse
 
 -- | Check whether a package and a version is concerned by an advisory
 isVersionAffectedBy :: Text -> Version -> Advisory -> Bool
@@ -57,21 +51,15 @@ isAffectedByHelper checkWithRange queryPackageName queryVersionish =
         (maybe anyVersion earlierVersion (affectedVersionRangeFixed avr))
 
 -- | List the advisories matching a package name and a version
-listVersionAffectedBy :: FilePath -> Text -> Version -> IO [Advisory]
+listVersionAffectedBy :: MonadIO m => FilePath -> Text -> Version -> m (Validation [ParseAdvisoryError] [Advisory])
 listVersionAffectedBy = listAffectedByHelper isVersionAffectedBy
 
 -- | List the advisories matching a package name and a version range
-listVersionRangeAffectedBy :: FilePath -> Text -> VersionRange -> IO [Advisory]
+listVersionRangeAffectedBy :: MonadIO m => FilePath -> Text -> VersionRange -> m (Validation [ParseAdvisoryError] [Advisory])
 listVersionRangeAffectedBy = listAffectedByHelper isVersionRangeAffectedBy
 
 -- | Helper function for 'listVersionAffectedBy' and 'listVersionRangeAffectedBy'
-listAffectedByHelper :: (Text -> a -> Advisory -> Bool) -> FilePath -> Text -> a -> IO [Advisory]
+listAffectedByHelper :: MonadIO m => (Text -> a -> Advisory -> Bool) -> FilePath -> Text -> a -> m (Validation [ParseAdvisoryError] [Advisory])
 listAffectedByHelper checkAffectedBy root queryPackageName queryVersionish =
-  listAdvisories root >>= \case
-    Failure errors -> do
-      T.hPutStrLn stderr "Cannot parse some advisories"
-      forM_ errors $
-        hPrint stderr
-      exitFailure
-    Success advisories ->
-      return $ filter (checkAffectedBy queryPackageName queryVersionish) advisories
+  fmap (filter (checkAffectedBy queryPackageName queryVersionish)) <$>
+    listAdvisories root
