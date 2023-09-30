@@ -88,6 +88,7 @@ executable hsec-tools
     , hsec-tools
     , optparse-applicative  >=0.17    && <0.19
     , text                  >=1.2     && <3
+    , validation-selective  >=0.1     && <1
 
   hs-source-dirs:   app
   default-language: Haskell2010

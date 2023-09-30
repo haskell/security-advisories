@@ -12,8 +12,9 @@ import Data.List (intercalate, isPrefixOf)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange, anyVersion)
 import System.Exit (die, exitFailure, exitSuccess)
-import System.IO (hPutStrLn, stderr)
+import System.IO (hPrint, hPutStrLn, stderr)
 import System.FilePath (takeBaseName)
+import Validation (Validation(..))
 
 import qualified Data.Aeson
 import qualified Data.Text as T
@@ -117,10 +118,15 @@ commandQuery =
       where go :: T.Text -> Maybe VersionRange -> Maybe FilePath -> IO ()
             go packageName versionRange advisoriesPath = do
               let versionRange' = fromMaybe anyVersion versionRange
-              affectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
-              case affectedAdvisories of
-                [] -> putStrLn "Not affected"
-                _ -> do
+              maybeAffectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
+              case maybeAffectedAdvisories of
+                Validation.Failure errors -> do
+                  T.hPutStrLn stderr "Cannot parse some advisories"
+                  forM_ errors $
+                    hPrint stderr
+                  exitFailure
+                Validation.Success [] -> putStrLn "Not affected"
+                Validation.Success affectedAdvisories -> do
                   hPutStrLn stderr "Affected by:"
                   forM_ affectedAdvisories $ \advisory ->
                     T.hPutStrLn stderr $ "* [" <> T.pack (printHsecId $ advisoryId advisory) <> "] " <> advisorySummary advisory
