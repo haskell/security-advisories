@@ -4,7 +4,7 @@ module Security.Advisories.Core.Advisory
   ( Advisory(..)
     -- * Supporting types
   , Affected(..)
-  , CWE(..)
+  , CWEID
   , Architecture(..)
   , AffectedVersionRange(..)
   , OS(..)
@@ -12,6 +12,7 @@ module Security.Advisories.Core.Advisory
   )
   where
 
+import Security.CWE (CWEID)
 import Data.Text (Text)
 import Data.Time (ZonedTime)
 import Distribution.Types.Version (Version)
@@ -27,7 +28,7 @@ data Advisory = Advisory
   { advisoryId :: HsecId
   , advisoryModified :: ZonedTime
   , advisoryPublished :: ZonedTime
-  , advisoryCWEs :: [CWE]
+  , advisoryCWEs :: [CWEID]
   , advisoryKeywords :: [Keyword]
   , advisoryAliases :: [Text]
   , advisoryRelated :: [Text]
@@ -52,9 +53,6 @@ data Affected = Affected
   , affectedOS :: Maybe [OS]
   , affectedDeclarations :: [(Text, VersionRange)]
   }
-  deriving stock (Show)
-
-newtype CWE = CWE {unCWE :: Integer}
   deriving stock (Show)
 
 data Architecture

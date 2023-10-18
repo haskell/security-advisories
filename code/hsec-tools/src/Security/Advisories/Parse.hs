@@ -14,6 +14,7 @@ module Security.Advisories.Parse
   )
   where
 
+import qualified Security.CWE as CWE
 import Data.Bifunctor (first)
 import Data.Foldable (toList)
 import Data.List (intercalate)
@@ -25,6 +26,7 @@ import GHC.Generics (Generic)
 import qualified Data.Map as Map
 import Data.Sequence (Seq((:<|)))
 import qualified Data.Text as T
+import qualified Data.Text.Read as T
 import qualified Data.Text.Lazy as T (toStrict)
 import Data.Time (ZonedTime(..), LocalTime (LocalTime), midnight, utc)
 import Distribution.Parsec (eitherParsec)
@@ -218,7 +220,7 @@ data AdvisoryMetadata = AdvisoryMetadata
   { amdId         :: HsecId
   , amdModified   :: Maybe ZonedTime
   , amdPublished  :: Maybe ZonedTime
-  , amdCWEs       :: [CWE]
+  , amdCWEs       :: [CWE.CWEID]
   , amdKeywords   :: [Keyword]
   , amdAliases    :: [T.Text]
   , amdRelated    :: [T.Text]
@@ -317,11 +319,26 @@ instance Toml.FromValue HsecId where
 instance Toml.ToValue HsecId where
   toValue = Toml.toValue . printHsecId
 
-instance Toml.FromValue CWE where
-  fromValue v = CWE <$> Toml.fromValue v
+instance Toml.FromValue CWE.CWEID where
+  fromValue v = case v of
+    -- Check if the cwe number is known
+    Toml.Integer int | Just cwe <- CWE.mkCWEID int, Map.member cwe CWE.cweNames -> pure cwe
+    -- Check if the cwe text match "number: description"
+    Toml.String string -> case T.breakOn ":" (T.pack string) of
+      (numTxt, name) -> case T.decimal numTxt of
+        Right (num, "") -> do
+          -- Value is a "num: text", now validate if it's known
+          cwe <- Toml.fromValue (Toml.Integer num)
+          case T.strip (T.drop 1 name) of
+            "" -> pure cwe
+            expectedName -> case Map.lookup cwe CWE.cweNames of
+              Just cweName | expectedName == cweName -> pure cwe
+              _ -> fail ("unexpected description, got: " <> show cwe <> ", expected: " <> show expectedName)
+        _ -> fail ("expected a number, got: " <> show numTxt)
+    _ -> fail "expected a valid number or a cwe text description"
 
-instance Toml.ToValue CWE where
-  toValue (CWE x) = Toml.toValue x
+instance Toml.ToValue CWE.CWEID where
+  toValue = Toml.toValue . CWE.unCWEID
 
 instance Toml.FromValue Keyword where
   fromValue v = Keyword <$> Toml.fromValue v
