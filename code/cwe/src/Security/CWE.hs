@@ -1,7 +1,5 @@
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
 module Security.CWE (CWEID, unCWEID, mkCWEID, cweNames, cweIds) where
 
 import Security.CWE.Data
@@ -27,4 +25,4 @@ cweNames = Map.fromList (coerce cweData)
 
 -- | A map to lookup CWEID.
 cweIds :: Map Text CWEID
-cweIds = Map.fromList $ (\(k, v) -> (v, k)) <$> (coerce cweData)
+cweIds = Map.fromList $ (\(k, v) -> (v, k)) <$> coerce cweData
