@@ -44,6 +44,8 @@ import Data.Time (UTCTime)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Data.Tuple (swap)
 
+import qualified Security.CVSS as CVSS
+
 data Affected dbSpecific ecosystemSpecific rangeDbSpecific = Affected
   { affectedRanges :: [Range rangeDbSpecific]
   , affectedPackage :: Package
@@ -146,27 +148,36 @@ newModel' = newModel defaultSchemaVersion
 -- calculated and compared in a more nuanced way than 'Ord' can provide
 -- for.
 --
-data Severity
-  = SeverityCvss2 Text {- TODO refine -}
-  | SeverityCvss3 Text {- TODO refine -}
-  deriving (Show, Eq)
+newtype Severity = Severity CVSS.CVSS
+  deriving (Show)
+
+instance Eq Severity where
+  Severity s1 == Severity s2 = CVSS.cvssVectorString s1 == CVSS.cvssVectorString s2
 
 instance FromJSON Severity where
   parseJSON = withObject "severity" $ \o -> do
     typ <- o .: "type" :: Parser Text
+    score <- o .: "score" :: Parser Text
+    cvss <- case CVSS.parseCVSS score of
+      Right cvss -> pure cvss
+      Left err ->
+        prependFailure ("unregognised severity score: " <> show err)
+          $ typeMismatch "severity" (Object o)
     case typ of
-      "CVSS_V2" -> SeverityCvss2 <$> o .: "score"
-      "CVSS_V3" -> SeverityCvss3 <$> o .: "score"
+      "CVSS_V2" | CVSS.cvssVersion cvss == CVSS.CVSS20 -> pure $ Severity cvss
+      "CVSS_V3" | CVSS.cvssVersion cvss `elem` [CVSS.CVSS30, CVSS.CVSS31] -> pure $ Severity cvss
       s ->
         prependFailure ("unregognised severity type: " <> show s)
           $ typeMismatch "severity" (Object o)
 
 instance ToJSON Severity where
-  toJSON sev = object $ case sev of
-    SeverityCvss2 score -> [typ "CVSS_V2", "score" .= score]
-    SeverityCvss3 score -> [typ "CVSS_V3", "score" .= score]
+  toJSON (Severity cvss) = object ["type" .= CVSS.cvssVectorString cvss, "score" .= score]
     where
-      typ s = "type" .= (s :: Text)
+      score :: Text
+      score = case CVSS.cvssVersion cvss of
+        CVSS.CVSS31 -> "CVSS_V3"
+        CVSS.CVSS30 -> "CVSS_V3"
+        CVSS.CVSS20 -> "CVSS_V2"
 
 data Package = Package
   { packageName :: Text
