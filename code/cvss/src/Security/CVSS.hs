@@ -42,6 +42,7 @@ data CVSSVersion
       CVSS30
     | -- | Version 2.0: https://www.first.org/cvss/v2/
       CVSS20
+    deriving (Eq)
 
 -- | Parsed CVSS string obtained with 'parseCVSS'.
 data CVSS = CVSS

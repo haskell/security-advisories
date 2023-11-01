@@ -20,6 +20,7 @@ import Distribution.Types.VersionRange (VersionRange)
 import Text.Pandoc.Definition (Pandoc)
 
 import Security.Advisories.HsecId
+import qualified Security.CVSS as CVSS
 import Security.OSV (Reference)
 
 data Advisory = Advisory
@@ -45,7 +46,7 @@ data Advisory = Advisory
 -- mention one or more packages.
 data Affected = Affected
   { affectedPackage :: Text
-  , affectedCVSS :: Text -- TODO refine type
+  , affectedCVSS :: CVSS.CVSS
   , affectedVersions :: [AffectedVersionRange]
   , affectedArchitectures :: Maybe [Architecture]
   , affectedOS :: Maybe [OS]

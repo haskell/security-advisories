@@ -49,6 +49,7 @@ library
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2     && <0.3
     , containers            >=0.6     && <0.7
+    , cvss
     , directory             <2
     , extra                 ^>=1.7.5
     , filepath              >=1.4     && <1.5
@@ -104,6 +105,7 @@ test-suite spec
   build-depends:
     , base           <5
     , Cabal-syntax
+    , cvss
     , directory
     , hsec-tools
     , pretty-simple  <5

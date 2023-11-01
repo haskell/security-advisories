@@ -48,6 +48,7 @@ import Text.Parsec.Pos (sourceLine)
 import Security.Advisories.HsecId
 import Security.Advisories.Definition
 import Security.OSV (Reference(..), referenceTypes)
+import qualified Security.CVSS as CVSS
 
 -- | A source of attributes supplied out of band from the advisory
 -- content.  Values provided out of band are treated according to
@@ -498,6 +499,16 @@ instance Toml.FromValue VersionRange where
 
 instance Toml.ToValue VersionRange where
   toValue = Toml.toValue . show
+
+instance Toml.FromValue CVSS.CVSS where
+  fromValue v =
+    do s <- Toml.fromValue v
+       case CVSS.parseCVSS s of
+         Left err -> fail ("parse error in cvss: " ++ show err)
+         Right cvss -> pure cvss
+
+instance Toml.ToValue CVSS.CVSS where
+  toValue = Toml.toValue . CVSS.cvssVectorString
 
 mergeOob
   :: MonadFail m

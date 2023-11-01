@@ -33,7 +33,7 @@ mkAffected aff =
   OSV.Affected
     { OSV.affectedPackage = mkPackage (affectedPackage aff)
     , OSV.affectedRanges = pure $ mkRange (affectedVersions aff)
-    , OSV.affectedSeverity = mkSeverity (affectedCVSS aff)
+    , OSV.affectedSeverity = [OSV.Severity (affectedCVSS aff)]
     , OSV.affectedEcosystemSpecific = Nothing
     , OSV.affectedDatabaseSpecific = Nothing
     }
@@ -44,15 +44,6 @@ mkPackage name = OSV.Package
   , OSV.packageEcosystem = "Hackage"
   , OSV.packagePurl = Nothing
   }
-
--- NOTE: This is unpleasant.  But we will eventually switch to a
--- proper CVSS type and the unpleasantness will go away.
---
-mkSeverity :: T.Text -> [OSV.Severity]
-mkSeverity s = case T.take 6 s of
-  "CVSS:2" -> [OSV.SeverityCvss2 s]
-  "CVSS:3" -> [OSV.SeverityCvss3 s]
-  _        -> []  -- unexpected; don't include severity
 
 mkRange :: [AffectedVersionRange] -> OSV.Range Void
 mkRange ranges =

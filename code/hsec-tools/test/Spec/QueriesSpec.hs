@@ -4,6 +4,7 @@
 module Spec.QueriesSpec (spec) where
 
 import Data.Bifunctor (first)
+import Data.Either (fromRight)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -13,6 +14,7 @@ import Distribution.Types.VersionRange (VersionRange, VersionRangeF(..), anyVers
 import Test.Tasty
 import Test.Tasty.HUnit
 
+import Security.CVSS (parseCVSS)
 import Security.Advisories.Definition
 import Security.Advisories.HsecId
 import Security.Advisories.Queries
@@ -113,7 +115,7 @@ mkAdvisory versionRange =
      , advisoryAffected =
          [ Affected
              { affectedPackage = packageName
-             , affectedCVSS = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+             , affectedCVSS = cvss
              , affectedVersions = mkAffectedVersions versionRange
              , affectedArchitectures = Nothing
              , affectedOS = Nothing
@@ -126,6 +128,8 @@ mkAdvisory versionRange =
      , advisorySummary = ""
      , advisoryDetails = ""
      }
+  where
+    cvss = fromRight (error "Cannot parseCVSS") (parseCVSS "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H")
 
 mkAffectedVersions :: VersionRange -> [AffectedVersionRange]
 mkAffectedVersions vr =
