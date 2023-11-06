@@ -13,8 +13,12 @@ on:
         type: string
         default: '[]'
 jobs:
+  populate_cache:
+    name: Check nix build
+    uses: ./.github/workflows/call-nix.yml
   check-advisories:
     runs-on: ubuntu-20.04
+    needs: populate_cache
     steps:
       - uses: actions/checkout@v3
         with:
@@ -32,15 +36,6 @@ jobs:
       - name: Fetch cache
         id: fetch-binaries
         if: ${{ !inputs.is-artifact }}
-        uses: actions/cache/restore@v3
-        with:
-          key: ${{ inputs.fetch-key }}
-          path: ~/.local/dockerImages
-      - name: Populate cache on cache miss
-        if: ${{ !inputs.is-artifact && steps.fetch-binaries.outputs.cache-hit != 'true' }}
-        uses: ./.github/workflows/call-nix.yml
-      - name: Fetch cache (second attempt after cache miss)
-        if: ${{ !inputs.is-artifact && steps.fetch-binaries.outputs.cache-hit != 'true' }}
         uses: actions/cache/restore@v3
         with:
           key: ${{ inputs.fetch-key }}
