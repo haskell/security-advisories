@@ -27,7 +27,7 @@ extra-source-files:
   test/golden/*.md
 
 tested-with:
-  GHC ==8.10.7 || ==9.0.2 || ==9.2.7 || ==9.4.5 || ==9.6.2
+  GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.1
 
 library
   exposed-modules:
@@ -44,7 +44,7 @@ library
 
   build-depends:
     , aeson                 >=2.0.1.0 && <3
-    , base                  >=4.14    && <4.19
+    , base                  >=4.14    && <4.20
     , Cabal-syntax          >=3.8.1.0 && <3.11
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2     && <0.3
@@ -82,8 +82,8 @@ executable hsec-tools
   -- other-extensions:
   build-depends:
     , aeson                 >=2.0.1.0 && <3
-    , base                  >=4.14    && <4.19
-    , bytestring            >=0.10    && <0.12
+    , base                  >=4.14    && <4.20
+    , bytestring            >=0.10    && <0.13
     , Cabal-syntax          >=3.8.1.0 && <3.11
     , filepath              >=1.4     && <1.5
     , hsec-tools
