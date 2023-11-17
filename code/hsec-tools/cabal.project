@@ -1,3 +1,0 @@
-packages: *.cabal ../cvss/cvss.cabal
-
-package hsec-tools

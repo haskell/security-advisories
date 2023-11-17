@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     toml-parser = {
-      url = github:glguy/toml-parser/eb7222d9d71aa00d0a37f85ff4cdef89d1ba743d; # v1.3.0.0
+      url = "github:glguy/toml-parser/eb7222d9d71aa00d0a37f85ff4cdef89d1ba743d"; # v1.3.0.0
       flake = false;
     };
   };
@@ -19,13 +19,16 @@
         jailbreakUnbreak = pkg:
           pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
 
-        project = returnShellEnv:
+        cvss = pkgs.haskellPackages.callCabal2nix "cvss" ./code/cvss {};
+
+        hsec-tools = returnShellEnv:
           pkgs.haskellPackages.developPackage {
             inherit returnShellEnv;
             name = "hsec-tools";
             root = ./code/hsec-tools;
             withHoogle = false;
-            overrides = self: super: with pkgs.haskell.lib; {
+            overrides = self: super: {
+              inherit cvss;
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
               toml-parser = jailbreakUnbreak (super.callCabal2nix "toml-parser" toml-parser { });
             };
@@ -52,8 +55,8 @@
           };
       in
       {
-
-        packages.hsec-tools = pkgs.haskell.lib.justStaticExecutables (project false);
+        packages.cvss = cvss;
+        packages.hsec-tools = pkgs.haskell.lib.justStaticExecutables (hsec-tools false);
         packages.hsec-tools-image =
           pkgs.dockerTools.buildImage {
             name = "haskell/hsec-tools";
@@ -89,6 +92,6 @@
         defaultPackage = self.packages.${system}.hsec-tools;
 
         # Used by `nix develop` (dev shell)
-        devShell = project true;
+        devShell = hsec-tools true;
       });
 }
