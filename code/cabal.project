@@ -1,0 +1,4 @@
+packages: */*.cabal
+
+package hsec-tools
+package cvss
