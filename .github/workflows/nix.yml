@@ -31,7 +31,7 @@ jobs:
       is-artifact: true
   generate-website:
     name: Generate advisories website
-    if: ${{ github.ref == 'refs/heads/dev' }}
+    if: ${{ github.ref == 'refs/heads/main' }}
     needs: check-advisories
     runs-on: ubuntu-22.04
     steps:
