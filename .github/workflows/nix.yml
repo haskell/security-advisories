@@ -3,7 +3,7 @@ on:
   - push
   - pull_request
 jobs:
-  tools_changed:
+  tools-changed:
     continue-on-error: true
     runs-on: ubuntu-22.04
     outputs:
@@ -16,16 +16,48 @@ jobs:
           skip_after_successful_duplicate: "true"
           paths: '["code/**"]'
           do_not_skip: '["push", "workflow_dispatch", "schedule"]'
-  check_nix:
+  check-nix:
     name: Check nix build
-    needs: tools_changed
+    needs: tools-changed
     if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/call-nix.yml
   check-advisories:
     name: Invoke check-advisories workflow
     if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
-    needs: check_nix
+    needs: check-nix
     uses: ./.github/workflows/call-check-advisories.yml
     with:
       fetch-key: hsec-tools-${{ github.sha }}
       is-artifact: true
+  generate-website:
+    name: Generate advisories website
+    if: ${{ github.ref == 'refs/heads/dev' }}
+    needs: check-advisories
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          # We need to retrieve full history to determine the correct
+          # `published` and `modified` timestamps
+          fetch-depth: 0
+      - run: mkdir -p ~/.local/dockerImages
+      - name: Fetch artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: hsec-tools-${{ github.sha }}
+          path: ~/.local/dockerImages
+      - run: docker load -i ~/.local/dockerImages/hsec-tools
+      - name: Generate the website
+        run: |
+          mkdir public
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-index . public
+          cp public/by-dates.html public/index.html
+      - name: Deploy
+        uses: s0/git-publish-subdir-action@develop
+        env:
+          REPO: self
+          BRANCH: generated/gh-pages
+          FOLDER: public
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SQUASH_HISTORY: true
