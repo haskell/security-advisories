@@ -51,14 +51,14 @@ jobs:
       - run: docker load -i ~/.local/dockerImages/hsec-tools
       - name: Generate the website
         run: |
-          mkdir public
-          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-index . public
-          cp public/by-dates.html public/index.html
+          mkdir generatedWebsite
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-index . generatedWebsite
+          cp generatedWebsite/by-dates.html generatedWebsite/index.html
       - name: Deploy
         uses: s0/git-publish-subdir-action@develop
         env:
           REPO: self
           BRANCH: generated/gh-pages
-          FOLDER: public
+          FOLDER: generatedWebsite
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SQUASH_HISTORY: true
