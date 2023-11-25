@@ -37,7 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: source
           # We need to retrieve full history to determine the correct
           # `published` and `modified` timestamps
           fetch-depth: 0
