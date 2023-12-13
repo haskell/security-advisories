@@ -153,3 +153,106 @@ Right
           "
         }
     )
+Model
+    { modelSchemaVersion = "1.5.0"
+    , modelId = "HSEC-0000-0000"
+    , modelModified = 1970-01-01 00:00:00 UTC
+    , modelPublished = Just 1970-01-01 00:00:00 UTC
+    , modelWithdrawn = Nothing
+    , modelAliases = [ "CVE-2022-XXXX" ]
+    , modelRelated =
+        [ "CVE-2022-YYYY"
+        , "CVE-2022-ZZZZ"
+        ]
+    , modelSummary = Just "Advisory Template - Title Goes Here"
+    , modelDetails = Just "# Advisory Template - Title Goes Here
+
+      This is an example template.
+
+       * Markdown
+       * TOML "front matter".
+
+       > Acme Broken.
+      "
+    , modelSeverity = []
+    , modelAffected =
+        [ Affected
+            { affectedRanges =
+                [ RangeEcosystem
+                    [ EventIntroduced "1.0.8"
+                    , EventFixed "1.1"
+                    , EventIntroduced "1.1.2"
+                    ] Nothing
+                ]
+            , affectedPackage = Package
+                { packageName = "package-name"
+                , packageEcosystem = "Hackage"
+                , packagePurl = Nothing
+                }
+            , affectedSeverity =
+                [ Severity CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H ]
+            , affectedEcosystemSpecific = Nothing
+            , affectedDatabaseSpecific = Nothing
+            }
+        ]
+    , modelReferences =
+        [ Reference
+            { referencesType = ReferenceTypeArticle
+            , referencesUrl = "https://example.com"
+            }
+        ]
+    , modelCredits = []
+    , modelDatabaseSpecific = Nothing
+    }
+{
+    "affected": [
+        {
+            "package": {
+                "ecosystem": "Hackage",
+                "name": "package-name"
+            },
+            "ranges": [
+                {
+                    "events": [
+                        {
+                            "introduced": "1.0.8"
+                        },
+                        {
+                            "fixed": "1.1"
+                        },
+                        {
+                            "introduced": "1.1.2"
+                        }
+                    ],
+                    "type": "ECOSYSTEM"
+                }
+            ],
+            "severity": [
+                {
+                    "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                    "type": "CVSS_V3"
+                }
+            ]
+        }
+    ],
+    "aliases": [
+        "CVE-2022-XXXX"
+    ],
+    "details": "# Advisory Template - Title Goes Here\n\nThis is an example template.\n\n * Markdown\n * TOML \"front matter\".\n\n > Acme Broken.\n",
+    "id": "HSEC-0000-0000",
+    "modified": "1970-01-01T00:00:00Z",
+    "published": "1970-01-01T00:00:00Z",
+    "references": [
+        {
+            "type": "ARTICLE",
+            "url": "https://example.com"
+        }
+    ],
+    "related": [
+        "CVE-2022-YYYY",
+        "CVE-2022-ZZZZ"
+    ],
+    "schema_version": "1.5.0",
+    "summary": "Advisory Template - Title Goes Here"
+}
+
