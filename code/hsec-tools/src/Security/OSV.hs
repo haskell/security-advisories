@@ -171,10 +171,10 @@ instance FromJSON Severity where
           $ typeMismatch "severity" (Object o)
 
 instance ToJSON Severity where
-  toJSON (Severity cvss) = object ["type" .= CVSS.cvssVectorString cvss, "score" .= score]
+  toJSON (Severity cvss) = object ["score" .= CVSS.cvssVectorString cvss, "type" .= typ]
     where
-      score :: Text
-      score = case CVSS.cvssVersion cvss of
+      typ :: Text
+      typ = case CVSS.cvssVersion cvss of
         CVSS.CVSS31 -> "CVSS_V3"
         CVSS.CVSS30 -> "CVSS_V3"
         CVSS.CVSS20 -> "CVSS_V2"
