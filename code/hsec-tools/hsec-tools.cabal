@@ -103,6 +103,7 @@ test-suite spec
   main-is:          Spec.hs
   other-modules:    Spec.QueriesSpec
   build-depends:
+    , aeson-pretty   <2
     , base           <5
     , Cabal-syntax
     , cvss
