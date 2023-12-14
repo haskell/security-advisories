@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Haskell Security Advisories</title>
+        <style>
+            .advisories, .content {
+                margin: 1em;
+            }
+            a {
+                text-decoration: none;
+            }
+            a:visited {
+                text-decoration: none;
+                color: darkblue;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="pure-u-1">
+            <div class="pure-menu pure-menu-horizontal">
+                <span class="pure-menu-heading pure-menu-link">Advisories list</span>
+                <ul class="pure-menu-list">
+                    <li class="pure-menu-item">
+                        <a href="#" class="pure-menu-link">by date</a>
+                    </li>
+                    <li class="pure-menu-item">
+                        <a href="#" class="pure-menu-link">by package</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="content">
+            <div class="pure-u-1">
+                <div class="advisories">
+                    <table class="pure-table pure-table-horizontal">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Package(s)</th>
+                                <th>Title</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="advisory-id"><a href="#">HSEC-2023-0003</a></td>
+                                <td class="advisory-packages">xmonad-contrib</td>
+                                <td class="advisory-title">code injection in xmonad-contrib</td>
+                            </tr>
+                            <tr class="pure-table-odd">
+                                <td class="advisory-id"><a href="#">HSEC-2023-0002</a></td>
+                                <td class="advisory-packages">biscuit-haskell</td>
+                                <td class="advisory-title">Improper Verification of Cryptographic Signature</td>
+                            </tr>
+                            <tr>
+                                <td class="advisory-id"><a href="#">HSEC-2023-0001</a></td>
+                                <td class="advisory-packages">aeson</td>
+                                <td class="advisory-title">Hash flooding vulnerability in aeson</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="pure-u-1">
+                <h2>aeson</h2>
+                <div class="advisories">
+                    <table class="pure-table pure-table-horizontal">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Introduced</th>
+                                <th>Fixed</th>
+                                <th>Title</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="advisory-id"><a href="#">HSEC-2023-0001</a></td>
+                                <td class="advisory-introduced">1.1.0</td>
+                                <td class="advisory-fixed"></td>
+                                <td class="advisory-title">Hash flooding vulnerability in aeson</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h2>biscuit-haskell</h2>
+                <div class="advisories">
+                    <table class="pure-table pure-table-horizontal">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Introduced</th>
+                                <th>Fixed</th>
+                                <th>Title</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="pure-table-odd">
+                                <td class="advisory-id"><a href="#">HSEC-2023-0002</a></td>
+                                <td class="advisory-introduced">1.1.0</td>
+                                <td class="advisory-fixed">2.0.0</td>
+                                <td class="advisory-title">Improper Verification of Cryptographic Signature</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h2>xmonad-contrib</h2>
+                <div class="advisories">
+                    <table class="pure-table pure-table-horizontal">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Introduced</th>
+                                <th>Fixed</th>
+                                <th>Title</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="advisory-id"><a href="#">HSEC-2023-0003</a></td>
+                                <td class="advisory-introduced">1.1.0</td>
+                                <td class="advisory-fixed">2.0.0</td>
+                                <td class="advisory-title">code injection in xmonad-contrib</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

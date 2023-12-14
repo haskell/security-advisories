@@ -15,8 +15,8 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Security.CVSS (parseCVSS)
-import Security.Advisories.Definition
-import Security.Advisories.HsecId
+import Security.Advisories.Core.Advisory
+import Security.Advisories.Core.HsecId
 import Security.Advisories.Queries
 
 spec :: TestTree

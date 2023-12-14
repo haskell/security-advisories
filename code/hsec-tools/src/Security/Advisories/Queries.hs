@@ -13,7 +13,7 @@ import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
 import Validation (Validation(..))
 
-import Security.Advisories.Definition
+import Security.Advisories.Core.Advisory
 import Security.Advisories.Filesystem
 import Security.Advisories.Parse
 

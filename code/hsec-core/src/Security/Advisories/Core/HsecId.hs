@@ -1,4 +1,4 @@
-module Security.Advisories.HsecId
+module Security.Advisories.Core.HsecId
   (
     HsecId
   , hsecIdYear
