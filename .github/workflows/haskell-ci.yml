@@ -181,8 +181,10 @@ jobs:
       - name: initial cabal.project for sdist
         run: |
           touch cabal.project
+          echo "packages: $GITHUB_WORKSPACE/source/code/hsec-core" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/code/hsec-tools" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/code/cvss" >> cabal.project
+          echo "packages: $GITHUB_WORKSPACE/source/code/osv" >> cabal.project
           cat cabal.project
       - name: sdist
         run: |
@@ -196,20 +198,34 @@ jobs:
         run: |
           PKGDIR_hsec_tools="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/hsec-tools-[0-9.]*')"
           echo "PKGDIR_hsec_tools=${PKGDIR_hsec_tools}" >> "$GITHUB_ENV"
+          PKGDIR_hsec_tools="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/hsec-tools-[0-9.]*')"
+          echo "PKGDIR_hsec_tools=${PKGDIR_hsec_tools}" >> "$GITHUB_ENV"
+          PKGDIR_hsec_core="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/hsec-core-[0-9.]*')"
+          echo "PKGDIR_hsec_core=${PKGDIR_hsec_core}" >> "$GITHUB_ENV"
+          PKGDIR_osv="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/osv-[0-9.]*')"
+          echo "PKGDIR_osv=${PKGDIR_osv}" >> "$GITHUB_ENV"
           PKGDIR_cvss="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/cvss-[0-9.]*')"
           echo "PKGDIR_cvss=${PKGDIR_cvss}" >> "$GITHUB_ENV"
           rm -f cabal.project cabal.project.local
           touch cabal.project
           touch cabal.project.local
+          echo "packages: ${PKGDIR_hsec_core}" >> cabal.project
           echo "packages: ${PKGDIR_hsec_tools}" >> cabal.project
+          echo "packages: ${PKGDIR_osv}" >> cabal.project
           echo "packages: ${PKGDIR_cvss}" >> cabal.project
           echo "package hsec-tools" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods" >> cabal.project
+          echo "package hsec-tools" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods" >> cabal.project
+          echo "package hsec-core" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods" >> cabal.project
+          echo "package osv" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods" >> cabal.project
           echo "package cvss" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods" >> cabal.project
           cat >> cabal.project <<EOF
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(cvss|hsec-tools)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: $_ installed\n" unless /^(cvss|osv|hsec-core|hsec-tools)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan
@@ -239,12 +255,18 @@ jobs:
         run: |
           if [ $((HCNUMVER >= 90400 && HCNUMVER < 90600)) -ne 0 ] ; then (cd ${PKGDIR_hsec_tools} && hlint -XHaskell2010 src) ; fi
           if [ $((HCNUMVER >= 90400 && HCNUMVER < 90600)) -ne 0 ] ; then (cd ${PKGDIR_hsec_tools} && hlint -XHaskell2010 app) ; fi
+          if [ $((HCNUMVER >= 90400 && HCNUMVER < 90600)) -ne 0 ] ; then (cd ${PKGDIR_hsec_core} && hlint -XHaskell2010 src) ; fi
+          if [ $((HCNUMVER >= 90400 && HCNUMVER < 90600)) -ne 0 ] ; then (cd ${PKGDIR_osv} && hlint -XHaskell2010 src) ; fi
           if [ $((HCNUMVER >= 90400 && HCNUMVER < 90600)) -ne 0 ] ; then (cd ${PKGDIR_cvss} && hlint -XHaskell2010 src) ; fi
       - name: cabal check
         run: |
+          cd ${PKGDIR_hsec_core} || false
+          ${CABAL} -vnormal check
           cd ${PKGDIR_hsec_tools} || false
           ${CABAL} -vnormal check
           cd ${PKGDIR_cvss} || false
+          ${CABAL} -vnormal check
+          cd ${PKGDIR_osv} || false
           ${CABAL} -vnormal check
       - name: haddock
         run: |

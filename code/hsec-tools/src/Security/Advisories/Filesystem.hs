@@ -40,7 +40,7 @@ import System.Directory.PathWalk
 import Validation (Validation, eitherToValidation)
 
 import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, emptyOutOfBandAttributes, parseAdvisory)
-import Security.Advisories.HsecId (HsecId, parseHsecId, placeholder)
+import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
 import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
 
 

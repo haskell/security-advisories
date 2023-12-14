@@ -20,6 +20,11 @@
           pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
 
         cvss = pkgs.haskellPackages.callCabal2nix "cvss" ./code/cvss {};
+        osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv {inherit cvss;};
+        hsec-core = pkgs.haskellPackages.callCabal2nix "hsec-core" ./code/hsec-core {
+          inherit cvss osv;
+          Cabal-syntax = pkgs.haskellPackages.Cabal-syntax_3_8_1_0;
+        };
 
         hsec-tools = returnShellEnv:
           pkgs.haskellPackages.developPackage {
@@ -28,7 +33,7 @@
             root = ./code/hsec-tools;
             withHoogle = false;
             overrides = self: super: {
-              inherit cvss;
+              inherit cvss hsec-core osv;
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
               toml-parser = jailbreakUnbreak (super.callCabal2nix "toml-parser" toml-parser { });
             };
@@ -56,6 +61,8 @@
       in
       {
         packages.cvss = cvss;
+        packages.osv = osv;
+        packages.hsec-core = hsec-core;
         packages.hsec-tools = pkgs.haskell.lib.justStaticExecutables (hsec-tools false);
         packages.hsec-tools-image =
           pkgs.dockerTools.buildImage {

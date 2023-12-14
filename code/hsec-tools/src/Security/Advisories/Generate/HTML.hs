@@ -158,7 +158,7 @@ inPage page content =
         base_ [href_ $ baseUrlForPage page]
         link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css", integrity_ "sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls", crossorigin_ "anonymous"]
         meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
-        title_ "Haskell Security Advisories"
+        title_ "Haskell Security.Advisories.Core"
         style_ $
           T.intercalate
             "\n"

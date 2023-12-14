@@ -1,4 +1,6 @@
 packages: code/*/*.cabal
 
+package hsec-core
 package hsec-tools
 package cvss
+package osv

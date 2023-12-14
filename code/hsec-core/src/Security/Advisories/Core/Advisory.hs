@@ -1,6 +1,6 @@
 {-# LANGUAGE DerivingVia #-}
 
-module Security.Advisories.Definition
+module Security.Advisories.Core.Advisory
   ( Advisory(..)
     -- * Supporting types
   , Affected(..)
@@ -19,7 +19,7 @@ import Distribution.Types.VersionRange (VersionRange)
 
 import Text.Pandoc.Definition (Pandoc)
 
-import Security.Advisories.HsecId
+import Security.Advisories.Core.HsecId
 import qualified Security.CVSS as CVSS
 import Security.OSV (Reference)
 

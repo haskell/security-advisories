@@ -13,7 +13,7 @@ import Security.Advisories.Git
   , explainGitError
   , getRepoRoot
   )
-import Security.Advisories.HsecId
+import Security.Advisories.Core.HsecId
   ( placeholder
   , printHsecId
   , getNextHsecId

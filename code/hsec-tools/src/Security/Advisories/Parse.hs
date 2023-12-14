@@ -45,8 +45,8 @@ import Text.Pandoc.Definition (Block(..), Inline(..), Pandoc(..))
 import Text.Pandoc.Walk (query)
 import Text.Parsec.Pos (sourceLine)
 
-import Security.Advisories.HsecId
-import Security.Advisories.Definition
+import Security.Advisories.Core.HsecId
+import Security.Advisories.Core.Advisory
 import Security.OSV (Reference(..), referenceTypes)
 import qualified Security.CVSS as CVSS
 
