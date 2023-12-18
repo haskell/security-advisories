@@ -23,7 +23,7 @@
         cwe = pkgs.haskellPackages.callCabal2nix "cwe" ./code/cwe { };
         osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv { inherit cvss; };
         hsec-core = pkgs.haskellPackages.callCabal2nix "hsec-core" ./code/hsec-core {
-          inherit cvss osv;
+          inherit cvss cwe osv;
           Cabal-syntax = pkgs.haskellPackages.Cabal-syntax_3_8_1_0;
         };
 
