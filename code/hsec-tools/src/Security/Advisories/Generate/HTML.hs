@@ -58,6 +58,8 @@ renderAdvisoriesIndex src dst = do
         div_ [class_ "pure-u-1"] $
           toHtmlRaw (Advisories.advisoryHtml advisory)
 
+  writeFile (dst </> ".nojekyll") ""
+
 -- * Rendering types
 
 data AdvisoryR = AdvisoryR
