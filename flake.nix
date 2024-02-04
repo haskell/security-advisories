@@ -19,8 +19,8 @@
         jailbreakUnbreak = pkg:
           pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
 
-        cvss = pkgs.haskellPackages.callCabal2nix "cvss" ./code/cvss {};
-        osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv {inherit cvss;};
+        cvss = pkgs.haskellPackages.callCabal2nix "cvss" ./code/cvss { };
+        osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv { inherit cvss; };
         hsec-core = pkgs.haskellPackages.callCabal2nix "hsec-core" ./code/hsec-core {
           inherit cvss osv;
           Cabal-syntax = pkgs.haskellPackages.Cabal-syntax_3_8_1_0;
@@ -39,14 +39,18 @@
             };
 
             modifier = drv:
-              pkgs.haskell.lib.addBuildTools drv (with pkgs.haskellPackages;
-              [
-                cabal-fmt
-                cabal-install
-                ghcid
-                haskell-language-server
-                pkgs.nixpkgs-fmt
-              ]);
+              if returnShellEnv
+              then
+                pkgs.haskell.lib.addBuildTools drv
+                  (with pkgs.haskellPackages;
+                  [
+                    cabal-fmt
+                    cabal-install
+                    ghcid
+                    haskell-language-server
+                    pkgs.nixpkgs-fmt
+                  ])
+              else drv;
           };
 
         gitconfig =
