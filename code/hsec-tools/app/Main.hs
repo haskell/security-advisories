@@ -30,14 +30,17 @@ import Security.Advisories.Generate.HTML
 import qualified Command.Reserve
 
 main :: IO ()
-main = join $ execParser cliOpts
+main = join $
+  customExecParser
+    (prefs showHelpOnEmpty)
+    cliOpts
 
 cliOpts :: ParserInfo (IO ())
 cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisories tools")
   where
     commandsParser :: Parser (IO ())
     commandsParser =
-      subparser
+      hsubparser
         (  command "check" (info commandCheck (progDesc "Syntax check a single advisory"))
         <> command "reserve" (info commandReserve (progDesc "Reserve an HSEC ID"))
         <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
@@ -70,13 +73,11 @@ commandReserve =
         ( long "commit"
         <> help "Commit the reservation file"
         )
-  <**> helper
 
 commandCheck :: Parser (IO ())
 commandCheck =
   withAdvisory go
   <$> optional (argument str (metavar "FILE"))
-  <**> helper
   where
     go mPath advisory = do
       for_ mPath $ \path -> do
@@ -89,7 +90,6 @@ commandOsv :: Parser (IO ())
 commandOsv =
   withAdvisory go
   <$> optional (argument str (metavar "FILE"))
-  <**> helper
   where
     go _ adv = do
       L.putStr (Data.Aeson.encode (OSV.convert adv))
@@ -99,14 +99,12 @@ commandRender :: Parser (IO ())
 commandRender =
   withAdvisory (\_ -> T.putStrLn . advisoryHtml)
   <$> optional (argument str (metavar "FILE"))
-  <**> helper
 
 commandQuery :: Parser (IO ())
 commandQuery =
   subparser
     ( command "is-affected" (info isAffected (progDesc "Check if a package/version range is marked vulnerable"))
     )
-    <**> helper
   where
     isAffected :: Parser (IO ())
     isAffected =
@@ -114,7 +112,6 @@ commandQuery =
         <$> argument str (metavar "PACKAGE")
         <*> optional (option versionRangeReader (metavar "VERSION-RANGE" <> short 'v' <> long "version-range"))
         <*> optional (option str (metavar "ADVISORIES-PATH" <> short 'p' <> long "advisories-path"))
-        <**> helper
       where go :: T.Text -> Maybe VersionRange -> Maybe FilePath -> IO ()
             go packageName versionRange advisoriesPath = do
               let versionRange' = fromMaybe anyVersion versionRange
@@ -140,7 +137,6 @@ commandGenerateIndex =
   )
   <$> argument str (metavar "SOURCE-DIR")
   <*> argument str (metavar "DESTINATION-DIR")
-  <**> helper
 
 commandHelp :: Parser (IO ())
 commandHelp =
@@ -149,7 +145,6 @@ commandHelp =
       in void $ handleParseResult $ execParserPure defaultPrefs cliOpts args
   )
   <$> optional (argument str (metavar "COMMAND"))
-  <**> helper
 
 versionRangeReader :: ReadM VersionRange
 versionRangeReader = eitherReader eitherParsec
