@@ -1,0 +1,73 @@
+cabal-version:      2.4
+name:               hsec-cabal
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+synopsis:           Checking a cabal project for security advisories
+
+-- A longer description of the package.
+description:
+  Tools for querying the haskell security advisories database against cabal projects.
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+license:            BSD-3-Clause
+author:             @MangoIV
+maintainer:         contact@mangoiv.com
+
+-- A copyright notice.
+-- copyright:
+category:           Data
+extra-doc-files:    CHANGELOG.md
+extra-source-files:
+tested-with:
+  GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.1
+
+common common-all
+  ghc-options:
+    -Wall -Wcompat -Widentities -Wincomplete-record-updates
+    -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+
+  default-extensions:
+    BlockArguments
+    DeriveGeneric
+    DerivingStrategies
+
+library
+  import:           common-all
+  exposed-modules:
+    Distribution.Audit
+    Distribution.Audit.Option
+    Security.Advisories.Cabal
+
+  build-depends:
+    , base                  <5
+    , cabal-install
+    , Cabal-syntax
+    , hsec-core
+    , optparse-applicative
+
+  hs-source-dirs:   src
+  default-language: Haskell2010
+
+executable cabal-audit
+  import:           common-all
+  hs-source-dirs:   app
+  main-is:          Main.hs
+  other-modules:
+  build-depends:
+    , base        <5
+    , hsec-cabal
+
+  default-language: Haskell2010
+
+test-suite spec
+  import:           common-all
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Main.hs
+  other-modules:
+  build-depends:    base <5
+  default-language: Haskell2010

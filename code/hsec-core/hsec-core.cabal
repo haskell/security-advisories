@@ -1,26 +1,25 @@
-cabal-version:      2.4
-name:               hsec-core
-version:            0.1.0.0
+cabal-version:   2.4
+name:            hsec-core
+version:         0.1.0.0
 
 -- A short (one-line) description of the package.
-synopsis:           Core package representing Haskell advisories
+synopsis:        Core package representing Haskell advisories
 
 -- A longer description of the package.
-description:        Core package representing Haskell advisories.
+description:     Core package representing Haskell advisories.
 
 -- A URL where users can report bugs.
 -- bug-reports:
 
 -- The license under which the package is released.
-license:            BSD-3-Clause
-author:             David Christiansen
-maintainer:         david@davidchristiansen.dk
+license:         BSD-3-Clause
+author:          David Christiansen
+maintainer:      david@davidchristiansen.dk
 
 -- A copyright notice.
 -- copyright:
-category:           Data
-extra-doc-files:    CHANGELOG.md
-
+category:        Data
+extra-doc-files: CHANGELOG.md
 tested-with:
   GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.1
 
