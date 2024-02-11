@@ -34,20 +34,21 @@ common common-all
     BlockArguments
     DeriveGeneric
     DerivingStrategies
+    EmptyCase
+    LambdaCase
+    NamedFieldPuns
 
 library
   import:           common-all
   exposed-modules:
     Distribution.Audit
-    Distribution.Audit.Option
     Security.Advisories.Cabal
 
   build-depends:
-    , base                  <5
+    , base           <5
+    , Cabal
     , cabal-install
-    , Cabal-syntax
     , hsec-core
-    , optparse-applicative
 
   hs-source-dirs:   src
   default-language: Haskell2010
