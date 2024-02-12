@@ -29,14 +29,22 @@ common common-all
   ghc-options:
     -Wall -Wcompat -Widentities -Wincomplete-record-updates
     -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+    -fmax-relevant-binds=0 -fno-show-valid-hole-fits
+
+  if impl(ghc >=9.6.1)
+    ghc-options: -fno-show-error-context
 
   default-extensions:
     BlockArguments
     DeriveGeneric
     DerivingStrategies
     EmptyCase
+    ImportQualifiedPost
     LambdaCase
     NamedFieldPuns
+    ScopedTypeVariables
+    StandaloneDeriving
+    StandaloneKindSignatures
 
 library
   import:           common-all
@@ -45,10 +53,15 @@ library
     Security.Advisories.Cabal
 
   build-depends:
-    , base           <5
+    , base                  <5
     , Cabal
     , cabal-install
+    , containers
+    , filepath
     , hsec-core
+    , hsec-tools
+    , text
+    , validation-selective
 
   hs-source-dirs:   src
   default-language: Haskell2010
