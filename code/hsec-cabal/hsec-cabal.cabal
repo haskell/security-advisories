@@ -20,7 +20,7 @@ maintainer:         contact@mangoiv.com
 -- A copyright notice.
 -- copyright:
 category:           Data
-extra-doc-files:    CHANGELOG.md
+extra-doc-files:
 extra-source-files:
 tested-with:
   GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.1

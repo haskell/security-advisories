@@ -32,7 +32,9 @@
             };
           };
           haskellProjects.default = {
-            packages = { };
+            packages = {
+              Cabal-syntax.source = "3.10.2.0";
+            };
             settings = { };
             projectRoot = ./code;
             devShell.mkShellArgs.shellHook = config.pre-commit.installationScript;

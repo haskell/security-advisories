@@ -15,8 +15,10 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Check Nix flake inputs
         uses: DeterminateSystems/flake-checker-action@v4
-      - name: Build executable
+      - name: Build executable for hsec-tools
         run: nix -L build
+      - name: Build executable for hsec-cabal
+        run: nix -L build .#hsec-cabal
       - name: Build docker image
         run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
       - run: mkdir -p ~/.local/dockerImages
