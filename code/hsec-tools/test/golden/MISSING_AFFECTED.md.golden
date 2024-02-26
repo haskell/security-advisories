@@ -1,10 +1,17 @@
 Left
     ( AdvisoryError
         [ MatchMessage
-            { matchPath = []
+            { matchAnn = Just
+                ( Position
+                    { posIndex = 0
+                    , posLine = 1
+                    , posColumn = 1
+                    }
+                )
+            , matchPath = []
             , matchMessage = "missing key: affected"
             }
-        ] "missing key: affected in top
+        ] "1:1: missing key: affected in <top-level>
       "
     )
 
