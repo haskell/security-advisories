@@ -36,10 +36,8 @@ import qualified Commonmark.Parser as Commonmark
 import Commonmark.Types (HasAttributes(..), IsBlock(..), IsInline(..), Rangeable(..), SourceRange(..))
 import Commonmark.Pandoc (Cm(unCm))
 import qualified Toml
-import qualified Toml.Pretty as Toml
-import qualified Toml.FromValue as Toml
-import qualified Toml.FromValue.Matcher as Toml
-import qualified Toml.ToValue as Toml
+import qualified Toml.Syntax as Toml (startPos)
+import qualified Toml.Schema as Toml
 import Text.Pandoc.Builder (Blocks, Many(..))
 import Text.Pandoc.Definition (Block(..), Inline(..), Pandoc(..))
 import Text.Pandoc.Walk (query)
@@ -47,9 +45,8 @@ import Text.Parsec.Pos (sourceLine)
 
 import Security.Advisories.Core.HsecId
 import Security.Advisories.Core.Advisory
-import Security.OSV (Reference(..), referenceTypes)
+import Security.OSV (Reference(..), ReferenceType, referenceTypes)
 import qualified Security.CVSS as CVSS
-
 -- | A source of attributes supplied out of band from the advisory
 -- content.  Values provided out of band are treated according to
 -- the 'AttributeOverridePolicy'.
@@ -80,7 +77,7 @@ data ParseAdvisoryError
   = MarkdownError Commonmark.ParseError T.Text
   | MarkdownFormatError T.Text
   | TomlError String T.Text
-  | AdvisoryError [Toml.MatchMessage] T.Text
+  | AdvisoryError [Toml.MatchMessage Toml.Position] T.Text
   deriving stock (Eq, Show, Generic)
 
 -- | The main parsing function.  'OutOfBandAttributes' are handled
@@ -99,7 +96,7 @@ parseAdvisory policy attrs raw = do
   (frontMatter, rest) <- first MarkdownFormatError $ advisoryDoc markdown
   let doc = Pandoc mempty rest
   !summary <- first MarkdownFormatError $ parseAdvisorySummary doc
-  table <- case Toml.parse (T.unpack frontMatter) of
+  table <- case Toml.parse frontMatter of
     Left e -> Left (TomlError e (T.pack e))
     Right t -> Right t
 
@@ -129,10 +126,8 @@ parseAdvisory policy attrs raw = do
           (Commonmark.commonmark "input" raw :: Either Commonmark.ParseError (Html ()))
 
   case parseAdvisoryTable attrs policy doc summary details html table of
-    Toml.Failure es -> Left (AdvisoryError es (T.pack (unlines (map Toml.prettyMatchMessage es))))
-    Toml.Success warnings adv
-      | null warnings -> pure adv
-      | otherwise -> Left (AdvisoryError warnings (T.pack (unlines (map Toml.prettyMatchMessage warnings)))) -- treat warnings as errors
+    Left es -> Left (AdvisoryError es (T.pack (unlines (map Toml.prettyMatchMessage es))))
+    Right adv -> pure adv
 
   where
     firstPretty
@@ -156,11 +151,11 @@ parseAdvisoryTable
   -> T.Text -- ^ summary
   -> T.Text -- ^ details
   -> T.Text -- ^ rendered HTML
-  -> Toml.Table
-  -> Toml.Result Toml.MatchMessage Advisory
+  -> Toml.Table' Toml.Position
+  -> Either [Toml.MatchMessage Toml.Position] Advisory
 parseAdvisoryTable oob policy doc summary details html tab =
-  Toml.runMatcher $
-   do fm <- Toml.fromValue (Toml.Table tab)
+  Toml.runMatcherFatalWarn $
+   do fm <- Toml.fromValue (Toml.Table' Toml.startPos tab)
       published <-
         mergeOobMandatory policy
           (oobPublished oob)
@@ -211,7 +206,7 @@ instance Toml.ToValue FrontMatter where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable FrontMatter where
-  toTable x = Map.fromList
+  toTable x = Toml.table
     [ "advisory" Toml..= frontMatterAdvisory x
     , "affected" Toml..= frontMatterAffected x
     , "references" Toml..= frontMatterReferences x
@@ -253,7 +248,7 @@ instance Toml.ToValue AdvisoryMetadata where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable AdvisoryMetadata where
-  toTable x = Map.fromList $
+  toTable x = Toml.table $
     ["id"        Toml..= amdId x] ++
     ["modified"  Toml..= y | Just y <- [amdModified x]] ++
     ["date"      Toml..= y | Just y <- [amdPublished x]] ++
@@ -283,7 +278,7 @@ instance Toml.ToValue Affected where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable Affected where
-  toTable x = Map.fromList $
+  toTable x = Toml.table $
     [ "package" Toml..= affectedPackage x
     , "cvss"    Toml..= affectedCVSS x
     , "versions" Toml..= affectedVersions x
@@ -307,7 +302,7 @@ instance Toml.ToValue AffectedVersionRange where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable AffectedVersionRange where
-  toTable x = Map.fromList $
+  toTable x = Toml.table $
     ("introduced" Toml..= affectedVersionRangeIntroduced x) :
     ["fixed" Toml..= y | Just y <- [affectedVersionRangeFixed x]]
 
@@ -316,7 +311,7 @@ instance Toml.FromValue HsecId where
   fromValue v =
    do s <- Toml.fromValue v
       case parseHsecId s of
-        Nothing -> fail "invalid HSEC-ID: expected HSEC-[0-9]{4,}-[0-9]{4,}"
+        Nothing -> Toml.failAt (Toml.valueAnn v) "invalid HSEC-ID: expected HSEC-[0-9]{4,}-[0-9]{4,}"
         Just x -> pure x
 
 instance Toml.ToValue HsecId where
@@ -335,11 +330,11 @@ instance Toml.ToValue Keyword where
   toValue (Keyword x) = Toml.toValue x
 
 -- | Get a datetime with the timezone defaulted to UTC and the time defaulted to midnight
-getDefaultedZonedTime :: Toml.Value -> Toml.Matcher ZonedTime
-getDefaultedZonedTime (Toml.ZonedTime x) = pure x
-getDefaultedZonedTime (Toml.LocalTime x) = pure (ZonedTime x utc)
-getDefaultedZonedTime (Toml.Day       x) = pure (ZonedTime (LocalTime x midnight) utc)
-getDefaultedZonedTime _                  = fail "expected a date with optional time and timezone"
+getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l ZonedTime
+getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure x
+getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (ZonedTime x utc)
+getDefaultedZonedTime (Toml.Day' _       x) = pure (ZonedTime (LocalTime x midnight) utc)
+getDefaultedZonedTime v                     = Toml.failAt (Toml.valueAnn v) "expected a date with optional time and timezone"
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
 advisoryDoc (Many blocks) = case blocks of
@@ -375,21 +370,22 @@ inlineText = query f
 
 instance Toml.FromValue Reference where
   fromValue = Toml.parseTableFromValue $
-   do refTypeStr <- Toml.reqKey "type"
-      refType <- case lookup refTypeStr (fmap swap referenceTypes) of
-        Just a -> pure a
-        Nothing ->
-          fail $
-            "Invalid format for reference.type: " ++ T.unpack refTypeStr ++
-            " should be one of: " ++ intercalate ", " (T.unpack . snd <$> referenceTypes)
-      url <- Toml.reqKey "url"
-      pure $ Reference refType url
+   do refType <- Toml.reqKey "type"
+      url     <- Toml.reqKey "url"
+      pure (Reference refType url)
+
+instance Toml.FromValue ReferenceType where
+  fromValue (Toml.Text' _ refTypeStr)
+    | Just a <- lookup refTypeStr (fmap swap referenceTypes) = pure a
+  fromValue v =
+    Toml.failAt (Toml.valueAnn v) $
+      "reference.type should be one of: " ++ intercalate ", " (T.unpack . snd <$> referenceTypes)
 
 instance Toml.ToValue Reference where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable Reference where
-  toTable x = Map.fromList
+  toTable x = Toml.table
     [ "type" Toml..= fromMaybe "UNKNOWN" (lookup (referencesType x) referenceTypes)
     , "url" Toml..= referencesUrl x
     ]
@@ -405,7 +401,7 @@ instance Toml.FromValue OS where
         "mingw32" -> pure Windows
         "netbsd" -> pure NetBSD
         "openbsd" -> pure OpenBSD
-        other -> fail ("Invalid OS: " ++ show other)
+        other -> Toml.failAt (Toml.valueAnn v) ("Invalid OS: " ++ show other)
 
 instance Toml.ToValue OS where
   toValue x =
@@ -448,7 +444,7 @@ instance Toml.FromValue Architecture where
         "sparc64" -> pure SPARC64
         "vax" -> pure VAX
         "x86_64" -> pure X86_64
-        other -> fail ("Invalid architecture: " ++ show other)
+        other -> Toml.failAt (Toml.valueAnn v) ("Invalid architecture: " ++ show other)
 
 instance Toml.ToValue Architecture where
   toValue x =
@@ -484,7 +480,7 @@ instance Toml.FromValue Version where
   fromValue v =
    do s <- Toml.fromValue v
       case eitherParsec s of
-        Left err -> fail ("parse error in version range: " ++ err)
+        Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in version range: " ++ err)
         Right affected -> pure affected
 
 instance Toml.ToValue Version where
@@ -494,7 +490,7 @@ instance Toml.FromValue VersionRange where
   fromValue v =
    do s <- Toml.fromValue v
       case eitherParsec s of
-        Left err -> fail ("parse error in version range: " ++ err)
+        Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in version range: " ++ err)
         Right affected -> pure affected
 
 instance Toml.ToValue VersionRange where
@@ -504,7 +500,7 @@ instance Toml.FromValue CVSS.CVSS where
   fromValue v =
     do s <- Toml.fromValue v
        case CVSS.parseCVSS s of
-         Left err -> fail ("parse error in cvss: " ++ show err)
+         Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in cvss: " ++ show err)
          Right cvss -> pure cvss
 
 instance Toml.ToValue CVSS.CVSS where
