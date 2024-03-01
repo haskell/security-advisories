@@ -56,10 +56,9 @@ jobs:
           cp generatedWebsite/by-dates.html generatedWebsite/index.html
           rm -Rf generatedWebsite/advisories || echo "Markdown links issue has been fixed"
       - name: Deploy
-        uses: s0/git-publish-subdir-action@develop
-        env:
-          REPO: self
-          BRANCH: generated/gh-pages
-          FOLDER: generatedWebsite
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SQUASH_HISTORY: true
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./generatedWebsite
+          publish_branch: generated/gh-pages
+          force_orphan: true

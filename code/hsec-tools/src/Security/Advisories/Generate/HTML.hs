@@ -15,17 +15,15 @@ import Data.Ord (Down (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import System.Exit (exitFailure)
-import System.IO (stderr, hPrint)
-
 import Distribution.Pretty (prettyShow)
 import Lucid
-import Validation (Validation(..))
-
 import qualified Security.Advisories as Advisories
-import System.Directory (createDirectoryIfMissing)
-import System.FilePath ((</>))
 import Security.Advisories.Filesystem (listAdvisories)
+import System.Directory (createDirectoryIfMissing)
+import System.Exit (exitFailure)
+import System.FilePath ((</>))
+import System.IO (hPrint, stderr)
+import Validation (Validation (..))
 
 -- * Actions
 
@@ -57,8 +55,6 @@ renderAdvisoriesIndex src dst = do
       inPage PageAdvisory $
         div_ [class_ "pure-u-1"] $
           toHtmlRaw (Advisories.advisoryHtml advisory)
-
-  writeFile (dst </> ".nojekyll") ""
 
 -- * Rendering types
 
