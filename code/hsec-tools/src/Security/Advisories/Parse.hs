@@ -322,15 +322,17 @@ instance Toml.ToValue HsecId where
 instance Toml.FromValue CWE.CWEID where
   fromValue v = case v of
     -- Check if the cwe number is known
-    Toml.Integer int | Just cwe <- CWE.mkCWEID int, Map.member cwe CWE.cweNames -> pure cwe
+    Toml.Integer' _ int | Just cwe <- CWE.mkCWEID int, Map.member cwe CWE.cweNames -> pure cwe
     -- Check if the cwe text match "number: description"
-    Toml.String string -> case T.breakOn ":" (T.pack string) of
+    Toml.Text' ann string -> case T.breakOn ":" string of
       (numTxt, name) -> case T.decimal numTxt of
         Right (num, "") -> do
-          -- Value is a "num: text", now validate if it's known
-          cwe <- Toml.fromValue (Toml.Integer num)
+          -- Value is a "num" or "num: text", now validate if it's known
+          cwe <- Toml.fromValue (Toml.Integer' ann num)
           case T.strip (T.drop 1 name) of
+            -- The value is just a number
             "" -> pure cwe
+            -- The value contains a name, let's validate it too:
             expectedName -> case Map.lookup cwe CWE.cweNames of
               Just cweName | expectedName == cweName -> pure cwe
               _ -> fail ("unexpected description, got: " <> show cwe <> ", expected: " <> show expectedName)
