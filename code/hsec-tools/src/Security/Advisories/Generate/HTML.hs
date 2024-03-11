@@ -11,10 +11,13 @@ import Control.Monad (forM_)
 import Data.List (sortOn)
 import Data.List.Extra (groupSort)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (listToMaybe)
 import Data.Ord (Down (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as TL
+import Data.Time (ZonedTime, zonedTimeToUTC)
 import Distribution.Pretty (prettyShow)
 import Lucid
 import qualified Security.Advisories as Advisories
@@ -23,6 +26,8 @@ import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
 import System.FilePath ((</>))
 import System.IO (hPrint, stderr)
+import qualified Text.Atom.Feed as Feed
+import qualified Text.Atom.Feed.Export as FeedExport
 import Validation (Validation (..))
 
 -- * Actions
@@ -39,31 +44,35 @@ renderAdvisoriesIndex src dst = do
       Success advisories ->
         return advisories
 
-  let renderToFile' path content = do
+  let renderHTMLToFile path content = do
         putStrLn $ "Rendering " <> path
         renderToFile path content
 
   createDirectoryIfMissing False dst
   let indexAdvisories = map toAdvisoryR advisories
-  renderToFile' (dst </> "by-dates.html") $ listByDates indexAdvisories
-  renderToFile' (dst </> "by-packages.html") $ listByPackages indexAdvisories
+  renderHTMLToFile (dst </> "by-dates.html") $ listByDates indexAdvisories
+  renderHTMLToFile (dst </> "by-packages.html") $ listByPackages indexAdvisories
 
   let advisoriesDir = dst </> "advisory"
   createDirectoryIfMissing False advisoriesDir
   forM_ advisories $ \advisory ->
-    renderToFile' (advisoriesDir </> advisoryHtmlFilename (Advisories.advisoryId advisory)) $
+    renderHTMLToFile (advisoriesDir </> advisoryHtmlFilename (Advisories.advisoryId advisory)) $
       inPage PageAdvisory $
         div_ [class_ "pure-u-1"] $
           toHtmlRaw (Advisories.advisoryHtml advisory)
+
+  putStrLn $ "Rendering " <> (dst </> "atom.xml")
+  writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed indexAdvisories
 
 -- * Rendering types
 
 data AdvisoryR = AdvisoryR
   { advisoryId :: Advisories.HsecId,
     advisorySummary :: Text,
-    advisoryAffected :: [AffectedPackageR]
+    advisoryAffected :: [AffectedPackageR],
+    advisoryModified :: ZonedTime
   }
-  deriving stock (Eq, Show)
+  deriving stock (Show)
 
 data AffectedPackageR = AffectedPackageR
   { packageName :: Text,
@@ -154,6 +163,7 @@ inPage page content =
       head_ $ do
         meta_ [charset_ "UTF-8"]
         base_ [href_ $ baseUrlForPage page]
+        link_ [rel_ "alternate", type_ "application/atom+xml", href_ atomFeedUrl]
         link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css", integrity_ "sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls", crossorigin_ "anonymous"]
         meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
         title_ "Haskell Security.Advisories.Core"
@@ -200,7 +210,8 @@ toAdvisoryR x =
   AdvisoryR
     { advisoryId = Advisories.advisoryId x,
       advisorySummary = Advisories.advisorySummary x,
-      advisoryAffected = concatMap toAffectedPackageR $ Advisories.advisoryAffected x
+      advisoryAffected = concatMap toAffectedPackageR $ Advisories.advisoryAffected x,
+      advisoryModified = Advisories.advisoryModified x
     }
   where
     toAffectedPackageR :: Advisories.Affected -> [AffectedPackageR]
@@ -211,3 +222,34 @@ toAdvisoryR x =
             introduced = T.pack $ prettyShow $ Advisories.affectedVersionRangeIntroduced versionRange,
             fixed = T.pack . prettyShow <$> Advisories.affectedVersionRangeFixed versionRange
           }
+
+-- * Atom/RSS feed
+
+feed :: [AdvisoryR] -> Feed.Feed
+feed advisories =
+  ( Feed.nullFeed
+      atomFeedUrl
+      (Feed.TextString "Haskell Security Advisory DB") -- Title
+      (maybe "" (T.pack . show) $ listToMaybe $ sortOn (Down . zonedTimeToUTC . advisoryModified) advisories)
+  )
+    { Feed.feedEntries = fmap toEntry advisories,
+      Feed.feedLinks = [Feed.nullLink advisoriesRootUrl]
+    }
+  where
+    toEntry advisory =
+      Feed.nullEntry
+        (advisoriesRootUrl <> "/" <> advisoryLink (advisoryId advisory))
+        (Feed.TextString $ advisorySummary advisory)
+        (T.pack $ show $ advisoryModified advisory)
+
+renderFeed :: [AdvisoryR] -> Text
+renderFeed =
+  maybe (error "Cannot render atom feed") TL.toStrict
+    . FeedExport.textFeed
+    . feed
+
+advisoriesRootUrl :: T.Text
+advisoriesRootUrl = "https://haskell.github.io/security-advisories"
+
+atomFeedUrl :: T.Text
+atomFeedUrl = advisoriesRootUrl <> "/atom.xml"
