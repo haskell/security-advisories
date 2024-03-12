@@ -9,7 +9,7 @@ jobs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
       - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5.3.0
+        uses: fkirc/skip-duplicate-actions@v5.3.1
         with:
           concurrent_skipping: "never"
           skip_after_successful_duplicate: "true"
@@ -23,7 +23,7 @@ jobs:
       changed_files: ${{ steps.process-changed-files.outputs.out }}
     steps:
       - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5.3.0
+        uses: fkirc/skip-duplicate-actions@v5.3.1
         with:
           concurrent_skipping: "never"
           skip_after_successful_duplicate: "true"
@@ -45,7 +45,7 @@ jobs:
       code_hash: ${{ steps.code-hash.outputs.code-hash }}
     steps:
       - name: git checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - id: code-hash
         run: |
           code_hash=$(git rev-parse HEAD:code)
