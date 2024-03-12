@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs: populate_cache
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           path: source
           # We need to retrieve full history to determine the correct
