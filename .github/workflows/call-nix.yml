@@ -27,12 +27,12 @@ jobs:
           code_hash=$(git rev-parse HEAD:code)
           echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
       - uses: actions/cache/save@v3
-        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         with:
           key: hsec-tools-${{ steps.code-hash.outputs.code-hash}}
           path: ~/.local/dockerImages
       - name: upload executable
         uses: actions/upload-artifact@v3
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         with:
           name: hsec-tools-${{ github.sha }}
           path: ~/.local/dockerImages
