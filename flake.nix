@@ -20,9 +20,10 @@
           pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
 
         cvss = pkgs.haskellPackages.callCabal2nix "cvss" ./code/cvss { };
+        cwe = pkgs.haskellPackages.callCabal2nix "cwe" ./code/cwe { };
         osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv { inherit cvss; };
         hsec-core = pkgs.haskellPackages.callCabal2nix "hsec-core" ./code/hsec-core {
-          inherit cvss osv;
+          inherit cvss cwe osv;
           Cabal-syntax = pkgs.haskellPackages.Cabal-syntax_3_8_1_0;
         };
 
@@ -33,7 +34,7 @@
             root = ./code/hsec-tools;
             withHoogle = false;
             overrides = self: super: {
-              inherit cvss hsec-core osv;
+              inherit cvss cwe hsec-core osv;
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
               toml-parser = jailbreakUnbreak (super.callCabal2nix "toml-parser" toml-parser { });
             };
