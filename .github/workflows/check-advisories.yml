@@ -57,5 +57,4 @@ jobs:
     uses: ./.github/workflows/call-check-advisories.yml
     with:
       fetch-key: hsec-tools-${{ needs.code_hash.outputs.code_hash }}
-      is-artifact: false
       changed-advisories: ${{ needs.advisories_changed.outputs.changed_files }}

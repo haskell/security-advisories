@@ -5,9 +5,6 @@ on:
       fetch-key:
         required: true
         type: string
-      is-artifact:
-        required: true
-        type: boolean
       changed-advisories:
         required: false
         type: string
@@ -27,15 +24,8 @@ jobs:
           # `published` and `modified` timestamps
           fetch-depth: 0
       - run: mkdir -p ~/.local/dockerImages
-      - name: Fetch artifact
-        if: ${{ inputs.is-artifact }}
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ inputs.fetch-key }}
-          path: ~/.local/dockerImages
       - name: Fetch cache
         id: fetch-binaries
-        if: ${{ !inputs.is-artifact }}
         uses: actions/cache/restore@v3
         with:
           key: ${{ inputs.fetch-key }}
