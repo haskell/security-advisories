@@ -21,6 +21,8 @@ jobs:
     needs: tools-changed
     if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/call-nix.yml
+    with:
+      cache-key: hsec-tools-${{ github.sha }}
   check-advisories:
     name: Invoke check-advisories workflow
     if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}

@@ -10,12 +10,8 @@ on:
         type: string
         default: '[]'
 jobs:
-  populate_cache:
-    name: Check nix build
-    uses: ./.github/workflows/call-nix.yml
   check-advisories:
     runs-on: ubuntu-20.04
-    needs: populate_cache
     steps:
       - uses: actions/checkout@v4
         with:
