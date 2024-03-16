@@ -4,6 +4,7 @@ module Security.Advisories.Core.Advisory
   ( Advisory(..)
     -- * Supporting types
   , Affected(..)
+  , CAPEC(..)
   , CWE(..)
   , Architecture(..)
   , AffectedVersionRange(..)
@@ -27,6 +28,7 @@ data Advisory = Advisory
   { advisoryId :: HsecId
   , advisoryModified :: ZonedTime
   , advisoryPublished :: ZonedTime
+  , advisoryCAPECs :: [CAPEC]
   , advisoryCWEs :: [CWE]
   , advisoryKeywords :: [Keyword]
   , advisoryAliases :: [Text]
@@ -52,6 +54,9 @@ data Affected = Affected
   , affectedOS :: Maybe [OS]
   , affectedDeclarations :: [(Text, VersionRange)]
   }
+  deriving stock (Show)
+
+newtype CAPEC = CAPEC {unCAPEC :: Integer}
   deriving stock (Show)
 
 newtype CWE = CWE {unCWE :: Integer}
