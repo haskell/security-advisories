@@ -3,6 +3,7 @@ Right
         { advisoryId = HSEC-0000-0000
         , advisoryModified = 1970-01-01 00:00:00 UTC
         , advisoryPublished = 1970-01-01 00:00:00 UTC
+        , advisoryCAPECs = []
         , advisoryCWEs = []
         , advisoryKeywords =
             [ "example"

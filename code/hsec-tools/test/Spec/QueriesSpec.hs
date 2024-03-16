@@ -108,6 +108,7 @@ mkAdvisory versionRange =
      { advisoryId = fromMaybe (error "Cannot mkHsecId") $ mkHsecId 2023 42
      , advisoryModified = read "2023-01-01T00:00:00"
      , advisoryPublished = read "2023-01-01T00:00:00"
+     , advisoryCAPECs = []
      , advisoryCWEs = []
      , advisoryKeywords = []
      , advisoryAliases = [ "CVE-2022-XXXX" ]
