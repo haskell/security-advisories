@@ -28,7 +28,6 @@ jobs:
     uses: ./.github/workflows/call-check-advisories.yml
     with:
       fetch-key: hsec-tools-${{ github.sha }}
-      is-artifact: true
   generate-website:
     name: Generate advisories website
     if: ${{ github.ref == 'refs/heads/main' }}
