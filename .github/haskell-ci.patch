@@ -6,12 +6,12 @@ index 96282c2..e40c573 100644
  jobs:
 +  tools_changed:
 +    continue-on-error: true
-+    runs-on: ubuntu-20.04
++    runs-on: ubuntu-22.04
 +    outputs:
 +      should_skip: ${{ steps.skip_check.outputs.should_skip }}
 +    steps:
 +      - id: skip_check
-+        uses: fkirc/skip-duplicate-actions@v5.3.0
++        uses: fkirc/skip-duplicate-actions@v5.3.1
 +        with:
 +          concurrent_skipping: "never"
 +          skip_after_successful_duplicate: "true"
@@ -19,8 +19,9 @@ index 96282c2..e40c573 100644
 +          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
    linux:
      name: Haskell-CI - Linux - ${{ matrix.compiler }}
+-    runs-on: ubuntu-20.04
 +    needs: tools_changed
 +    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
-     runs-on: ubuntu-20.04
++    runs-on: ubuntu-22.04
      timeout-minutes:
        60
