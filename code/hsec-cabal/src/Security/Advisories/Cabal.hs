@@ -1,7 +1,13 @@
 {-# LANGUAGE StrictData #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Security.Advisories.Cabal (matchAdvisoriesForPlan) where
+module Security.Advisories.Cabal
+  ( matchAdvisoriesForPlan
+  , ElaboratedPackageInfoWith (..)
+  , ElaboratedPackageInfoAdvised
+  , ElaboratedPackageInfo
+  )
+where
 
 import Data.Functor.Identity (Identity (Identity))
 import Data.Kind (Type)
@@ -64,6 +70,9 @@ data ElaboratedPackageInfoWith f = MkElaboratedPackageInfoWith
   { elaboratedPackageVersion :: Version
   -- ^ the version of the package that is installed
   , packageAdvisories :: f [Advisory]
+  -- ^ the advisories for some package; this is just the () type
+  -- (Proxy) as longas the advisories haven't been looked up and a
+  -- [Advisory] after looking up the advisories in the DB
   }
   deriving stock (Generic)
 
@@ -73,7 +82,7 @@ deriving stock instance Ord (f [Advisory]) => (Ord (ElaboratedPackageInfoWith f)
 
 deriving stock instance Show (f [Advisory]) => (Show (ElaboratedPackageInfoWith f))
 
---   FUTUREWORK(mangoiv): this could probably be done more intelligent by also
+--   FUTUREWORK(mangoiv): this could probably be done more intelligently by also
 --   looking up via the version range but I don't know exacty how
 
 -- | 'Map' to lookup the package name in the install plan that returns information

@@ -42,6 +42,7 @@ common common-all
     ImportQualifiedPost
     LambdaCase
     NamedFieldPuns
+    OverloadedStrings
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures
@@ -57,11 +58,15 @@ library
     , base                  <5
     , Cabal
     , cabal-install
+    , colourista
     , containers
     , filepath
     , hsec-core
     , hsec-tools
+    , http-client
     , optparse-applicative
+    , process
+    , temporary
     , text
     , validation-selective
 
