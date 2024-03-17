@@ -39,7 +39,9 @@
               Cabal-syntax.source = "3.10.2.0";
               toml-parser.source = inputs.toml-parser;
             };
-            settings = { };
+            settings = {
+              hsec-cabal.justStaticExecutables = true;
+            };
             projectRoot = ./code;
             devShell.mkShellArgs.shellHook = config.pre-commit.installationScript;
           };
