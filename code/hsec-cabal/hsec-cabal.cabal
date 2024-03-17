@@ -45,6 +45,7 @@ common common-all
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures
+    TypeApplications
 
 library
   import:           common-all
@@ -60,6 +61,7 @@ library
     , filepath
     , hsec-core
     , hsec-tools
+    , optparse-applicative
     , text
     , validation-selective
 
