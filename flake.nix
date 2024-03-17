@@ -6,6 +6,9 @@
     parts.url = "github:hercules-ci/flake-parts";
     haskell-flake.url = "github:srid/haskell-flake";
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+
+    toml-parser.url = "https://hackage.haskell.org/package/toml-parser-2.0.0.0/toml-parser-2.0.0.0.tar.gz";
+    toml-parser.flake = false;
   };
   outputs = inputs:
     inputs.parts.lib.mkFlake { inherit inputs; } {
@@ -34,6 +37,7 @@
           haskellProjects.default = {
             packages = {
               Cabal-syntax.source = "3.10.2.0";
+              toml-parser.source = inputs.toml-parser;
             };
             settings = { };
             projectRoot = ./code;

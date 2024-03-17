@@ -181,7 +181,8 @@
         "haskell-flake": "haskell-flake",
         "nixpkgs": "nixpkgs",
         "parts": "parts",
-        "pre-commit-hooks": "pre-commit-hooks"
+        "pre-commit-hooks": "pre-commit-hooks",
+        "toml-parser": "toml-parser"
       }
     },
     "systems": {
@@ -197,6 +198,19 @@
         "owner": "nix-systems",
         "repo": "default",
         "type": "github"
+      }
+    },
+    "toml-parser": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1000000000,
+        "narHash": "sha256-ORXJIeAEb2fTAqLVhOurubDrz7Ddh7weZNEDkTkNP4k=",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/toml-parser-2.0.0.0/toml-parser-2.0.0.0.tar.gz"
+      },
+      "original": {
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/toml-parser-2.0.0.0/toml-parser-2.0.0.0.tar.gz"
       }
     }
   },
