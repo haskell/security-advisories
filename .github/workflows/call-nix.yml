@@ -1,6 +1,10 @@
 name: nix build
 on:
   workflow_call:
+    inputs:
+      cache-key:
+        required: true
+        type: string
 jobs:
   check_nix:
     name: Check nix build
@@ -23,14 +27,9 @@ jobs:
         run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
       - run: mkdir -p ~/.local/dockerImages
       - run: cp result ~/.local/dockerImages/hsec-tools
-      - id: code-hash
-        name: Compute code directory hash
-        run: |
-          code_hash=$(git rev-parse HEAD:code)
-          echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
       - uses: actions/cache/save@v3
         with:
-          key: hsec-tools-${{ steps.code-hash.outputs.code-hash}}
+          key: ${{ inputs.cache-key }}
           path: ~/.local/dockerImages
       - name: upload executable
         uses: actions/upload-artifact@v3

@@ -36,6 +36,9 @@ date = 2021-01-31
 # Optional: Classification of the advisory with respect to the Common Weakness Enumeration.
 cwe = [820]
 
+# Optional: Classification of the advisory with respect to the Common Attack Pattern Enumerations and Classifications.
+capec = [123]
+
 # Arbitrary keywords.  We recommend to include keywords relating
 # to the protocols, data formats or services pertaining to the
 # affected package (e.g. "json", "tls", "aws").  You can also

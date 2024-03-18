@@ -50,12 +50,16 @@ jobs:
         run: |
           code_hash=$(git rev-parse HEAD:code)
           echo "code-hash=$code_hash" >> "$GITHUB_OUTPUT"
+  populate_cache:
+    name: Populate cache
+    uses: ./.github/workflows/call-nix.yml
+    with:
+      cache-key: hsec-tools-${{ needs.code_hash.outputs.code_hash }}
   check_advisories:
     name: Invoke check-advisories workflow
-    needs: [tools_changed, advisories_changed, code_hash]
+    needs: [tools_changed, advisories_changed, code_hash, populate_cache]
     if: ${{ needs.tools_changed.outputs.should_skip == 'true' && needs.advisories_changed.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/call-check-advisories.yml
     with:
       fetch-key: hsec-tools-${{ needs.code_hash.outputs.code_hash }}
-      is-artifact: false
       changed-advisories: ${{ needs.advisories_changed.outputs.changed_files }}

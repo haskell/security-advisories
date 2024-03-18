@@ -171,6 +171,7 @@ parseAdvisoryTable oob policy doc summary details html tab =
         { advisoryId = amdId (frontMatterAdvisory fm)
         , advisoryPublished = published
         , advisoryModified = modified
+        , advisoryCAPECs = amdCAPECs (frontMatterAdvisory fm)
         , advisoryCWEs = amdCWEs (frontMatterAdvisory fm)
         , advisoryKeywords = amdKeywords (frontMatterAdvisory fm)
         , advisoryAliases = amdAliases (frontMatterAdvisory fm)
@@ -218,6 +219,7 @@ data AdvisoryMetadata = AdvisoryMetadata
   { amdId         :: HsecId
   , amdModified   :: Maybe ZonedTime
   , amdPublished  :: Maybe ZonedTime
+  , amdCAPECs     :: [CAPEC]
   , amdCWEs       :: [CWE]
   , amdKeywords   :: [Keyword]
   , amdAliases    :: [T.Text]
@@ -230,7 +232,8 @@ instance Toml.FromValue AdvisoryMetadata where
       published   <- Toml.optKeyOf "date" getDefaultedZonedTime
       modified    <- Toml.optKeyOf "modified"  getDefaultedZonedTime
       let optList key = fromMaybe [] <$> Toml.optKey key
-      cats        <- optList "cwe"
+      capecs      <- optList "capec"
+      cwes        <- optList "cwe"
       kwds        <- optList "keywords"
       aliases     <- optList "aliases"
       related     <- optList "related"
@@ -238,7 +241,8 @@ instance Toml.FromValue AdvisoryMetadata where
         { amdId = identifier
         , amdModified = modified
         , amdPublished = published
-        , amdCWEs = cats
+        , amdCAPECs = capecs
+        , amdCWEs = cwes
         , amdKeywords = kwds
         , amdAliases = aliases
         , amdRelated = related
@@ -252,6 +256,7 @@ instance Toml.ToTable AdvisoryMetadata where
     ["id"        Toml..= amdId x] ++
     ["modified"  Toml..= y | Just y <- [amdModified x]] ++
     ["date"      Toml..= y | Just y <- [amdPublished x]] ++
+    ["capec"     Toml..= amdCAPECs x | not (null (amdCAPECs x))] ++
     ["cwe"       Toml..= amdCWEs x | not (null (amdCWEs x))] ++
     ["keywords"  Toml..= amdKeywords x | not (null (amdKeywords x))] ++
     ["aliases"   Toml..= amdAliases x | not (null (amdAliases x))] ++
@@ -316,6 +321,12 @@ instance Toml.FromValue HsecId where
 
 instance Toml.ToValue HsecId where
   toValue = Toml.toValue . printHsecId
+
+instance Toml.FromValue CAPEC where
+  fromValue v = CAPEC <$> Toml.fromValue v
+
+instance Toml.ToValue CAPEC where
+  toValue (CAPEC x) = Toml.toValue x
 
 instance Toml.FromValue CWE where
   fromValue v = CWE <$> Toml.fromValue v
