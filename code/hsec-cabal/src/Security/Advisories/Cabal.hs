@@ -24,7 +24,11 @@ import Distribution.InstalledPackageInfo (sourcePackageId)
 import Distribution.Package (PackageIdentifier (PackageIdentifier, pkgName, pkgVersion), PackageName, mkPackageName)
 import Distribution.Version (Version)
 import GHC.Generics (Generic)
-import Security.Advisories (Advisory (advisoryAffected), Affected (Affected, affectedPackage, affectedVersions), AffectedVersionRange (affectedVersionRangeIntroduced))
+import Security.Advisories
+  ( Advisory (advisoryAffected)
+  , Affected (Affected, affectedPackage, affectedVersions)
+  , AffectedVersionRange (affectedVersionRangeFixed, affectedVersionRangeIntroduced)
+  )
 
 -- | for a given 'ElaboratedInstallPlan' and a list of advisories, construct a map of advisories
 --   and packages within the install plan that are affected by them
@@ -39,7 +43,9 @@ matchAdvisoriesForPlan plan = foldr advise Map.empty
   advise :: Advisory -> Map PackageName ElaboratedPackageInfoAdvised -> Map PackageName ElaboratedPackageInfoAdvised
   advise adv = do
     let versionAffected :: Version -> [AffectedVersionRange] -> Bool
-        versionAffected v = getAny . foldMap (Any . (== v) . affectedVersionRangeIntroduced)
+        versionAffected v =
+          getAny . foldMap \av -> Any do
+            v >= affectedVersionRangeIntroduced av && maybe True (v <=) (affectedVersionRangeFixed av)
 
         advPkgs :: [(PackageName, ElaboratedPackageInfoAdvised)]
         advPkgs = flip mapMaybe (advisoryAffected adv) \Affected {affectedPackage, affectedVersions} -> do
