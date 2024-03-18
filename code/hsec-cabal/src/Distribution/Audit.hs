@@ -8,6 +8,7 @@ import Data.Foldable (for_)
 import Data.Functor.Identity (Identity (runIdentity))
 import Data.List qualified as List
 import Data.Map qualified as M
+import Data.String (IsString (fromString))
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.IO qualified as T
@@ -23,14 +24,14 @@ import Distribution.Client.ProjectPlanning (rebuildInstallPlan)
 import Distribution.Client.Setup (defaultGlobalFlags)
 import Distribution.Types.PackageName (PackageName, unPackageName)
 import Distribution.Verbosity qualified as Verbosity
-import Distribution.Version (versionNumbers)
+import Distribution.Version (Version, versionNumbers)
 import GHC.Generics (Generic)
 import Options.Applicative
 import Security.Advisories (Advisory (..), Keyword (..), ParseAdvisoryError, printHsecId)
 import Security.Advisories.Cabal (ElaboratedPackageInfoAdvised, ElaboratedPackageInfoWith (elaboratedPackageVersion, packageAdvisories), matchAdvisoriesForPlan)
 import Security.Advisories.Filesystem (listAdvisories)
 import System.IO.Temp (withSystemTempDirectory)
-import System.Process
+import System.Process (callProcess)
 import Validation (validation)
 
 data AuditException
@@ -91,19 +92,27 @@ auditMain = do
 
   humanReadableHandler (M.toList (matchAdvisoriesForPlan plan advisories))
 
-prettyAdvisory :: Advisory -> Text
-prettyAdvisory Advisory {advisoryId, advisoryPublished, advisoryKeywords, advisorySummary} =
+{-# INLINE prettyVersion #-}
+prettyVersion :: IsString s => Version -> s
+prettyVersion = fromString . List.intercalate "." . map show . versionNumbers
+
+prettyAdvisory :: Advisory -> Maybe Version -> Text
+prettyAdvisory Advisory {advisoryId, advisoryPublished, advisoryKeywords, advisorySummary} mfv =
   T.unlines do
     let hsecId = T.pack (printHsecId advisoryId)
     map
       ("  " <>)
-      [ formatWith [bold, blue] hsecId <> " (\"" <> advisorySummary <> "\")"
+      [ formatWith [bold, blue] hsecId <> " \"" <> advisorySummary <> "\""
       , "published: " <> formatWith [bold] (ps advisoryPublished)
       , "https://haskell.github.io/security-advisories/advisory/" <> hsecId
+      , fixAvailable
       , formatWith [blue] $ T.intercalate ", " (coerce advisoryKeywords)
       ]
  where
   ps = T.pack . show
+  fixAvailable = case mfv of
+    Nothing -> formatWith [bold, red] "No fix version available"
+    Just fv -> formatWith [bold, green] "Fix available since version " <> formatWith [yellow] (prettyVersion fv)
 
 -- | this is handler is used when displaying to the user
 humanReadableHandler :: [(PackageName, ElaboratedPackageInfoAdvised)] -> IO ()
@@ -112,10 +121,10 @@ humanReadableHandler = \case
   avs -> do
     putStrLn (formatWith [bold, red] "\n\nFound advisories:\n")
     for_ avs \(pn, i) -> do
-      let verString = formatWith [yellow] $ List.intercalate "." $ map show $ versionNumbers $ elaboratedPackageVersion i
+      let verString = formatWith [yellow] $ prettyVersion $ elaboratedPackageVersion i
           pkgName = formatWith [yellow] $ show $ unPackageName pn
-      putStrLn (pkgName <> " at version: " <> verString <> " is vulnerable for:")
-      for_ (runIdentity (packageAdvisories i)) (T.putStrLn . prettyAdvisory)
+      putStrLn ("dependency " <> pkgName <> " at version " <> verString <> " is vulnerable for:")
+      for_ (runIdentity (packageAdvisories i)) (T.putStrLn . uncurry prettyAdvisory)
 
 -- print $ matchAdvisoriesForPlan plan' advisories
 -- TODO(mangoiv): find out what's the correct plan

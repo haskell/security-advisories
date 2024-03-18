@@ -49,9 +49,9 @@ library
     , cvss
     , directory             <2
     , extra                 ^>=1.7.5
+    , feed                  >=1.3      && <1.4
     , filepath              >=1.4      && <1.5
     , hsec-core
-    , feed                  ==1.3.*
     , lucid                 >=2.9.0
     , mtl                   >=2.2      && <2.4
     , osv

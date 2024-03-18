@@ -14,7 +14,7 @@ import Data.Kind (Type)
 import Data.Map (Map, (!?))
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe)
-import Data.Monoid (Any (Any, getAny))
+import Data.Monoid (Alt (Alt, getAlt), Any (Any, getAny))
 import Data.Proxy (Proxy (Proxy))
 import Data.Text qualified as T
 import Distribution.Client.InstallPlan (foldPlanPackage)
@@ -47,12 +47,15 @@ matchAdvisoriesForPlan plan = foldr advise Map.empty
           getAny . foldMap \av -> Any do
             v >= affectedVersionRangeIntroduced av && maybe True (v <) (affectedVersionRangeFixed av)
 
+        fixVersion :: [AffectedVersionRange] -> Maybe Version
+        fixVersion = getAlt . foldMap (Alt . affectedVersionRangeFixed)
+
         advPkgs :: [(PackageName, ElaboratedPackageInfoAdvised)]
         advPkgs = flip mapMaybe (advisoryAffected adv) \Affected {affectedPackage, affectedVersions} -> do
           let pkgn = mkPackageName (T.unpack affectedPackage)
           MkElaboratedPackageInfoWith {elaboratedPackageVersion = elabv} <- installPlanToLookupTable plan !? pkgn
           if versionAffected elabv affectedVersions
-            then Just (pkgn, MkElaboratedPackageInfoWith {elaboratedPackageVersion = elabv, packageAdvisories = Identity [adv]})
+            then Just (pkgn, MkElaboratedPackageInfoWith {elaboratedPackageVersion = elabv, packageAdvisories = Identity [(adv, fixVersion affectedVersions)]})
             else Nothing
 
     flip
@@ -75,18 +78,19 @@ type ElaboratedPackageInfoWith :: (Type -> Type) -> Type
 data ElaboratedPackageInfoWith f = MkElaboratedPackageInfoWith
   { elaboratedPackageVersion :: Version
   -- ^ the version of the package that is installed
-  , packageAdvisories :: f [Advisory]
+  , packageAdvisories :: f [(Advisory, Maybe Version)]
   -- ^ the advisories for some package; this is just the () type
-  -- (Proxy) as longas the advisories haven't been looked up and a
-  -- [Advisory] after looking up the advisories in the DB
+  -- (Proxy) as long as the advisories haven't been looked up and a
+  -- [Advisory] after looking up the advisories in the DB we also
+  -- want to attach the newest fixed version of a given Advisory
   }
   deriving stock (Generic)
 
-deriving stock instance Eq (f [Advisory]) => (Eq (ElaboratedPackageInfoWith f))
+deriving stock instance Eq (f [(Advisory, Maybe Version)]) => (Eq (ElaboratedPackageInfoWith f))
 
-deriving stock instance Ord (f [Advisory]) => (Ord (ElaboratedPackageInfoWith f))
+deriving stock instance Ord (f [(Advisory, Maybe Version)]) => (Ord (ElaboratedPackageInfoWith f))
 
-deriving stock instance Show (f [Advisory]) => (Show (ElaboratedPackageInfoWith f))
+deriving stock instance Show (f [(Advisory, Maybe Version)]) => (Show (ElaboratedPackageInfoWith f))
 
 --   FUTUREWORK(mangoiv): this could probably be done more intelligently by also
 --   looking up via the version range but I don't know exacty how
