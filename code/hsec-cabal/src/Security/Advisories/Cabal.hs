@@ -45,7 +45,7 @@ matchAdvisoriesForPlan plan = foldr advise Map.empty
     let versionAffected :: Version -> [AffectedVersionRange] -> Bool
         versionAffected v =
           getAny . foldMap \av -> Any do
-            v >= affectedVersionRangeIntroduced av && maybe True (v <=) (affectedVersionRangeFixed av)
+            v >= affectedVersionRangeIntroduced av && maybe True (v <) (affectedVersionRangeFixed av)
 
         advPkgs :: [(PackageName, ElaboratedPackageInfoAdvised)]
         advPkgs = flip mapMaybe (advisoryAffected adv) \Affected {affectedPackage, affectedVersions} -> do

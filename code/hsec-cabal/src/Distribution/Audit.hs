@@ -101,7 +101,6 @@ prettyAdvisory Advisory {advisoryId, advisoryPublished, advisoryKeywords, adviso
       , "published: " <> formatWith [bold] (ps advisoryPublished)
       , "https://haskell.github.io/security-advisories/advisory/" <> hsecId
       , formatWith [blue] $ T.intercalate ", " (coerce advisoryKeywords)
-      , ""
       ]
  where
   ps = T.pack . show
@@ -110,12 +109,13 @@ prettyAdvisory Advisory {advisoryId, advisoryPublished, advisoryKeywords, adviso
 humanReadableHandler :: [(PackageName, ElaboratedPackageInfoAdvised)] -> IO ()
 humanReadableHandler = \case
   [] -> putStrLn (formatWith [green, bold] "No advisories found.")
-  avs -> for_ avs \(pn, i) -> do
+  avs -> do
     putStrLn (formatWith [bold, red] "\n\nFound advisories:\n")
-    let verString = formatWith [yellow] $ List.intercalate "." $ map show $ versionNumbers $ elaboratedPackageVersion i
-        pkgName = formatWith [yellow] $ show $ unPackageName pn
-    putStrLn (pkgName <> " at version: " <> verString <> " is vulnerable for:")
-    for_ (runIdentity (packageAdvisories i)) (T.putStrLn . prettyAdvisory)
+    for_ avs \(pn, i) -> do
+      let verString = formatWith [yellow] $ List.intercalate "." $ map show $ versionNumbers $ elaboratedPackageVersion i
+          pkgName = formatWith [yellow] $ show $ unPackageName pn
+      putStrLn (pkgName <> " at version: " <> verString <> " is vulnerable for:")
+      for_ (runIdentity (packageAdvisories i)) (T.putStrLn . prettyAdvisory)
 
 -- print $ matchAdvisoriesForPlan plan' advisories
 -- TODO(mangoiv): find out what's the correct plan
