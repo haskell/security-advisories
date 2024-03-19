@@ -5,6 +5,8 @@ module Security.Advisories.Sync
     defaultRepository,
     SyncStatus (..),
     sync,
+    RepositoryStatus (..),
+    status,
   )
 where
 
@@ -20,7 +22,8 @@ data SyncStatus
 
 sync :: Repository -> IO (Either String SyncStatus)
 sync repo = do
-  ensured <- ensureGitRepositoryWithRemote repo
+  gitStatus <- gitRepositoryStatus repo
+  ensured <- ensureGitRepositoryWithRemote repo gitStatus
   let mkGitError = Left . explainGitError
   case ensured of
     Left e -> return $ mkGitError e
@@ -29,14 +32,40 @@ sync repo = do
         GitRepositoryCreated ->
           return $ Right Created
         GitRepositoryExisting -> do
-          gitInfo <- getDirectoryGitInfo $ repositoryRoot repo
-          case gitInfo of
-            Left e -> return $ mkGitError e
-            Right info -> do
-              update <- latestUpdate (repositoryUrl repo) (repositoryBranch repo)
-              if update == Right (zonedTimeToUTC $ lastModificationCommitDate info)
-                then return $ Right AlreadyUpToDate
-                else either mkGitError (const $ Right Updated) <$> updateGitRepository repo
+          repoStatus <- status' repo gitStatus
+          if repoStatus == DirectoryOutDated
+            then either mkGitError (const $ Right Updated) <$> updateGitRepository repo
+            else return $ Right AlreadyUpToDate
+
+data RepositoryStatus
+  = DirectoryMissing
+  | DirectoryEmpty
+  | DirectoryUpToDate
+  | DirectoryOutDated
+  deriving stock (Eq, Show)
+
+status :: Repository -> IO RepositoryStatus
+status repo =
+  status' repo =<< gitRepositoryStatus repo
+
+status' :: Repository -> GitRepositoryStatus -> IO RepositoryStatus
+status' repo gitStatus = do
+  case gitStatus of
+    GitDirectoryMissing ->
+      return DirectoryMissing
+    GitDirectoryEmpty ->
+      return DirectoryEmpty
+    GitDirectoryInitialized -> do
+      gitInfo <- getDirectoryGitInfo $ repositoryRoot repo
+      case gitInfo of
+        Left _ ->
+          return DirectoryOutDated
+        Right info -> do
+          update <- latestUpdate (repositoryUrl repo) (repositoryBranch repo)
+          return $
+            if update == Right (zonedTimeToUTC $ lastModificationCommitDate info)
+              then DirectoryUpToDate
+              else DirectoryOutDated
 
 defaultRepository :: Repository
 defaultRepository =

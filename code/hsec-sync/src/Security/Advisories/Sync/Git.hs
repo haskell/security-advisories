@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- |
 --
@@ -9,10 +10,12 @@ module Security.Advisories.Sync.Git
     GitErrorCase (..),
     explainGitError,
     Repository (..),
-    GitRepositoryStatus (..),
+    GitRepositoryEnsuredStatus (..),
     ensureGitRepositoryWithRemote,
     getDirectoryGitInfo,
     updateGitRepository,
+    GitRepositoryStatus (..),
+    gitRepositoryStatus,
   )
 where
 
@@ -65,18 +68,12 @@ data Repository = Repository
   }
 
 data GitRepositoryStatus
-  = GitRepositoryCreated
-  | GitRepositoryExisting
+  = GitDirectoryMissing
+  | GitDirectoryEmpty
+  | GitDirectoryInitialized
 
-ensureGitRepositoryWithRemote :: Repository -> IO (Either GitError GitRepositoryStatus)
-ensureGitRepositoryWithRemote repo = do
-  let clone = do
-        (cmd, status, stdout, stderr) <-
-          runGit ["clone", "-b", repositoryBranch repo, repositoryUrl repo, repositoryRoot repo]
-        return $
-          if status /= ExitSuccess
-            then Left $ GitError cmd $ GitProcessError status stdout stderr
-            else Right GitRepositoryCreated
+gitRepositoryStatus :: Repository -> IO GitRepositoryStatus
+gitRepositoryStatus repo = do
   exists <- D.doesDirectoryExist $ repositoryRoot repo
   if exists
     then D.withCurrentDirectory (repositoryRoot repo) $ do
@@ -85,37 +82,64 @@ ensureGitRepositoryWithRemote repo = do
       let out = filter (not . null) $ lines checkStdout
       case checkStatus of
         ExitSuccess
-          | not (null out) && head out == "true" -> do
-              _ <- runGit ["remote", "add", "origin", repositoryUrl repo] -- can fail if it exists
-              (setUrlCmd, setUrlStatus, setUrlStdout, setUrlStderr) <-
-                runGit ["remote", "set-url", "origin", repositoryUrl repo]
-              return $
-                if setUrlStatus /= ExitSuccess
-                  then Left $ GitError setUrlCmd $ GitProcessError setUrlStatus setUrlStdout setUrlStderr
-                  else Right GitRepositoryExisting
+          | not (null out) && head out == "true" ->
+              return GitDirectoryInitialized
         _ ->
-          clone
-    else clone
+          return GitDirectoryEmpty
+    else return GitDirectoryMissing
+
+data GitRepositoryEnsuredStatus
+  = GitRepositoryCreated
+  | GitRepositoryExisting
+
+ensureGitRepositoryWithRemote ::
+  Repository ->
+  GitRepositoryStatus ->
+  IO (Either GitError GitRepositoryEnsuredStatus)
+ensureGitRepositoryWithRemote repo =
+  \case
+    GitDirectoryMissing ->
+      clone
+    GitDirectoryEmpty ->
+      clone
+    GitDirectoryInitialized ->
+      return $ Right GitRepositoryExisting
+  where
+    clone = do
+      (cmd, status, stdout, stderr) <-
+        runGit ["clone", "-b", repositoryBranch repo, repositoryUrl repo, repositoryRoot repo]
+      return $
+        if status /= ExitSuccess
+          then Left $ GitError cmd $ GitProcessError status stdout stderr
+          else Right GitRepositoryCreated
 
 updateGitRepository :: Repository -> IO (Either GitError ())
 updateGitRepository repo =
   D.withCurrentDirectory (repositoryRoot repo) $ do
-    (fetchAllCmd, fetchAllStatus, fetchAllStdout, fetchAllStderr) <-
-      runGit ["fetch", "--all"]
-    if fetchAllStatus /= ExitSuccess
-      then return $ Left $ GitError fetchAllCmd $ GitProcessError fetchAllStatus fetchAllStdout fetchAllStderr
+    _ <- runGit ["remote", "add", "origin", repositoryUrl repo] -- can fail if it exists
+    (setUrlCmd, setUrlStatus, setUrlStdout, setUrlStderr) <-
+      runGit ["remote", "set-url", "origin", repositoryUrl repo]
+    if setUrlStatus /= ExitSuccess
+      then return $ Left $ GitError setUrlCmd $ GitProcessError setUrlStatus setUrlStdout setUrlStderr
       else do
-        (checkoutBranchCmd, checkoutBranchStatus, checkoutBranchStdout, checkoutBranchStderr) <-
-          runGit ["checkout", repositoryBranch repo]
-        if checkoutBranchStatus /= ExitSuccess
-          then return $ Left $ GitError checkoutBranchCmd $ GitProcessError checkoutBranchStatus checkoutBranchStdout checkoutBranchStderr
+        (fetchAllCmd, fetchAllStatus, fetchAllStdout, fetchAllStderr) <-
+          runGit ["fetch", "--all"]
+        if fetchAllStatus /= ExitSuccess
+          then
+            return $ Left $ GitError fetchAllCmd $ GitProcessError fetchAllStatus fetchAllStdout fetchAllStderr
           else do
-            (resetCmd, resetStatus, resetStdout, resetStderr) <-
-              runGit ["reset", "--hard", "origin/" <> repositoryBranch repo]
-            return $
-              if resetStatus /= ExitSuccess
-                then Left $ GitError resetCmd $ GitProcessError resetStatus resetStdout resetStderr
-                else Right ()
+            (checkoutBranchCmd, checkoutBranchStatus, checkoutBranchStdout, checkoutBranchStderr) <-
+              runGit ["checkout", repositoryBranch repo]
+            if checkoutBranchStatus /= ExitSuccess
+              then
+                return $ Left $ GitError checkoutBranchCmd $ GitProcessError checkoutBranchStatus checkoutBranchStdout checkoutBranchStderr
+              else do
+                (resetCmd, resetStatus, resetStdout, resetStderr) <-
+                  runGit ["reset", "--hard", "origin/" <> repositoryBranch repo]
+                return $
+                  if resetStatus /= ExitSuccess
+                    then Left $ GitError resetCmd $ GitProcessError resetStatus resetStdout resetStderr
+                    else Right ()
 
 newtype GitDirectoryInfo = GitDirectoryInfo
   { lastModificationCommitDate :: ZonedTime

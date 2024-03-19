@@ -22,6 +22,7 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser =
       hsubparser
         ( command "sync" (info commandSync (progDesc "Synchronize a local Haskell Security Advisory repository"))
+        <>  command "status" (info commandStatus (progDesc "Check the status of a local Haskell Security Advisory repository"))
         )
 
 commandSync :: Parser (IO ())
@@ -43,6 +44,18 @@ commandSync = go <$> repositoryParser
               Created -> "Repository just created"
               Updated -> "Repository updated"
               AlreadyUpToDate -> "Repository already up-to-date"
+
+commandStatus :: Parser (IO ())
+commandStatus = go <$> repositoryParser
+  where
+    go repo = do
+      result <- status repo
+      putStrLn $
+        case result of
+          DirectoryMissing -> "Directory is missing"
+          DirectoryEmpty -> "Directory is empty"
+          DirectoryUpToDate -> "Repository is up-to-date"
+          DirectoryOutDated -> "Repository is out-dated"
 
 repositoryParser :: Parser Repository
 repositoryParser =
