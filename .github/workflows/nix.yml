@@ -22,6 +22,8 @@ jobs:
         uses: DeterminateSystems/flake-checker-action@v4
       - name: Build executable (hsec-tools)
         run: nix -L build
+      - name: Build executable (hsec-sync)
+        run: nix -L build '.#hsec-sync'
       - name: Build docker image
         run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
       - run: mkdir -p ~/.local/dockerImages
