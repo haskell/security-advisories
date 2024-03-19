@@ -3,9 +3,11 @@
 
 module Spec.SyncSpec (spec) where
 
+import Control.Monad (unless)
 import Data.Bifunctor (first)
 import Security.Advisories.Sync
 import qualified System.Directory as D
+import System.Environment (lookupEnv)
 import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -22,8 +24,11 @@ spec =
         [ testCase "Invalid root should fail" $ do
             let repo = withRepositoryAt "/dev/advisories"
             status repo >>= (@?= DirectoryMissing)
-            result <- sync repo
-            first (const ("<Redacted error>" :: String)) result @?= Left "<Redacted error>"
+            isGitHubActionRunner <- lookupEnv "GITHUB_ACTIONS"
+            unless (isGitHubActionRunner == Just "true") $ do
+              -- GitHub Action runners let you write anywhere
+              result <- sync repo
+              first (const ("<Redacted error>" :: String)) result @?= Left "<Redacted error>"
             status repo >>= (@?= DirectoryMissing),
           testCase "Subdirectory creation should work" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
