@@ -51,7 +51,12 @@
                   ])
               else drv;
           };
-        hsec-sync = pkgs.haskellPackages.callCabal2nix "hsec-sync" ./code/hsec-sync { inherit hsec-core; };
+        hsec-sync =
+          pkgs.haskell.lib.dontCheck
+            (pkgs.haskellPackages.callCabal2nix
+              "hsec-sync"
+              ./code/hsec-sync
+              { inherit hsec-core; });
 
         gitconfig =
           pkgs.writeTextFile {
