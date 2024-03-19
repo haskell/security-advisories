@@ -25,7 +25,6 @@
           inherit cvss osv;
           Cabal-syntax = pkgs.haskellPackages.Cabal-syntax_3_8_1_0;
         };
-
         hsec-tools = returnShellEnv:
           pkgs.haskellPackages.developPackage {
             inherit returnShellEnv;
@@ -52,6 +51,7 @@
                   ])
               else drv;
           };
+        hsec-sync = pkgs.haskellPackages.callCabal2nix "hsec-sync" ./code/hsec-sync { inherit hsec-core; };
 
         gitconfig =
           pkgs.writeTextFile {
@@ -68,6 +68,7 @@
         packages.osv = osv;
         packages.hsec-core = hsec-core;
         packages.hsec-tools = pkgs.haskell.lib.justStaticExecutables (hsec-tools false);
+        packages.hsec-sync = hsec-sync;
         packages.hsec-tools-image =
           pkgs.dockerTools.buildImage {
             name = "haskell/hsec-tools";
