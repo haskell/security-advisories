@@ -1,0 +1,41 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0002&quot;
+cwe = [347]
+keywords = [&quot;crypto&quot;, &quot;historical&quot;]
+aliases = [&quot;CVE-2022-31053&quot;]
+related = [&quot;GHSA-75rw-34q6-72cr&quot;]
+
+[[affected]]
+package = &quot;biscuit-haskell&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H&quot;
+[[affected.versions]]
+introduced = &quot;0.1.0.0&quot;
+fixed = &quot;0.2.0.0&quot;
+
+[[references]]
+type = &quot;REPORT&quot;
+url = &quot;https://eprint.iacr.org/2020/1484&quot;
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://github.com/biscuit-auth/biscuit/security/advisories/GHSA-75rw-34q6-72cr&quot;
+
+</code></pre>
+<h1>Improper Verification of Cryptographic Signature</h1>
+<p>The Biscuit specification version 1 contains a vulnerable algorithm that allows
+malicious actors to forge valid Γ-signatures. Such an attack would allow an
+attacker to create a token with any access level. The version 2 of the
+specification mandates a different algorithm than gamma signatures and as such
+is not affected by this vulnerability.</p>
+</div></div></body></html></html>

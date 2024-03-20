@@ -1,0 +1,53 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0008&quot;
+cwe = [87]
+keywords = [&quot;web&quot;, &quot;xss&quot;, &quot;historical&quot;]
+aliases = [&quot;CVE-2021-46888&quot;]
+
+[[affected]]
+package = &quot;hledger-web&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N&quot;
+[[affected.versions]]
+introduced = &quot;0.24&quot;
+fixed = &quot;1.23&quot;
+
+[[references]]
+type = &quot;REPORT&quot;
+url = &quot;https://github.com/simonmichael/hledger/issues/1525&quot;
+[[references]]
+type = &quot;INTRODUCED&quot;
+url = &quot;https://github.com/simonmichael/hledger/commit/ec51d28839b2910eea360b1b8c72904b51cf7821&quot;
+[[references]]
+type = &quot;EVIDENCE&quot;
+url = &quot;https://www.youtube.com/watch?v=QnRO-VkfIic&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/simonmichael/hledger/pull/1663&quot;
+
+</code></pre>
+<h1>Stored XSS in <em>hledger-web</em></h1>
+<p>An issue was discovered in <em>hledger-web</em> &lt; 1.23. A Stored Cross-Site
+Scripting (XSS) vulnerability exists in <code>toBloodhoundJson</code> that
+allows an attacker to execute JavaScript by encoding user-controlled
+values in a payload with base64 and parsing them with the <code>atob</code>
+function.</p>
+<p><em>hledger-web</em> forms sanitise obvious JavaScript, but not obfuscated
+JavaScript (see <a href="https://owasp.org/www-community/xss-filter-evasion-cheatsheet">OWASP Filter Evasion Cheat Sheet</a>).
+This means <em>hledger-web</em> instances, especially anonymously-writable
+ones like <code>demo.hledger.org</code>, could be loaded with malicious
+JavaScript to be executed by subsequent visitors.</p>
+<p>Reported by Gaspard Baye and Hamidullah Muslih.  Fix by Arsen
+Arsenović.</p>
+</div></div></body></html></html>

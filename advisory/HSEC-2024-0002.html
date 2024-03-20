@@ -1,0 +1,69 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2024-0002&quot;
+cwe = [787]
+keywords = [&quot;corruption&quot;, &quot;vendored-code&quot;, &quot;language-c&quot;]
+aliases = [&quot;CVE-2019-12900&quot;]
+
+[[references]]
+type = &quot;DISCUSSION&quot;
+url = &quot;https://gnu.wildebeest.org/blog/mjw/2019/08/02/bzip2-and-the-cve-that-wasnt/&quot;
+
+[[references]]
+type = &quot;DISCUSSION&quot;
+url = &quot;http://scary.beasts.org/security/CESA-2008-005.html&quot;
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://access.redhat.com/security/cve/cve-2019-12900&quot;
+
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://sourceware.org/git/?p=bzip2.git;a=commit;h=7ed62bfb46e87a9e878712603469440e6882b184&quot;
+
+[[affected]]
+package = &quot;bzlib&quot;
+cvss = &quot;CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N&quot;
+
+[[affected.versions]]
+introduced = &quot;0.4&quot;
+fixed = &quot;0.5.2.0&quot;
+
+[[affected]]
+package = &quot;bz2&quot;
+cvss = &quot;CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N&quot;
+
+[[affected.versions]]
+introduced = &quot;0.1.0.0&quot;
+fixed = &quot;1.0.1.1&quot;
+
+[[affected]]
+package = &quot;bzlib-conduit&quot;
+cvss = &quot;CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N&quot;
+
+[[affected.versions]]
+introduced = &quot;0.1.0.0&quot;
+fixed = &quot;0.3.0.3&quot;
+</code></pre>
+<h1>out-of-bounds write when there are many bzip2 selectors</h1>
+<p>A malicious bzip2 payload may produce a memory corruption
+resulting in a denial of service and/or remote code execution.
+Network services or command line utilities decompressing
+untrusted bzip2 payloads are affected.</p>
+<p>Note that the exploitation of this bug relies on an undefined
+behavior that appears to be handled safely by current compilers.</p>
+<p>The Haskell libraires are vulnerable when they are built using
+the bundled C library source code, which is the default
+in most cases.</p>
+</div></div></body></html></html>

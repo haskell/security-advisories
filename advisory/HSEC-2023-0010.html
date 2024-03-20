@@ -1,0 +1,76 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0010&quot;
+cwe = [200, 610]
+keywords = [&quot;exfiltration&quot;, &quot;historical&quot;]
+aliases = [&quot;CVE-2018-10857&quot;]
+
+[[affected]]
+package = &quot;git-annex&quot;
+cvss = &quot;CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N&quot;
+[[affected.versions]]
+introduced = &quot;0.1&quot;
+fixed = &quot;6.20180626&quot;
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/&quot;
+</code></pre>
+<h1><em>git-annex</em> private data exfiltration to compromised remote</h1>
+<p>Some uses of git-annex were vulnerable to a private data exposure
+and exfiltration attack. It could expose the content of files
+located outside the <em>git-annex</em> repository, or content from a
+private web server on localhost or the LAN.  Joey Hess discovered
+this attack.</p>
+<p>To perform this attack, the attacker needs to have control over one
+of the remotes of the victim's <em>git-annex</em> repository. For example,
+they may provide a public <em>git-annex</em> repository that the victim
+clones. Or, equivalantly, the attacker could have read access to the
+victim's <em>git-annex</em> repository or a repository it pushes to, and
+some channel to get commits into it (e.g. pull requests).</p>
+<p>These exploits are most likely to succeed when the victim is running
+the <code>git-annex</code> assistant, or is periodically running <code>git annex sync --content</code>.</p>
+<p>To perform the attack the attacker runs <code>git-annex addurl --relaxed file:///etc/passwd</code> and commits this to the repository in some out
+of the way place.  After the victim's git repository receives that
+change, <code>git-annex</code> follows the attacker-provided URL to the private
+data, which it stores in the <em>git-annex</em> repository.  From there it
+transfers the content to the remote <em>git-annex</em> repository that the
+attacker has access to.</p>
+<p>As well as <code>file:///</code> URLs, the attacker can use URLs to private web
+servers.  The URL can also be one that the attacker controls, that
+redirects to a URL that is accessible to the victim system (and not
+necessarily the compromised remote).</p>
+<h2>Fix</h2>
+<p>The issue was fixed by making <code>git-annex</code> refuse to follow
+<code>file:///</code> urls and URLs pointing to private/local IP addresses by
+default.  Two new configuration settings,
+<code>annex.security.allowed-url-schemes</code> and
+<code>annex.security.allowed-ip-addresses</code>, can relax this security
+policy, and are intended for cases where the <em>git-annex</em> repository
+is kept private and so the attack does not apply.</p>
+<h2>Impact on external special remotes</h2>
+<p>One variant of this issue can exploit a vulnerable external special
+remote, and could not be prevented by <code>git-annex</code>.  (<code>git-annex</code>'s
+own built-in special remotes are not vulnerable to this attack.)</p>
+<p>In this attack variant, the attacker guesses the hash of a file
+stored on the victim's private web server, and adds it to the
+<code>git-annex</code> repository.  The attacker also has control of the server
+hosting an encrypted special remote used by the victim's <em>git-annex</em>
+repository.  They cause that server to redirect to the victim's web
+server.  This allows the attacker to verify if the victim's web
+server contains a file that the attacker already knows the content
+of, assuming they can guess the URL to it.</p>
+<p>Developers of external special remotes are encouraged to prevent
+this attack by not following such HTTP redirects.</p>
+</div></div></body></html></html>

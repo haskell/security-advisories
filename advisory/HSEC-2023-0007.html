@@ -1,0 +1,77 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0007&quot;
+cwe = [1284, 789]
+keywords = [&quot;toml&quot;, &quot;parser&quot;, &quot;dos&quot;]
+
+[[affected]]
+package = &quot;base&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&quot;
+[[affected.versions]]
+# it was introduced earlier, but this is the earliest version on Hackage
+introduced = &quot;3.0.3.1&quot;
+
+[[affected]]
+package = &quot;toml-reader&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&quot;
+[[affected.versions]]
+introduced = &quot;0.1.0.0&quot;
+fixed = &quot;0.2.0.0&quot;
+
+[[references]]
+type = &quot;REPORT&quot;
+url = &quot;https://gitlab.haskell.org/ghc/ghc/-/issues/23538&quot;
+[[references]]
+type = &quot;REPORT&quot;
+url = &quot;https://github.com/brandonchinn178/toml-reader/issues/8&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/brandonchinn178/toml-reader/pull/9&quot;
+
+</code></pre>
+<h1><code>readFloat</code>: memory exhaustion with large exponent</h1>
+<p><code>Numeric.readFloat</code> takes time and memory linear in the size of the
+number <em>denoted</em> by the input string.  In particular, processing a
+number expressed in scientific notation with a very large exponent
+could cause a denial of service.  The slowdown is observable on a
+modern machine running GHC 9.4.4:</p>
+<pre><code>ghci&gt; import qualified Numeric
+ghci&gt; Numeric.readFloat &quot;1e1000000&quot;    -- near instantaneous
+[(Infinity,&quot;&quot;)]
+ghci&gt; Numeric.readFloat &quot;1e10000000&quot;   -- perceptible pause
+[(Infinity,&quot;&quot;)]
+ghci&gt; Numeric.readFloat &quot;1e100000000&quot;  -- ~ 3 seconds
+[(Infinity,&quot;&quot;)]
+ghci&gt; Numeric.readFloat &quot;1e1000000000&quot; -- ~ 35 seconds
+[(Infinity,&quot;&quot;)]
+</code></pre>
+<h2>In <em>base</em></h2>
+<p><code>Numeric.readFloat</code> is defined for all <code>RealFrac a =&gt; a</code>:</p>
+<pre><code class="language-haskell">readFloat :: RealFrac a =&gt; ReadS a
+</code></pre>
+<p>The <code>RealFrac</code> type class does not express any bounds on the size of
+values representable in the types for which instances exist, so
+bounds checking is not possible (in this <em>generic</em> function).
+<code>readFloat</code> uses to <code>Text.Read.Lex.numberToRational</code> which, among
+other things, calculates <code>10 ^ exponent</code>, which seems to take linear
+time and memory.</p>
+<p><strong>Mitigation:</strong> use <code>read</code>.  The <code>Read</code> instances for <code>Float</code> and
+<code>Double</code> perform bounds checks on the exponent, via
+<code>Text.Read.Lex.numberToRangedRational</code>.</p>
+<h2>In <em>toml-reader</em></h2>
+<p>The issue was detected in <em>toml-reader</em> version 0.1.0.0, and
+mitigated in version 0.2.0.0 by immediately returning <code>Infinity</code>
+when the exponent is large enough that there's no reason to process
+it.</p>
+</div></div></body></html></html>

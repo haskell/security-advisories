@@ -1,0 +1,43 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0004&quot;
+cwe = [776]
+keywords = [&quot;xml&quot;, &quot;dos&quot;, &quot;historical&quot;]
+aliases = [&quot;CVE-2021-4249&quot;, &quot;VDB-216204&quot;]
+
+[[affected]]
+package = &quot;xml-conduit&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&quot;
+
+[[affected.versions]]
+introduced = &quot;0.5.0&quot;
+fixed = &quot;1.9.1.0&quot;
+
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/snoyberg/xml/pull/161&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/snoyberg/xml/commit/4be1021791dcdee8b164d239433a2043dc0939ea&quot;
+</code></pre>
+<h1>xml-conduit unbounded entity expansion</h1>
+<p>A vulnerability was found in <em>xml-conduit</em>. It has been classified
+as problematic.  Affected is an unknown function of the file
+<code>xml-conduit/src/Text/XML/Stream/Parse.hs</code> of the component DOCTYPE
+Entity Expansion Handler. The manipulation leads to infinite loop.
+It is possible to launch the attack remotely. Upgrading to version
+1.9.1.0 is able to address this issue. The name of the patch is
+<code>4be1021791dcdee8b164d239433a2043dc0939ea</code>. It is recommended to
+upgrade the affected component.</p>
+</div></div></body></html></html>

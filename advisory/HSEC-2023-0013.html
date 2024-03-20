@@ -1,0 +1,76 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0013&quot;
+cwe = [312]
+keywords = [&quot;historical&quot;]
+aliases = [&quot;CVE-2014-6274&quot;]
+
+[[affected]]
+package = &quot;git-annex&quot;
+cvss = &quot;CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H&quot;
+[[affected.versions]]
+introduced = &quot;0.20110401&quot;
+fixed = &quot;5.20140919&quot;
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://git-annex.branchable.com/security/CVE-2014-6274/&quot;
+[[references]]
+type = &quot;ARTICLE&quot;
+url = &quot;https://git-annex.branchable.com/upgrades/insecure_embedded_creds/&quot;
+</code></pre>
+<h1><em>git-annex</em> plaintext storage of embedded credentials on encrypted remotes</h1>
+<p><em>git-annex</em> had a bug in the <strong>S3</strong> and <strong>Glacier</strong> remotes where if
+<code>embedcreds=yes</code> was set, and the remote used <code>encryption=pubkey</code> or
+<code>encryption=hybrid</code>, the embedded AWS credentials were stored in the
+Git repository in (effectively) plaintext, not encrypted as they
+were supposed to be.</p>
+<p>That means that anyone who gets a copy of the Git repository can
+extract the AWS credentials from it.  Which would be bad.</p>
+<p>A remote with this problem cannot be enabled using <code>git annex enableremote</code>. Old versions of <em>git-annex</em> will fail with a GPG
+error; the current version will fail with a pointer to this web
+page.</p>
+<h2>Remediation</h2>
+<p>If your repository has this problem, chose from one of these
+approaches to deal with it:</p>
+<ol>
+<li>
+<p>Change your AWS credentials, so the ones stored in the clear in
+git won't be used.</p>
+<p>After changing the credentials, make sure you have a fixed
+version of git-annex, and you can then re-embed the new creds
+into the repository, encrypted this time, by setting the
+<code>AWS_SECRET_ACCESS_KEY</code> and <code>AWS_ACCESS_KEY_ID</code> environment
+variables, and running <code>git annex enableremote $remotename embedcreds=yes</code>.</p>
+</li>
+<li>
+<p>Fix the problem and then remove the history of the <em>git-annex</em>
+branch of the repository.</p>
+<p>Make sure you have a fixed version of <em>git-annex</em>, and force
+<em>git-annex</em> to rewrite the embedded creds, with encryption this
+time, by setting by setting the <code>AWS_SECRET_ACCESS_KEY</code> and
+<code>AWS_ACCESS_KEY_ID</code> environment variables, and running <code>git annex enableremote $remotename embedcreds=yes</code>.</p>
+<p>Then, to get rid of old versions of the <em>git-annex</em> branch that
+still contains the creds in cleartext, you can use <code>git annex forget</code>; note that it will remove other historical data too.</p>
+<p>Keep in mind that this will not necessarily delete data from
+clones you do not control.</p>
+</li>
+<li>
+<p>If you're sure that you're the only one who has access to the
+repository, you could decide to leave it as-is.  It's no more
+insecure than if you had used <code>encryption=shared</code> in the first
+place when setting it up.</p>
+</li>
+</ol>
+</div></div></body></html></html>

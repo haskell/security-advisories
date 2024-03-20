@@ -1,0 +1,52 @@
+<!DOCTYPE HTML><html><html><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Haskell Security.Advisories.Core</title><style>.advisories, .content {
+    margin: 1em;
+}
+a {
+    text-decoration: none;
+}
+a:visited {
+    text-decoration: none;
+    color: darkblue;
+}
+pre {
+    background: lightgrey;
+}</style></head><body><div class="pure-u-1"><div class="pure-menu pure-menu-horizontal"><span class="pure-menu-heading pure-menu-link">Advisories list</span><ul class="pure-menu-list"><li class="pure-menu-item"><a href="by-dates.html" class="pure-menu-link">by date</a></li><li class="pure-menu-item"><a href="by-packages.html" class="pure-menu-link">by package</a></li></ul></div></div><div class="content"><div class="pure-u-1"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0009&quot;
+cwe = [20, 78]
+keywords = [&quot;ssh&quot;, &quot;command-injection&quot;, &quot;historical&quot;]
+aliases = [&quot;CVE-2017-12976&quot;]
+related = [&quot;CVE-2017-9800&quot;, &quot;CVE-2017-12836&quot;, &quot;CVE-2017-1000116&quot;, &quot;CVE-2017-1000117&quot;]
+
+[[affected]]
+package = &quot;git-annex&quot;
+cvss = &quot;CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H&quot;
+[[affected.versions]]
+introduced = &quot;0.1&quot;
+fixed = &quot;6.20170818&quot;
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://git-annex.branchable.com/security/CVE-2017-12976/&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;http://source.git-annex.branchable.com/?p=source.git;a=commitdiff;h=df11e54788b254efebb4898b474de11ae8d3b471&quot;
+</code></pre>
+<h1><em>git-annex</em> command injection via malicious SSH hostname</h1>
+<p><em>git-annex</em> was vulnerable to the same class of security hole as
+git's <strong>CVE-2017-1000117</strong>. In several cases, <code>git-annex</code> parses a
+repository URL, and uses it to generate a <code>ssh</code> command, with the
+hostname to ssh to coming from the URL. If the hostname it parses is
+something like <code>-eProxyCommand=evil</code>, this could result in arbitrary
+local code execution.</p>
+<p>Some details of URL parsing may prevent the exploit working in some
+cases.</p>
+<p>Exploiting this would involve the attacker tricking the victim into
+adding a remote something like <code>ssh://-eProxyCommand=evil/blah</code>.</p>
+<p>One possible avenue for an attacker that avoids exposing the URL to
+the user is to use <code>initremote</code> with an SSH remote, so embedding the
+URL in the <em>git-annex</em> branch. Then the victim would enable it with
+<code>enableremote</code>.</p>
+<p>This was fixed in version <strong>6.20170818</strong>. Now there's a <code>SshHost</code>
+type that is not allowed to start with a dash, and every invocation
+of <code>git-annex</code> uses a function that takes a <code>SshHost</code>.</p>
+</div></div></body></html></html>
