@@ -11,6 +11,29 @@ please open a PR listing it here.
 To report a new vulnerability, open a pull request using the template below.
 See [CONTRIBUTING.md] for more information.
 
+## Checking your project for vulnerabilities
+
+For cabal projects, the security-advisories repository offers a way to inspect your project 
+for vulnerabilities. 
+
+To do so 
+1. install the `cabal-audit` executable, for example with nix by running `nix shell github:haskell/security-advisories#hsec-cabal`
+2. navigate to your cabal project
+3. run `cabal-audit`
+
+The `cabal-audit` executable will then go on and 
+1. git clone the newest version of https://github.com/haskell/security-advisories
+2. solve your project 
+3. query the created plan against the advisory database
+
+Run `cabal-audit --help` to see available options.
+
+What to do if `cabal-audit` reported a vulnerability (in that order): 
+1. check if you can upgrade to at least the proposed fix version
+2. check if you can upgrade to a fix version that is not shown (find more information at the provided URL)
+3. check if there is a not vulnerable dependency that you can switch to
+4. check if the vulnerable behaviour applies to your project (find more information at the provided URL)
+
 ## Advisory Format
 
 See [EXAMPLE_ADVISORY.md] for a template.

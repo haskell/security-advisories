@@ -1,0 +1,6 @@
+packages:
+    ./hsec-core
+    ./hsec-tools
+    ./hsec-cabal
+    ./cvss
+    ./osv

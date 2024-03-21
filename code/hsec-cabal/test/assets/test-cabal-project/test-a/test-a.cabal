@@ -1,0 +1,25 @@
+cabal-version:   3.0
+name:            test-a
+version:         0.1.0.0
+license:         MIT
+license-file:    LICENSE
+author:          mustermann
+maintainer:      mustermann@example.com
+category:        Codec
+build-type:      Simple
+extra-doc-files: CHANGELOG.md
+
+common warnings
+  ghc-options: -Wall
+
+library
+  import:           warnings
+  exposed-modules:  MyLib
+
+  -- hakyll depends on pandoc which has a security report
+  build-depends:
+    , base
+    , toml-reader  ==0.1.0.0
+
+  hs-source-dirs:   src
+  default-language: Haskell2010
