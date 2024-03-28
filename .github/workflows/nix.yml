@@ -9,6 +9,10 @@ jobs:
     steps:
       - name: git checkout
         uses: actions/checkout@v4
+        with:
+          # We need to retrieve full history to determine the correct
+          # `published` and `modified` timestamps
+          fetch-depth: 0
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
         with:
@@ -22,39 +26,15 @@ jobs:
         run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
       - run: mkdir -p ~/.local/dockerImages
       - run: cp result ~/.local/dockerImages/hsec-tools
-      - name: Cache executable
-        uses: actions/cache/save@v4
-        with:
-          key: hsec-tools-${{ github.sha }}
-          path: ~/.local/dockerImages
       - name: upload executable
         uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         with:
           name: hsec-tools-${{ github.sha }}
           path: ~/.local/dockerImages
-  check-advisories:
-    name: Check advisories
-    needs: check-nix
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: source
-          # We need to retrieve full history to determine the correct
-          # `published` and `modified` timestamps
-          fetch-depth: 0
-      - run: mkdir -p ~/.local/dockerImages
-      - name: Fetch binaries
-        uses: actions/cache/restore@v4
-        with:
-          key: hsec-tools-${{ github.sha }}
-          path: ~/.local/dockerImages
-          fail-on-cache-miss: true
       - run: docker load -i ~/.local/dockerImages/hsec-tools
       - name: Run advisory syntax checks
         run: |
-          cd source
           RESULT=0
           # Remove the begining of the README to extract the example.
           (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
@@ -66,7 +46,7 @@ jobs:
           exit $RESULT
       - name: Run advisory uniqueness checks
         run: |
-          ! find source/advisories -type f -name '*.md' -print0 \
+          ! find advisories -type f -name '*.md' -print0 \
             | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
       - name: Publish OSV data
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
@@ -75,7 +55,6 @@ jobs:
         run: |
           DATA_DIR=$PWD/osv
           mkdir "$DATA_DIR"
-          cd source
           while read FILE ; do
             ID=$(basename "$FILE" .md)
             YEAR=$(echo "$ID" | cut -d - -f 2)
@@ -94,28 +73,8 @@ jobs:
           git config user.name "Haskell Security Response Team"
           COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
           git push origin $COMMIT:$BRANCH
-  generate-website:
-    name: Generate advisories website
-    if: ${{ github.ref == 'refs/heads/main' }}
-    needs: check-advisories
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write # for git push (s0/git-publish-subdir-action)
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # We need to retrieve full history to determine the correct
-          # `published` and `modified` timestamps
-          fetch-depth: 0
-      - run: mkdir -p ~/.local/dockerImages
-      - name: Fetch binaries
-        uses: actions/cache/restore@v4
-        with:
-          key: hsec-tools-${{ github.sha }}
-          path: ~/.local/dockerImages
-          fail-on-cache-miss: true
-      - run: docker load -i ~/.local/dockerImages/hsec-tools
       - name: Generate the website
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         run: |
           mkdir generatedWebsite
           docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-index . generatedWebsite
@@ -123,6 +82,7 @@ jobs:
           rm -Rf generatedWebsite/advisories || echo "Markdown links issue has been fixed"
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./generatedWebsite
