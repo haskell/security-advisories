@@ -19,6 +19,9 @@ module Security.Advisories.Sync.Git
   )
 where
 
+import Control.Monad (when)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Except (runExceptT, throwE)
 import Data.Time (ZonedTime)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import qualified System.Directory as D
@@ -115,31 +118,37 @@ ensureGitRepositoryWithRemote repo =
 
 updateGitRepository :: Repository -> IO (Either GitError ())
 updateGitRepository repo =
-  D.withCurrentDirectory (repositoryRoot repo) $ do
-    _ <- runGit ["remote", "add", "origin", repositoryUrl repo] -- can fail if it exists
-    (setUrlCmd, setUrlStatus, setUrlStdout, setUrlStderr) <-
-      runGit ["remote", "set-url", "origin", repositoryUrl repo]
-    if setUrlStatus /= ExitSuccess
-      then return $ Left $ GitError setUrlCmd $ GitProcessError setUrlStatus setUrlStdout setUrlStderr
-      else do
-        (fetchAllCmd, fetchAllStatus, fetchAllStdout, fetchAllStderr) <-
-          runGit ["fetch", "--all"]
-        if fetchAllStatus /= ExitSuccess
-          then
-            return $ Left $ GitError fetchAllCmd $ GitProcessError fetchAllStatus fetchAllStdout fetchAllStderr
-          else do
-            (checkoutBranchCmd, checkoutBranchStatus, checkoutBranchStdout, checkoutBranchStderr) <-
-              runGit ["checkout", repositoryBranch repo]
-            if checkoutBranchStatus /= ExitSuccess
-              then
-                return $ Left $ GitError checkoutBranchCmd $ GitProcessError checkoutBranchStatus checkoutBranchStdout checkoutBranchStderr
-              else do
-                (resetCmd, resetStatus, resetStdout, resetStderr) <-
-                  runGit ["reset", "--hard", "origin/" <> repositoryBranch repo]
-                return $
-                  if resetStatus /= ExitSuccess
-                    then Left $ GitError resetCmd $ GitProcessError resetStatus resetStdout resetStderr
-                    else Right ()
+  D.withCurrentDirectory (repositoryRoot repo) $
+    runExceptT $ do
+      _ <- liftIO $ runGit ["remote", "add", "origin", repositoryUrl repo] -- can fail if it exists
+      (setUrlCmd, setUrlStatus, setUrlStdout, setUrlStderr) <-
+        liftIO $ runGit ["remote", "set-url", "origin", repositoryUrl repo]
+      when (setUrlStatus /= ExitSuccess) $
+        throwE $
+          GitError setUrlCmd $
+            GitProcessError setUrlStatus setUrlStdout setUrlStderr
+
+      (fetchAllCmd, fetchAllStatus, fetchAllStdout, fetchAllStderr) <-
+        liftIO $ runGit ["fetch", "--all"]
+      when (fetchAllStatus /= ExitSuccess) $
+        throwE $
+          GitError fetchAllCmd $
+            GitProcessError fetchAllStatus fetchAllStdout fetchAllStderr
+
+      (checkoutBranchCmd, checkoutBranchStatus, checkoutBranchStdout, checkoutBranchStderr) <-
+        liftIO $ runGit ["checkout", repositoryBranch repo]
+      when (checkoutBranchStatus /= ExitSuccess) $
+        throwE $
+          GitError checkoutBranchCmd $
+            GitProcessError checkoutBranchStatus checkoutBranchStdout checkoutBranchStderr
+
+      (resetCmd, resetStatus, resetStdout, resetStderr) <-
+        liftIO $ runGit ["reset", "--hard", "origin/" <> repositoryBranch repo]
+
+      when (resetStatus /= ExitSuccess) $
+        throwE $
+          GitError resetCmd $
+            GitProcessError resetStatus resetStdout resetStderr
 
 newtype GitDirectoryInfo = GitDirectoryInfo
   { lastModificationCommitDate :: ZonedTime
