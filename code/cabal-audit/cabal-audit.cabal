@@ -1,6 +1,6 @@
 cabal-version:      2.4
-name:               hsec-cabal
-version:            0.1.0.0
+name:               cabal-audit
+version:            1.0.0.0
 
 -- A short (one-line) description of the package.
 synopsis:           Checking a cabal project for security advisories
@@ -79,8 +79,8 @@ executable cabal-audit
   main-is:          Main.hs
   other-modules:
   build-depends:
-    , base        <5
-    , hsec-cabal
+    , base         <5
+    , cabal-audit
 
   default-language: Haskell2010
 

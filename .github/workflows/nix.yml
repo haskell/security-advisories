@@ -24,6 +24,8 @@ jobs:
         run: nix -L build
       - name: Build executable (hsec-sync)
         run: nix -L build '.#hsec-sync'
+      - name: Build executable (cabal-audit)
+        run: nix -L build '.#cabal-audit'
       - name: Build docker image
         run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
       - run: mkdir -p ~/.local/dockerImages

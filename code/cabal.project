@@ -1,6 +1,7 @@
 packages:
     ./hsec-core
     ./hsec-tools
-    ./hsec-cabal
+    ./cabal-audit
+    ./hsec-sync
     ./cvss
     ./osv

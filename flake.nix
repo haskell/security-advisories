@@ -40,7 +40,9 @@
               toml-parser.source = inputs.toml-parser;
             };
             settings = {
-              hsec-cabal.justStaticExecutables = true;
+              cabal-audit.justStaticExecutables = true;
+              hsec-sync.check = false;
+              hsec-sync.justStaticExecutables = true;
             };
             projectRoot = ./code;
             devShell.mkShellArgs.shellHook = config.pre-commit.installationScript;
