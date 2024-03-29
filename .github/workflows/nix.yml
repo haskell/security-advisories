@@ -53,41 +53,30 @@ jobs:
           DATA_DIR=$PWD/osv
           mkdir "$DATA_DIR"
           while read FILE ; do
-            echo -n "$FILE: "
+            echo "$FILE"
             ID=$(basename "$FILE" .md)
             YEAR=$(echo "$ID" | cut -d - -f 2)
             mkdir -p $DATA_DIR/$YEAR
             docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
           done < <(find advisories -type f -name "*.md" | grep -v '^advisories/reserved/')
       - name: Publish OSV data
-        # if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          echo "-1"
           DATA_DIR=$PWD/osv
           BRANCH=generated/osv-export
           REF=refs/remotes/origin/$BRANCH
-          echo "0"
           export GIT_WORK_TREE=$DATA_DIR
           git read-tree "$REF"
-          echo "1"
           git add --all --intent-to-add
-          echo "2"
           git diff --quiet && exit
-          echo "3"
           git add --all
-          echo "4"
           TREE=$(git write-tree)
-          echo "5"
           git config user.email security-advisories@haskell.org
-          echo "6"
           git config user.name "Haskell Security Response Team"
-          echo "7"
           COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
-          echo "8"
           git push origin $COMMIT:$BRANCH
-          echo "9"
       - name: Generate the website
         run: |
           mkdir generatedWebsite
