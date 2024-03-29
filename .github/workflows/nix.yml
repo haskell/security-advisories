@@ -48,19 +48,22 @@ jobs:
         run: |
           ! find advisories -type f -name '*.md' -print0 \
             | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
+      - name: Generate OSV data
+        run: |
+          DATA_DIR=$PWD/osv
+          mkdir "$DATA_DIR"
+          while read FILE ; do
+            echo -n "$FILE: "
+            ID=$(basename "$FILE" .md)
+            YEAR=$(echo "$ID" | cut -d - -f 2)
+            mkdir -p $DATA_DIR/$YEAR
+            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
+          done < <(find advisories -type f -name "*.md" | grep -v '^advisories/reserved/')
       - name: Publish OSV data
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
-          DATA_DIR=$PWD/osv
-          mkdir "$DATA_DIR"
-          while read FILE ; do
-            ID=$(basename "$FILE" .md)
-            YEAR=$(echo "$ID" | cut -d - -f 2)
-            mkdir -p $DATA_DIR/$YEAR
-            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
-          done < <(find advisories -type f -name "*.md")
           BRANCH=generated/osv-export
           REF=refs/remotes/origin/$BRANCH
           export GIT_WORK_TREE=$DATA_DIR
@@ -74,13 +77,12 @@ jobs:
           COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
           git push origin $COMMIT:$BRANCH
       - name: Generate the website
-        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         run: |
           mkdir generatedWebsite
           docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-index . generatedWebsite
           cp generatedWebsite/by-dates.html generatedWebsite/index.html
           rm -Rf generatedWebsite/advisories || echo "Markdown links issue has been fixed"
-      - name: Deploy
+      - name: Deploy the website
         uses: peaceiris/actions-gh-pages@v3
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         with:
