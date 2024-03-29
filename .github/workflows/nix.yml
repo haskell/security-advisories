@@ -57,7 +57,7 @@ jobs:
           DATA_DIR=$PWD/osv
           mkdir "$DATA_DIR"
           while read FILE ; do
-            echo -n "$FILE: "
+            echo "$FILE"
             ID=$(basename "$FILE" .md)
             YEAR=$(echo "$ID" | cut -d - -f 2)
             mkdir -p $DATA_DIR/$YEAR
@@ -68,6 +68,7 @@ jobs:
         env:
           GITHUB_SHA: ${{ github.sha }}
         run: |
+          DATA_DIR=$PWD/osv
           BRANCH=generated/osv-export
           REF=refs/remotes/origin/$BRANCH
           export GIT_WORK_TREE=$DATA_DIR
