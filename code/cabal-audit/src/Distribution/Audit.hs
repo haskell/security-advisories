@@ -80,7 +80,7 @@ auditMain = do
   when (verbosity > Verbosity.normal) do
     putStrLn (formatWith [blue] "Finished building the cabal install plan, looking for advisories...")
 
-  advisories <- withSystemTempDirectory "hsec-cabal" \tmp -> do
+  advisories <- withSystemTempDirectory "cabal-audit" \tmp -> do
     realPath <- case advisoriesPathOrURL of
       Left fp -> pure fp
       Right url -> do

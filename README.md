@@ -17,7 +17,7 @@ For cabal projects, the security-advisories repository offers a way to inspect y
 for vulnerabilities. 
 
 To do so 
-1. install the `cabal-audit` executable, for example with nix by running `nix shell github:haskell/security-advisories#hsec-cabal`
+1. install the `cabal-audit` executable, for example with nix by running `nix shell github:haskell/security-advisories#cabal-audit`
 2. navigate to your cabal project
 3. run `cabal-audit`
 
