@@ -45,7 +45,9 @@
               hsec-sync.justStaticExecutables = true;
             };
             projectRoot = ./code;
-            devShell.mkShellArgs.shellHook = config.pre-commit.installationScript;
+            devShell.mkShellArgs = {
+              shellHook = config.pre-commit.installationScript;
+            };
           };
 
           packages.default = config.packages.hsec-tools;

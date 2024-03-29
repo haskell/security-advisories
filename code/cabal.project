@@ -5,3 +5,5 @@ packages:
     ./hsec-sync
     ./cvss
     ./osv
+
+test-show-details: direct

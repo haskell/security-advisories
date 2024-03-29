@@ -1,4 +1,4 @@
-module Distribution.Audit (auditMain) where
+module Distribution.Audit (auditMain, buildAdvisories, AuditConfig(..), AuditException(..)) where
 
 import Colourista.Pure (blue, bold, formatWith, green, red, yellow)
 import Control.Exception (Exception (displayException), throwIO)
@@ -56,17 +56,23 @@ data AuditConfig = MkAuditConfig
   -- ^ verbosity of cabal
   }
 
+-- | the main action to invoke
 auditMain :: IO ()
 auditMain = do
-  (MkAuditConfig {advisoriesPathOrURL, verbosity}, flags) <- customExecParser (prefs showHelpOnEmpty) do
-    info
-      do helper <*> auditCommandParser
-      do
-        mconcat
-          [ fullDesc
-          , progDesc (formatWith [blue] "audit your cabal projects for vulnerabilities")
-          , header (formatWith [bold, blue] "Welcome to cabal audit")
-          ]
+  handleBuiltAdvisories
+    =<< uncurry buildAdvisories
+    =<< customExecParser (prefs showHelpOnEmpty) do
+      info
+        do helper <*> auditCommandParser
+        do
+          mconcat
+            [ fullDesc
+            , progDesc (formatWith [blue] "audit your cabal projects for vulnerabilities")
+            , header (formatWith [bold, blue] "Welcome to cabal audit")
+            ]
+
+buildAdvisories :: AuditConfig -> NixStyleFlags () -> IO (M.Map PackageName ElaboratedPackageInfoAdvised)
+buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
   let cliConfig = projectConfigFromFlags flags
 
   ProjectBaseContext {distDirLayout, cabalDirLayout, projectConfig, localPackages} <-
@@ -80,17 +86,23 @@ auditMain = do
   when (verbosity > Verbosity.normal) do
     putStrLn (formatWith [blue] "Finished building the cabal install plan, looking for advisories...")
 
-  advisories <- withSystemTempDirectory "cabal-audit" \tmp -> do
+  advisories <- do
     realPath <- case advisoriesPathOrURL of
       Left fp -> pure fp
-      Right url -> do
+      Right url -> withSystemTempDirectory "cabal-audit" \tmp -> do
         putStrLn $ formatWith [blue] $ "trying to clone " <> url
         callProcess "git" ["clone", url, tmp]
         pure tmp
     listAdvisories realPath
       >>= validation (throwIO . ListAdvisoryValidationError realPath) pure
 
-  humanReadableHandler (M.toList (matchAdvisoriesForPlan plan advisories))
+  pure $ matchAdvisoriesForPlan plan advisories
+
+-- | provides the built advisories in some consumable form, e.g. as human readable form
+--
+-- FUTUREWORK(mangoiv): provide output as JSON
+handleBuiltAdvisories :: M.Map PackageName ElaboratedPackageInfoAdvised -> IO ()
+handleBuiltAdvisories = humanReadableHandler . M.toList
 
 {-# INLINE prettyVersion #-}
 prettyVersion :: IsString s => Version -> s
@@ -125,9 +137,6 @@ humanReadableHandler = \case
           pkgName = formatWith [yellow] $ show $ unPackageName pn
       putStrLn ("dependency " <> pkgName <> " at version " <> verString <> " is vulnerable for:")
       for_ (runIdentity (packageAdvisories i)) (T.putStrLn . uncurry prettyAdvisory)
-
--- print $ matchAdvisoriesForPlan plan' advisories
--- TODO(mangoiv): find out what's the correct plan
 
 projectConfigFromFlags :: NixStyleFlags a -> ProjectConfig
 projectConfigFromFlags flags = commandLineFlagsToProjectConfig defaultGlobalFlags flags mempty

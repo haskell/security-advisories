@@ -1,4 +1,7 @@
 module Main where
 
+import Spec qualified (spec)
+import Test.Hspec (hspec)
+
 main :: IO ()
-main = pure ()
+main = hspec Spec.spec

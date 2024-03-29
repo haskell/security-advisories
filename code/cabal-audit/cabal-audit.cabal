@@ -42,7 +42,9 @@ common common-all
     ImportQualifiedPost
     LambdaCase
     NamedFieldPuns
+    NoStarIsType
     OverloadedStrings
+    PartialTypeSignatures
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures
@@ -89,6 +91,13 @@ test-suite spec
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Main.hs
-  other-modules:
-  build-depends:    base <5
+  other-modules:    Spec
+  build-depends:
+    , base           <5
+    , Cabal
+    , cabal-audit
+    , cabal-install
+    , containers
+    , hspec
+
   default-language: Haskell2010
