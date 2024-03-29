@@ -1,63 +1,92 @@
-name: nix build
+name: nix build and check advisories
 on:
   - push
   - pull_request
 jobs:
-  tools-changed:
-    continue-on-error: true
-    runs-on: ubuntu-22.04
-    outputs:
-      should_skip: ${{ steps.skip_check.outputs.should_skip }}
-    steps:
-      - id: skip_check
-        uses: fkirc/skip-duplicate-actions@v5.3.1
-        with:
-          concurrent_skipping: "never"
-          skip_after_successful_duplicate: "true"
-          paths: '["code/**"]'
-          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
   check-nix:
     name: Check nix build
-    needs: tools-changed
-    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
-    uses: ./.github/workflows/call-nix.yml
-    with:
-      cache-key: hsec-tools-${{ github.sha }}
-  check-advisories:
-    name: Invoke check-advisories workflow
-    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
-    needs: check-nix
-    uses: ./.github/workflows/call-check-advisories.yml
-    with:
-      fetch-key: hsec-tools-${{ github.sha }}
-  generate-website:
-    name: Generate advisories website
-    if: ${{ github.ref == 'refs/heads/main' }}
-    needs: check-advisories
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write # for git push (s0/git-publish-subdir-action)
     steps:
-      - uses: actions/checkout@v4
+      - name: git checkout
+        uses: actions/checkout@v4
         with:
           # We need to retrieve full history to determine the correct
           # `published` and `modified` timestamps
           fetch-depth: 0
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          extra-conf: system-features = nixos-test benchmark big-parallel kvm
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Check Nix flake inputs
+        uses: DeterminateSystems/flake-checker-action@v4
+      - name: Build executable (hsec-tools)
+        run: nix -L build
+      - name: Build executable (hsec-sync)
+        run: nix -L build '.#hsec-sync'
+      - name: Build docker image
+        run: nix build -L '.#packages.x86_64-linux.hsec-tools-image'
       - run: mkdir -p ~/.local/dockerImages
-      - name: Fetch artifact
-        uses: actions/download-artifact@v3
+      - run: cp result ~/.local/dockerImages/hsec-tools
+      - name: upload executable
+        uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
         with:
           name: hsec-tools-${{ github.sha }}
           path: ~/.local/dockerImages
       - run: docker load -i ~/.local/dockerImages/hsec-tools
+      - name: Run advisory syntax checks
+        run: |
+          RESULT=0
+          # Remove the begining of the README to extract the example.
+          (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
+          while read FILE ; do
+            [ "$(dirname "$FILE")" != advisories/reserved ] || continue
+            echo -n "$FILE: "
+            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check "$FILE" || RESULT=1
+          done < <(find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
+          exit $RESULT
+      - name: Run advisory uniqueness checks
+        run: |
+          ! find advisories -type f -name '*.md' -print0 \
+            | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
+      - name: Generate OSV data
+        run: |
+          DATA_DIR=$PWD/osv
+          mkdir "$DATA_DIR"
+          while read FILE ; do
+            echo -n "$FILE: "
+            ID=$(basename "$FILE" .md)
+            YEAR=$(echo "$ID" | cut -d - -f 2)
+            mkdir -p $DATA_DIR/$YEAR
+            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
+          done < <(find advisories -type f -name "*.md" | grep -v '^advisories/reserved/')
+      - name: Publish OSV data
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          BRANCH=generated/osv-export
+          REF=refs/remotes/origin/$BRANCH
+          export GIT_WORK_TREE=$DATA_DIR
+          git read-tree "$REF"
+          git add --all --intent-to-add
+          git diff --quiet && exit
+          git add --all
+          TREE=$(git write-tree)
+          git config user.email security-advisories@haskell.org
+          git config user.name "Haskell Security Response Team"
+          COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
+          git push origin $COMMIT:$BRANCH
       - name: Generate the website
         run: |
           mkdir generatedWebsite
           docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-index . generatedWebsite
           cp generatedWebsite/by-dates.html generatedWebsite/index.html
           rm -Rf generatedWebsite/advisories || echo "Markdown links issue has been fixed"
-      - name: Deploy
+      - name: Deploy the website
         uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./generatedWebsite
