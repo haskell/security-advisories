@@ -9,6 +9,7 @@
     parts.url = "github:hercules-ci/flake-parts";
     haskell-flake.url = "github:srid/haskell-flake";
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
+    devshell.url = "github:numtide/devshell";
     # end flake parts
     # end flake inputs
 
@@ -23,6 +24,7 @@
       imports = [
         inputs.haskell-flake.flakeModule
         inputs.pre-commit-hooks.flakeModule
+        inputs.devshell.flakeModule
       ];
 
       perSystem =
@@ -54,7 +56,8 @@
           # 3. applying overrides to the nix package set from the nixpkgs input used
           # 4. populating the devShells.<system>.<projectName> (in this case "default") with 
           #    a devShell that contains a built package-db suitable for building 
-          #    the cabal project's components with cabal-install
+          #    the cabal project's components with cabal-install; this is later reused to build the 
+          #    default devShell
           # 5. populating the packages.<system>.<packageName> with a derivation that 
           #    builds the package with name $packageName
           # 6. populating the apps.<system>.<executableName> with executables as defined by 
@@ -77,8 +80,25 @@
               hsec-sync.justStaticExecutables = true;
             };
             projectRoot = ./code;
-            devShell.mkShellArgs = {
-              shellHook = config.pre-commit.installationScript;
+            autoWire = [ "packages" "checks" "apps" ];
+          };
+
+          # the default devshell; this has a couple of advantages to using stdenv.mkShell; refer to 
+          # https://flake.parts/options/devshell for more information; one of the advantages is 
+          # the beautiful menu this provides where one can add commands that are offered and loaded 
+          # as part of the devShell
+          devshells.default = {
+            commands = [
+              {
+                name = "lint";
+                help = "run formatting and linting of haskell and nix files in the entire repository";
+                command = "pre-commit run --all";
+              }
+            ];
+            devshell = {
+              name = "security-advisories-haskell";
+              packagesFrom = [ config.haskellProjects.default.outputs.devShell ];
+              startup.pre-commit.text = config.pre-commit.installationScript;
             };
           };
 
