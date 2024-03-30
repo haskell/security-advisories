@@ -1,7 +1,15 @@
-module Distribution.Audit (auditMain, buildAdvisories, AuditConfig(..), AuditException(..)) where
+-- | provides the @cabal-audit@ plugin which works as follows:
+--
+-- 1. parse command line arguments to pass on to cabal to build
+--    an install plan and parse the advisories database
+-- 2. lookup all dependencies in the elaborated plan within the
+--    database
+-- 3. summarise the found vulnerabilities as a humand readable or
+--    otherwise formatted output
+module Distribution.Audit (auditMain, buildAdvisories, AuditConfig (..), AuditException (..)) where
 
 import Colourista.Pure (blue, bold, formatWith, green, red, yellow)
-import Control.Exception (Exception (displayException), throwIO)
+import Control.Exception (Exception (displayException), SomeException (SomeException), catch, throwIO)
 import Control.Monad (when)
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
@@ -30,23 +38,32 @@ import Options.Applicative
 import Security.Advisories (Advisory (..), Keyword (..), ParseAdvisoryError, printHsecId)
 import Security.Advisories.Cabal (ElaboratedPackageInfoAdvised, ElaboratedPackageInfoWith (elaboratedPackageVersion, packageAdvisories), matchAdvisoriesForPlan)
 import Security.Advisories.Filesystem (listAdvisories)
+import System.Exit (exitFailure)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process (callProcess)
 import Validation (validation)
 
 data AuditException
-  = InvalidFilePath String
-  | ListAdvisoryValidationError FilePath [ParseAdvisoryError]
-  deriving stock (Eq, Show, Generic)
+  = -- | parsing the advisory database failed
+    ListAdvisoryValidationError FilePath [ParseAdvisoryError]
+  | -- | to rethrow exceptions thrown by cabal during plan elaboration
+    CabalException String SomeException
+  deriving stock (Show, Generic)
 
 instance Exception AuditException where
   displayException = \case
-    InvalidFilePath fp -> show fp <> " is not a valid filepath"
     ListAdvisoryValidationError dir errs ->
-      unlines
-        [ "Listing the advisories in directory " <> dir <> " failed with:"
+      mconcat
+        [ "Listing the advisories in directory "
+        , dir
+        , " failed with: \n"
         , show errs
         ]
+    CabalException ctx (SomeException ex) ->
+      "cabal failed while "
+        <> ctx
+        <> ":\n"
+        <> displayException ex
 
 -- | configuration that is specific to the cabal audit command
 data AuditConfig = MkAuditConfig
@@ -58,18 +75,26 @@ data AuditConfig = MkAuditConfig
 
 -- | the main action to invoke
 auditMain :: IO ()
-auditMain = do
-  handleBuiltAdvisories
-    =<< uncurry buildAdvisories
-    =<< customExecParser (prefs showHelpOnEmpty) do
-      info
-        do helper <*> auditCommandParser
-        do
-          mconcat
-            [ fullDesc
-            , progDesc (formatWith [blue] "audit your cabal projects for vulnerabilities")
-            , header (formatWith [bold, blue] "Welcome to cabal audit")
-            ]
+auditMain =
+  do
+    handleBuiltAdvisories
+      =<< uncurry buildAdvisories
+      =<< customExecParser (prefs showHelpOnEmpty) do
+        info
+          do helper <*> auditCommandParser
+          do
+            mconcat
+              [ fullDesc
+              , progDesc (formatWith [blue] "audit your cabal projects for vulnerabilities")
+              , header (formatWith [bold, blue] "Welcome to cabal audit")
+              ]
+    `catch` \(SomeException ex) -> do
+      putStrLn $
+        unlines
+          [ formatWith [red, bold] "cabal-audit failed:"
+          , formatWith [red] $ displayException ex
+          ]
+      exitFailure
 
 buildAdvisories :: AuditConfig -> NixStyleFlags () -> IO (M.Map PackageName ElaboratedPackageInfoAdvised)
 buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
@@ -80,21 +105,29 @@ buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
       verbosity
       cliConfig
       OtherCommand
-  (_plan', plan, _, _, _) <-
+      `catch` \ex -> throwIO $ CabalException "trying to establish project base context" ex
+  -- the two plans are
+  -- 1. the "improved plan" with packages replaced by in-store packages
+  -- 2. the "original" elaborated plan
+  --
+  -- as far as I can tell, for our use case these should be indistinguishable
+  (_improvedPlan, plan, _, _, _) <-
     rebuildInstallPlan verbosity distDirLayout cabalDirLayout projectConfig localPackages Nothing
+      `catch` \ex -> throwIO $ CabalException "elaborating the install-plan" ex
 
   when (verbosity > Verbosity.normal) do
     putStrLn (formatWith [blue] "Finished building the cabal install plan, looking for advisories...")
 
   advisories <- do
-    realPath <- case advisoriesPathOrURL of
-      Left fp -> pure fp
+    let k realPath =
+          listAdvisories realPath
+            >>= validation (throwIO . ListAdvisoryValidationError realPath) pure
+    case advisoriesPathOrURL of
+      Left fp -> k fp
       Right url -> withSystemTempDirectory "cabal-audit" \tmp -> do
         putStrLn $ formatWith [blue] $ "trying to clone " <> url
         callProcess "git" ["clone", url, tmp]
-        pure tmp
-    listAdvisories realPath
-      >>= validation (throwIO . ListAdvisoryValidationError realPath) pure
+        k tmp
 
   pure $ matchAdvisoriesForPlan plan advisories
 
@@ -104,9 +137,14 @@ buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
 handleBuiltAdvisories :: M.Map PackageName ElaboratedPackageInfoAdvised -> IO ()
 handleBuiltAdvisories = humanReadableHandler . M.toList
 
-{-# INLINE prettyVersion #-}
+-- | pretty-prints a `Version`
+--
+-- >>> import Distribution.Version
+-- >>> prettyVersion $ mkVersion [0, 1, 0, 0]
+-- "0.1.0.0"
 prettyVersion :: IsString s => Version -> s
 prettyVersion = fromString . List.intercalate "." . map show . versionNumbers
+{-# INLINE prettyVersion #-}
 
 prettyAdvisory :: Advisory -> Maybe Version -> Text
 prettyAdvisory Advisory {advisoryId, advisoryPublished, advisoryKeywords, advisorySummary} mfv =
@@ -171,4 +209,6 @@ auditCommandParser =
             "verbose" -> Right Verbosity.verbose
             "deafening" -> Right Verbosity.deafening
             _ -> Left "verbosity has to be one of \"silent\", \"normal\", \"verbose\" or \"deafening\""
+    -- FUTUREWORK(mangoiv): this will accept cabal flags as an additional argument with something like
+    -- --cabal-flags "--some-cabal-flag" and print a helper that just forwards the cabal help text
     <*> pure (defaultNixStyleFlags ())
