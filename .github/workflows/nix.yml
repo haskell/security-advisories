@@ -20,6 +20,8 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Check Nix flake inputs
         uses: DeterminateSystems/flake-checker-action@v4
+      - name: Check formatting and lint
+        run: nix -L flake check
       - name: Build executable (hsec-tools)
         run: nix -L build
       - name: Build executable (hsec-sync)
