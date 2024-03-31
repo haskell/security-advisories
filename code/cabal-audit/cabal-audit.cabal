@@ -28,7 +28,7 @@ tested-with:
 common common-all
   ghc-options:
     -Wall -Wcompat -Widentities -Wincomplete-record-updates
-    -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints
+    -Wincomplete-uni-patterns -Wredundant-constraints
     -fmax-relevant-binds=0 -fno-show-valid-hole-fits
 
   if impl(ghc >=9.6.1)
@@ -49,6 +49,7 @@ common common-all
     StandaloneDeriving
     StandaloneKindSignatures
     TypeApplications
+    ViewPatterns
 
 library
   import:           common-all
@@ -57,6 +58,7 @@ library
     Security.Advisories.Cabal
 
   build-depends:
+    , aeson
     , base                  <5
     , Cabal
     , cabal-install
