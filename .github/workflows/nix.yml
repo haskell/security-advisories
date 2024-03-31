@@ -77,6 +77,28 @@ jobs:
           git config user.name "Haskell Security Response Team"
           COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
           git push origin $COMMIT:$BRANCH
+      - name: Generate snapshot data
+        run: |
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-snapshot . snapshot
+          diff -r advisories snapshot | grep -v snapshot.json | grep Only && echo 'Some advisories have been created/deleted' && exit 1
+      - name: Publish snapshot data
+        if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          DATA_DIR=$PWD/snapshot
+          BRANCH=generated/snapshot-export
+          REF=refs/remotes/origin/$BRANCH
+          export GIT_WORK_TREE=$DATA_DIR
+          git read-tree "$REF"
+          git add --all --intent-to-add
+          git diff --quiet && exit
+          git add --all
+          TREE=$(git write-tree)
+          git config user.email security-advisories@haskell.org
+          git config user.name "Haskell Security Response Team"
+          COMMIT=$(git commit-tree "$TREE" -p "$REF" -m "$(date --utc --rfc-3339=seconds) ($GITHUB_SHA)")
+          git push origin $COMMIT:$BRANCH
       - name: Generate the website
         run: |
           mkdir generatedWebsite

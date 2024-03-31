@@ -1,4 +1,4 @@
-cabal-version:      2.4
+cabal-version:      3.0
 name:               hsec-tools
 version:            0.2.0.0
 
@@ -37,11 +37,17 @@ library
     Security.Advisories.Convert.OSV
     Security.Advisories.Filesystem
     Security.Advisories.Generate.HTML
+    Security.Advisories.Generate.Snapshot
     Security.Advisories.Generate.TH
     Security.Advisories.Git
     Security.Advisories.Format
     Security.Advisories.Parse
     Security.Advisories.Queries
+
+  other-modules:
+      Paths_hsec_tools
+  autogen-modules:
+      Paths_hsec_tools
 
   build-depends:
     , aeson                 >=2.0.1.0  && <3
@@ -52,6 +58,7 @@ library
     , commonmark-pandoc     >=0.2      && <0.3
     , containers            >=0.6      && <0.7
     , cvss                  >= 0.1     && < 0.2
+    , data-default          >=0.7      && <0.8
     , directory             <2
     , extra                 ^>=1.7.5
     , filepath              >=1.4      && <1.5
@@ -61,6 +68,7 @@ library
     , lucid                 >=2.9.0    && < 3
     , mtl                   >=2.2      && <2.4
     , osv                   >= 0.1     && < 0.2
+    , pandoc                >=2.0      && <3.2
     , pandoc-types          >=1.22     && <2
     , parsec                >=3        && <4
     , pathwalk              >=0.3      && < 0.4

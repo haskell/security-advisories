@@ -2,39 +2,38 @@
 
 module Main where
 
+import qualified Command.Reserve
 import Control.Monad (forM_, join, void, when)
 import Control.Monad.Trans.Except (runExceptT, ExceptT (ExceptT), withExceptT, throwE)
 import Control.Monad.IO.Class (liftIO)
+import qualified Data.Aeson
 import qualified Data.ByteString.Lazy as L
-import Data.Maybe (fromMaybe)
 import Data.Foldable (for_)
 import Data.List (intercalate, isPrefixOf)
-import Distribution.Parsec (eitherParsec)
-import Distribution.Types.VersionRange (VersionRange, anyVersion)
-import System.Exit (die, exitFailure, exitSuccess)
-import System.IO (hPrint, hPutStrLn, stderr)
-import System.FilePath (takeBaseName)
-import Validation (Validation(..))
-
-import qualified Data.Aeson
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Control.Exception (Exception(displayException))
+import Distribution.Parsec (eitherParsec)
+import Distribution.Types.VersionRange (VersionRange, anyVersion)
 import Options.Applicative
-
 import Security.Advisories
 import qualified Security.Advisories.Convert.OSV as OSV
+import Security.Advisories.Generate.HTML
+import Security.Advisories.Generate.Snapshot
 import Security.Advisories.Git
 import Security.Advisories.Queries (listVersionRangeAffectedBy)
-import Security.Advisories.Generate.HTML
-
-import qualified Command.Reserve
+import System.Exit (die, exitFailure, exitSuccess)
+import System.FilePath (takeBaseName)
+import System.IO (hPrint, hPutStrLn, stderr)
+import Validation (Validation (..))
 
 main :: IO ()
-main = join $
-  customExecParser
-    (prefs showHelpOnEmpty)
-    cliOpts
+main =
+  join $
+    customExecParser
+      (prefs showHelpOnEmpty)
+      cliOpts
 
 cliOpts :: ParserInfo (IO ())
 cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisories tools")
@@ -42,55 +41,57 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser :: Parser (IO ())
     commandsParser =
       hsubparser
-        (  command "check" (info commandCheck (progDesc "Syntax check a single advisory"))
-        <> command "reserve" (info commandReserve (progDesc "Reserve an HSEC ID"))
-        <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
-        <> command "render" (info commandRender (progDesc "Render a single advisory as HTML"))
-        <> command "generate-index" (info commandGenerateIndex (progDesc "Generate an HTML index"))
-        <> command "query" (info commandQuery (progDesc "Run various queries against the database"))
-        <> command "help" (info commandHelp (progDesc "Show command help"))
+        ( command "check" (info commandCheck (progDesc "Syntax check a single advisory"))
+            <> command "reserve" (info commandReserve (progDesc "Reserve an HSEC ID"))
+            <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
+            <> command "render" (info commandRender (progDesc "Render a single advisory as HTML"))
+            <> command "generate-index" (info commandGenerateIndex (progDesc "Generate an HTML index"))
+            <> command "generate-snapshot" (info commandGenerateSnapshot (progDesc "Generate a snapshot from a Git repository"))
+            <> command "query" (info commandQuery (progDesc "Run various queries against the database"))
+            <> command "help" (info commandHelp (progDesc "Show command help"))
         )
 
 -- | Create an option with a fixed set of values
 multiOption :: [(String, a)] -> Mod OptionFields a -> Parser a
 multiOption kvs m = option rdr (m <> metavar choices)
   where
-  choices = "{" <> intercalate "|" (fmap fst kvs) <> "}"
-  errMsg = "must be one of " <> choices
-  rdr = eitherReader (maybe (Left errMsg) Right . flip lookup kvs)
+    choices = "{" <> intercalate "|" (fmap fst kvs) <> "}"
+    errMsg = "must be one of " <> choices
+    rdr = eitherReader (maybe (Left errMsg) Right . flip lookup kvs)
 
 commandReserve :: Parser (IO ())
 commandReserve =
   Command.Reserve.runReserveCommand
-  <$> optional (argument str (metavar "REPO"))
-  <*> multiOption
-        [ ("placeholder", Command.Reserve.IdModePlaceholder)
-        , ("auto",        Command.Reserve.IdModeAuto)
-        ]
-        ( long "id-mode" <> help "How to assign IDs" )
-  <*> flag
-        Command.Reserve.DoNotCommit -- default value
-        Command.Reserve.Commit      -- active value
-        ( long "commit"
-        <> help "Commit the reservation file"
-        )
+    <$> optional (argument str (metavar "REPO"))
+    <*> multiOption
+      [ ("placeholder", Command.Reserve.IdModePlaceholder),
+        ("auto", Command.Reserve.IdModeAuto)
+      ]
+      (long "id-mode" <> help "How to assign IDs")
+    <*> flag
+      Command.Reserve.DoNotCommit -- default value
+      Command.Reserve.Commit -- active value
+      ( long "commit"
+          <> help "Commit the reservation file"
+      )
 
 commandCheck :: Parser (IO ())
 commandCheck =
   withAdvisory go
-  <$> optional (argument str (metavar "FILE"))
+    <$> optional (argument str (metavar "FILE"))
   where
     go mPath advisory = do
       for_ mPath $ \path -> do
         let base = takeBaseName path
         when ("HSEC-" `isPrefixOf` base && base /= printHsecId (advisoryId advisory)) $
-          die $ "Filename does not match advisory ID: " <> path
+          die $
+            "Filename does not match advisory ID: " <> path
       T.putStrLn "no error"
 
 commandOsv :: Parser (IO ())
 commandOsv =
   withAdvisory go
-  <$> optional (argument str (metavar "FILE"))
+    <$> optional (argument str (metavar "FILE"))
   where
     go _ adv = do
       L.putStr (Data.Aeson.encode (OSV.convert adv))
@@ -99,7 +100,7 @@ commandOsv =
 commandRender :: Parser (IO ())
 commandRender =
   withAdvisory (\_ -> T.putStrLn . advisoryHtml)
-  <$> optional (argument str (metavar "FILE"))
+    <$> optional (argument str (metavar "FILE"))
 
 commandQuery :: Parser (IO ())
 commandQuery =
@@ -113,22 +114,23 @@ commandQuery =
         <$> argument str (metavar "PACKAGE")
         <*> optional (option versionRangeReader (metavar "VERSION-RANGE" <> short 'v' <> long "version-range"))
         <*> optional (option str (metavar "ADVISORIES-PATH" <> short 'p' <> long "advisories-path"))
-      where go :: T.Text -> Maybe VersionRange -> Maybe FilePath -> IO ()
-            go packageName versionRange advisoriesPath = do
-              let versionRange' = fromMaybe anyVersion versionRange
-              maybeAffectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
-              case maybeAffectedAdvisories of
-                Validation.Failure errors -> do
-                  T.hPutStrLn stderr "Cannot parse some advisories"
-                  forM_ errors $
-                    hPrint stderr
-                  exitFailure
-                Validation.Success [] -> putStrLn "Not affected"
-                Validation.Success affectedAdvisories -> do
-                  hPutStrLn stderr "Affected by:"
-                  forM_ affectedAdvisories $ \advisory ->
-                    T.hPutStrLn stderr $ "* [" <> T.pack (printHsecId $ advisoryId advisory) <> "] " <> advisorySummary advisory
-                  exitFailure
+      where
+        go :: T.Text -> Maybe VersionRange -> Maybe FilePath -> IO ()
+        go packageName versionRange advisoriesPath = do
+          let versionRange' = fromMaybe anyVersion versionRange
+          maybeAffectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
+          case maybeAffectedAdvisories of
+            Validation.Failure errors -> do
+              T.hPutStrLn stderr "Cannot parse some advisories"
+              forM_ errors $
+                hPrint stderr
+              exitFailure
+            Validation.Success [] -> putStrLn "Not affected"
+            Validation.Success affectedAdvisories -> do
+              hPutStrLn stderr "Affected by:"
+              forM_ affectedAdvisories $ \advisory ->
+                T.hPutStrLn stderr $ "* [" <> T.pack (printHsecId $ advisoryId advisory) <> "] " <> advisorySummary advisory
+              exitFailure
 
 commandGenerateIndex :: Parser (IO ())
 commandGenerateIndex =
@@ -136,16 +138,25 @@ commandGenerateIndex =
       renderAdvisoriesIndex src dst
       T.putStrLn "Index generated"
   )
-  <$> argument str (metavar "SOURCE-DIR")
-  <*> argument str (metavar "DESTINATION-DIR")
+    <$> argument str (metavar "SOURCE-DIR")
+    <*> argument str (metavar "DESTINATION-DIR")
+
+commandGenerateSnapshot :: Parser (IO ())
+commandGenerateSnapshot =
+  ( \src dst -> do
+      createSnapshot src dst
+      T.putStrLn "Snapshot generated"
+  )
+    <$> argument str (metavar "SOURCE-DIR")
+    <*> argument str (metavar "DESTINATION-DIR")
 
 commandHelp :: Parser (IO ())
 commandHelp =
   ( \mCmd ->
       let args = maybe id (:) mCmd ["-h"]
-      in void $ handleParseResult $ execParserPure defaultPrefs cliOpts args
+       in void $ handleParseResult $ execParserPure defaultPrefs cliOpts args
   )
-  <$> optional (argument str (metavar "COMMAND"))
+    <$> optional (argument str (metavar "COMMAND"))
 
 versionRangeReader :: ReadM VersionRange
 versionRangeReader = eitherReader eitherParsec
@@ -154,18 +165,26 @@ withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
   input <- maybe T.getContents T.readFile file
 
-  oob <- runExceptT $ case file of
-    Nothing -> throwE StdInHasNoOOB
-    Just path -> withExceptT GitHasNoOOB $ do 
-      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path 
-      pure OutOfBandAttributes
-        { oobPublished = firstAppearanceCommitDate gitInfo
-        , oobModified = lastModificationCommitDate gitInfo
-        }
+  oob <-
+    ($ emptyOutOfBandAttributes) <$> case file of
+      Nothing -> pure id
+      Just path ->
+        getAdvisoryGitInfo path <&> \case
+          Left _ -> id
+          Right gitInfo -> \oob ->
+            oob
+              { oobPublished = Just (firstAppearanceCommitDate gitInfo),
+                oobModified = Just (lastModificationCommitDate gitInfo)
+              }
 
   case parseAdvisory NoOverrides oob input of
     Left e -> do
-      hPutStrLn stderr (displayException e)
+      T.hPutStrLn stderr $
+        case e of
+          MarkdownError _ explanation -> "Markdown parsing error:\n" <> explanation
+          MarkdownFormatError explanation -> "Markdown structure error:\n" <> explanation
+          TomlError _ explanation -> "Couldn't parse front matter as TOML:\n" <> explanation
+          AdvisoryError _ -> "Advisory structure error"
       exitFailure
     Right advisory -> do
       go file advisory
