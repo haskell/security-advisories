@@ -39,12 +39,14 @@ common common-all
     DeriveGeneric
     DerivingStrategies
     EmptyCase
+    GADTs
     ImportQualifiedPost
     LambdaCase
     NamedFieldPuns
     NoStarIsType
     OverloadedStrings
     PartialTypeSignatures
+    RankNTypes
     ScopedTypeVariables
     StandaloneDeriving
     StandaloneKindSignatures
@@ -60,6 +62,7 @@ library
   build-depends:
     , aeson
     , base                  <5
+    , bytestring
     , Cabal
     , cabal-install
     , colourista
@@ -68,6 +71,7 @@ library
     , hsec-core
     , hsec-tools
     , http-client
+    , kan-extensions
     , optparse-applicative
     , process
     , temporary

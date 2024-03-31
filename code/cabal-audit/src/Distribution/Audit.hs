@@ -6,13 +6,15 @@
 --    database
 -- 3. summarise the found vulnerabilities as a humand readable or
 --    otherwise formatted output
-module Distribution.Audit (auditMain, buildAdvisories, AuditConfig (..), AuditException (..), Output (..)) where
+module Distribution.Audit (auditMain, buildAdvisories, AuditConfig (..), AuditException (..)) where
 
 import Colourista.Pure (blue, bold, formatWith, green, red, yellow)
 import Control.Exception (Exception (displayException), SomeException (SomeException), catch, throwIO)
 import Control.Monad (when)
+import Control.Monad.Codensity (Codensity (Codensity, runCodensity))
 import Data.Aeson (KeyValue ((.=)), Value, object)
 import Data.Aeson qualified as Aeson
+import Data.ByteString.Lazy qualified as BSL
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import Data.Functor.Identity (Identity (runIdentity))
@@ -42,10 +44,10 @@ import Security.Advisories.Cabal (ElaboratedPackageInfoAdvised, ElaboratedPackag
 import Security.Advisories.Convert.OSV qualified as OSV
 import Security.Advisories.Filesystem (listAdvisories)
 import System.Exit (exitFailure)
+import System.IO (Handle, IOMode (WriteMode), hPutStrLn, stderr, stdout, withFile)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process (callProcess)
 import Validation (validation)
-import System.IO (stderr, hPutStrLn)
 
 data AuditException
   = -- | parsing the advisory database failed
@@ -70,11 +72,11 @@ instance Exception AuditException where
         <> displayException ex
 
 -- | the type of output that is chosen for the command
-data Output
+data OutputFormat
   = -- | write humand readable to stdout
     HumanReadable
   | -- | write as Osv format to the specified file
-    Osv {osvPath :: FilePath}
+    Osv
 
 -- | configuration that is specific to the cabal audit command
 data AuditConfig = MkAuditConfig
@@ -82,23 +84,26 @@ data AuditConfig = MkAuditConfig
   -- ^ path or URL to the advisories
   , verbosity :: Verbosity.Verbosity
   -- ^ verbosity of cabal
-  , outputType :: Output
+  , outputFormat :: OutputFormat
+  -- ^ what output format to use
+  , outputHandle :: Codensity IO Handle
+  -- ^ which handle to write to
   }
 
 -- | the main action to invoke
 auditMain :: IO ()
-auditMain =
-  do
-    (auditConfig, nixStyleFlags) <- customExecParser (prefs showHelpOnEmpty) do
-      info (helper <*> auditCommandParser) do
-        mconcat
-          [ fullDesc
-          , progDesc (formatWith [blue] "audit your cabal projects for vulnerabilities")
-          , header (formatWith [bold, blue] "Welcome to cabal audit")
-          ]
+auditMain = do
+  (auditConfig, nixStyleFlags) <- customExecParser (prefs showHelpOnEmpty) do
+    info (helper <*> auditCommandParser) do
+      mconcat
+        [ fullDesc
+        , progDesc (formatWith [blue] "audit your cabal projects for vulnerabilities")
+        , header (formatWith [bold, blue] "Welcome to cabal audit")
+        ]
 
+  do
     buildAdvisories auditConfig nixStyleFlags
-      >>= handleBuiltAdvisories (outputType auditConfig)
+      >>= handleBuiltAdvisories (outputHandle auditConfig) (outputFormat auditConfig)
     `catch` \(SomeException ex) -> do
       hPutStrLn stderr $
         unlines
@@ -137,7 +142,7 @@ buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
       Left fp -> k fp
       Right url -> withSystemTempDirectory "cabal-audit" \tmp -> do
         hPutStrLn stderr $ formatWith [blue] $ "trying to clone " <> url
-        callProcess "git" ["clone","--depth", "1",url, tmp]
+        callProcess "git" ["clone", "--depth", "1", url, tmp]
         k tmp
 
   pure $ matchAdvisoriesForPlan plan advisories
@@ -145,21 +150,22 @@ buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
 -- | provides the built advisories in some consumable form, e.g. as human readable form
 --
 -- FUTUREWORK(mangoiv): provide output as JSON
-handleBuiltAdvisories :: Output -> M.Map PackageName ElaboratedPackageInfoAdvised -> IO ()
-handleBuiltAdvisories = \case
-  HumanReadable -> humanReadableHandler . M.toList
-  Osv fp -> osvHandler fp
+handleBuiltAdvisories :: Codensity IO Handle -> OutputFormat -> M.Map PackageName ElaboratedPackageInfoAdvised -> IO ()
+handleBuiltAdvisories mkHandle = \case
+  HumanReadable -> humanReadableHandler mkHandle . M.toList
+  Osv -> osvHandler mkHandle
 
-osvHandler :: FilePath -> M.Map PackageName ElaboratedPackageInfoAdvised -> IO ()
-osvHandler fp =
-  Aeson.encodeFile @Value fp . object . M.foldMapWithKey
-    \pn MkElaboratedPackageInfoWith {elaboratedPackageVersion, packageAdvisories} ->
-      [ fromString (unPackageName pn)
-          .= object
-            [ "version" .= prettyVersion @Text elaboratedPackageVersion
-            , "advisories" .= map (OSV.convert . fst) (runIdentity packageAdvisories)
-            ]
-      ]
+osvHandler :: Codensity IO Handle -> M.Map PackageName ElaboratedPackageInfoAdvised -> IO ()
+osvHandler mkHandle mp =
+  runCodensity mkHandle \hdl ->
+    BSL.hPutStr hdl . Aeson.encode @Value . object $
+      flip M.foldMapWithKey mp \pn MkElaboratedPackageInfoWith {elaboratedPackageVersion, packageAdvisories} ->
+        [ fromString (unPackageName pn)
+            .= object
+              [ "version" .= prettyVersion @Text elaboratedPackageVersion
+              , "advisories" .= map (OSV.convert . fst) (runIdentity packageAdvisories)
+              ]
+        ]
 
 -- | pretty-prints a `Version`
 --
@@ -188,16 +194,17 @@ prettyAdvisory Advisory {advisoryId, advisoryPublished, advisoryKeywords, adviso
     Just fv -> formatWith [bold, green] "Fix available since version " <> formatWith [yellow] (prettyVersion fv)
 
 -- | this is handler is used when displaying to the user
-humanReadableHandler :: [(PackageName, ElaboratedPackageInfoAdvised)] -> IO ()
-humanReadableHandler = \case
-  [] -> putStrLn (formatWith [green, bold] "No advisories found.")
-  avs -> do
-    putStrLn (formatWith [bold, red] "\n\nFound advisories:\n")
-    for_ avs \(pn, i) -> do
-      let verString = formatWith [yellow] $ prettyVersion $ elaboratedPackageVersion i
-          pkgName = formatWith [yellow] $ show $ unPackageName pn
-      putStrLn ("dependency " <> pkgName <> " at version " <> verString <> " is vulnerable for:")
-      for_ (runIdentity (packageAdvisories i)) (T.putStrLn . uncurry prettyAdvisory)
+humanReadableHandler :: Codensity IO Handle -> [(PackageName, ElaboratedPackageInfoAdvised)] -> IO ()
+humanReadableHandler mkHandle =
+  runCodensity mkHandle . flip \hdl -> \case
+    [] -> hPutStrLn hdl (formatWith [green, bold] "No advisories found.")
+    avs -> do
+      hPutStrLn hdl (formatWith [bold, red] "\n\nFound advisories:\n")
+      for_ avs \(pn, i) -> do
+        let verString = formatWith [yellow] $ prettyVersion $ elaboratedPackageVersion i
+            pkgName = formatWith [yellow] $ show $ unPackageName pn
+        hPutStrLn hdl ("dependency " <> pkgName <> " at version " <> verString <> " is vulnerable for:")
+        for_ (runIdentity (packageAdvisories i)) (T.hPutStrLn hdl . uncurry prettyAdvisory)
 
 projectConfigFromFlags :: NixStyleFlags a -> ProjectConfig
 projectConfigFromFlags flags = commandLineFlagsToProjectConfig defaultGlobalFlags flags mempty
@@ -232,16 +239,23 @@ auditCommandParser =
             "verbose" -> Right Verbosity.verbose
             "deafening" -> Right Verbosity.deafening
             _ -> Left "verbosity has to be one of \"silent\", \"normal\", \"verbose\" or \"deafening\""
+        <*> flag HumanReadable Osv do
+          mconcat
+            [ long "json"
+            , short 'm'
+            , help "whether to format as json mapping package names to osvs that apply"
+            ]
         <*> do
-          Osv
+          let mkFileHandle fp = Codensity (withFile fp WriteMode)
+          mkFileHandle
             <$> strOption do
               mconcat
-                [ long "osv"
+                [ long "to-file"
                 , short 'o'
                 , metavar "FILEPATH"
-                , help "whether to print to a file of osv, mapping package name and version to an osv"
+                , help "specify a file to write to, instead of stdout"
                 ]
-              <|> pure HumanReadable
+              <|> pure (Codensity \k -> k stdout)
     -- FUTUREWORK(mangoiv): this will accept cabal flags as an additional argument with something like
     -- --cabal-flags "--some-cabal-flag" and print a helper that just forwards the cabal help text
     <*> pure (defaultNixStyleFlags ())
