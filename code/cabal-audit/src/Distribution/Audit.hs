@@ -42,6 +42,7 @@ import System.Exit (exitFailure)
 import System.IO.Temp (withSystemTempDirectory)
 import System.Process (callProcess)
 import Validation (validation)
+import System.IO (stderr, hPutStrLn)
 
 data AuditException
   = -- | parsing the advisory database failed
@@ -89,7 +90,7 @@ auditMain =
               , header (formatWith [bold, blue] "Welcome to cabal audit")
               ]
     `catch` \(SomeException ex) -> do
-      putStrLn $
+      hPutStrLn stderr $
         unlines
           [ formatWith [red, bold] "cabal-audit failed:"
           , formatWith [red] $ displayException ex
@@ -116,7 +117,7 @@ buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
       `catch` \ex -> throwIO $ CabalException "elaborating the install-plan" ex
 
   when (verbosity > Verbosity.normal) do
-    putStrLn (formatWith [blue] "Finished building the cabal install plan, looking for advisories...")
+    hPutStrLn stderr (formatWith [blue] "Finished building the cabal install plan, looking for advisories...")
 
   advisories <- do
     let k realPath =
@@ -125,8 +126,8 @@ buildAdvisories MkAuditConfig {advisoriesPathOrURL, verbosity} flags = do
     case advisoriesPathOrURL of
       Left fp -> k fp
       Right url -> withSystemTempDirectory "cabal-audit" \tmp -> do
-        putStrLn $ formatWith [blue] $ "trying to clone " <> url
-        callProcess "git" ["clone", url, tmp]
+        hPutStrLn stderr $ formatWith [blue] $ "trying to clone " <> url
+        callProcess "git" ["clone","--depth", "1",url, tmp]
         k tmp
 
   pure $ matchAdvisoriesForPlan plan advisories
@@ -191,7 +192,7 @@ auditCommandParser =
                 [ long "file-path"
                 , short 'p'
                 , metavar "FILE_PATH"
-                , help "the path the the repository containing an advisories directory"
+                , help "the path to the repository containing an advisories directory"
                 ]
               <|> Right
             <$> strOption do
