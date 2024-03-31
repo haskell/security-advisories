@@ -1,17 +1,60 @@
-Left
-    ( AdvisoryError
-        [ MatchMessage
-            { matchAnn = Just
-                ( Position
-                    { posIndex = 0
-                    , posLine = 1
-                    , posColumn = 1
-                    }
+Right
+    ( Advisory
+        { advisoryId = HSEC-0000-0000
+        , advisoryModified = 1970-01-01 00:00:00 UTC
+        , advisoryPublished = 1970-01-01 00:00:00 UTC
+        , advisoryCAPECs = []
+        , advisoryCWEs = []
+        , advisoryKeywords = []
+        , advisoryAliases = []
+        , advisoryRelated = []
+        , advisoryAffected = []
+        , advisoryReferences = []
+        , advisoryPandoc = Pandoc
+            ( Meta
+                { unMeta = fromList [] }
+            )
+            [ Header 2
+                ( ""
+                , []
+                , []
                 )
-            , matchPath = []
-            , matchMessage = "missing key: affected"
-            }
-        ] "1:1: missing key: affected in <top-level>
-      "
+                [ Str "Title" ]
+            ]
+        , advisoryHtml = "<pre><code class="language-toml">[advisory]
+          id = &quot;HSEC-0000-0000&quot;
+          cwe = []
+          </code></pre>
+          <h2>Title</h2>
+          "
+        , advisorySummary = "Title"
+        , advisoryDetails = "## Title
+          "
+        }
     )
+Model
+    { modelSchemaVersion = "1.5.0"
+    , modelId = "HSEC-0000-0000"
+    , modelModified = 1970-01-01 00:00:00 UTC
+    , modelPublished = Just 1970-01-01 00:00:00 UTC
+    , modelWithdrawn = Nothing
+    , modelAliases = []
+    , modelRelated = []
+    , modelSummary = Just "Title"
+    , modelDetails = Just "## Title
+      "
+    , modelSeverity = []
+    , modelAffected = []
+    , modelReferences = []
+    , modelCredits = []
+    , modelDatabaseSpecific = Nothing
+    }
+{
+    "details": "## Title\n",
+    "id": "HSEC-0000-0000",
+    "modified": "1970-01-01T00:00:00Z",
+    "published": "1970-01-01T00:00:00Z",
+    "schema_version": "1.5.0",
+    "summary": "Title"
+}
 
