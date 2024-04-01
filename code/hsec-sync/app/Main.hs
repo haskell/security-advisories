@@ -21,8 +21,8 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser :: Parser (IO ())
     commandsParser =
       hsubparser
-        ( command "sync" (info commandSync (progDesc "Synchronize a local Haskell Security Advisory repository"))
-        <>  command "status" (info commandStatus (progDesc "Check the status of a local Haskell Security Advisory repository"))
+        ( command "sync" (info commandSync (progDesc "Synchronize a local Haskell Security Advisory repository snapshot"))
+            <> command "status" (info commandStatus (progDesc "Check the status of a local Haskell Security Advisory repository snapshot"))
         )
 
 commandSync :: Parser (IO ())
@@ -35,15 +35,15 @@ commandSync = go <$> repositoryParser
           die e
         Right s -> do
           putStrLn $
-            "Repository at "
-              <> show (repositoryRoot repo)
+            "Snapshot at "
+              <> show (snapshotRoot repo)
               <> " from "
               <> show (repositoryUrl repo <> "@" <> repositoryBranch repo)
           putStrLn $
             case s of
-              Created -> "Repository just created"
-              Updated -> "Repository updated"
-              AlreadyUpToDate -> "Repository already up-to-date"
+              Created -> "Snapshot just created"
+              Updated -> "Snapshot updated"
+              AlreadyUpToDate -> "Snapshot already up-to-date"
 
 commandStatus :: Parser (IO ())
 commandStatus = go <$> repositoryParser
@@ -53,18 +53,18 @@ commandStatus = go <$> repositoryParser
       putStrLn $
         case result of
           DirectoryMissing -> "Directory is missing"
-          DirectoryEmpty -> "Directory is empty"
+          DirectoryIncoherent -> "Directory is incoherent"
           DirectoryUpToDate -> "Repository is up-to-date"
           DirectoryOutDated -> "Repository is out-dated"
 
-repositoryParser :: Parser Repository
+repositoryParser :: Parser Snapshot
 repositoryParser =
-  Repository
+  Snapshot
     <$> strOption
-      ( long "repository-root"
+      ( long "snapshot-root"
           <> short 'd'
-          <> metavar "REPOSITORY-ROOT"
-          <> value (repositoryRoot defaultRepository)
+          <> metavar "SNAPSHOT-ROOT"
+          <> value (snapshotRoot defaultRepository)
       )
     <*> strOption
       ( long "repository-url"

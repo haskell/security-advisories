@@ -1,7 +1,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 
 module Security.Advisories.Sync
-  ( Repository (..),
+  ( Snapshot (..),
     defaultRepository,
     SyncStatus (..),
     sync,
@@ -10,9 +10,8 @@ module Security.Advisories.Sync
   )
 where
 
-import Data.Time (zonedTimeToUTC)
 import Security.Advisories.Sync.Atom
-import Security.Advisories.Sync.Git
+import Security.Advisories.Sync.Snapshot
 
 data SyncStatus
   = Created
@@ -20,57 +19,57 @@ data SyncStatus
   | AlreadyUpToDate
   deriving stock (Eq, Show)
 
-sync :: Repository -> IO (Either String SyncStatus)
-sync repo = do
-  gitStatus <- gitRepositoryStatus repo
-  ensured <- ensureGitRepositoryWithRemote repo gitStatus
-  let mkGitError = Left . explainGitError
+sync :: Snapshot -> IO (Either String SyncStatus)
+sync s = do
+  snapshotStatus <- snapshotRepositoryStatus s
+  ensured <- ensureSnapshot s snapshotStatus
+  let mkSnapshotError = Left . explainSnapshotError
   case ensured of
-    Left e -> return $ mkGitError e
-    Right s ->
-      case s of
-        GitRepositoryCreated ->
+    Left e -> return $ mkSnapshotError e
+    Right ensuredStatus ->
+      case ensuredStatus of
+        SnapshotRepositoryCreated ->
           return $ Right Created
-        GitRepositoryExisting -> do
-          repoStatus <- status' repo gitStatus
+        SnapshotRepositoryExisting -> do
+          repoStatus <- status' s snapshotStatus
           if repoStatus == DirectoryOutDated
-            then either mkGitError (const $ Right Updated) <$> updateGitRepository repo
+            then either mkSnapshotError (const $ Right Updated) <$> overwriteSnapshot s
             else return $ Right AlreadyUpToDate
 
 data RepositoryStatus
   = DirectoryMissing
-  | DirectoryEmpty
+  | DirectoryIncoherent
   | DirectoryUpToDate
   | DirectoryOutDated
   deriving stock (Eq, Show)
 
-status :: Repository -> IO RepositoryStatus
-status repo =
-  status' repo =<< gitRepositoryStatus repo
+status :: Snapshot -> IO RepositoryStatus
+status s =
+  status' s =<< snapshotRepositoryStatus s
 
-status' :: Repository -> GitRepositoryStatus -> IO RepositoryStatus
-status' repo gitStatus = do
-  case gitStatus of
-    GitDirectoryMissing ->
+status' :: Snapshot -> SnapshotRepositoryStatus -> IO RepositoryStatus
+status' s snapshotStatus = do
+  case snapshotStatus of
+    SnapshotDirectoryMissing ->
       return DirectoryMissing
-    GitDirectoryEmpty ->
-      return DirectoryEmpty
-    GitDirectoryInitialized -> do
-      gitInfo <- getDirectoryGitInfo $ repositoryRoot repo
-      case gitInfo of
+    SnapshotDirectoryIncoherent ->
+      return DirectoryIncoherent
+    SnapshotDirectoryInitialized -> do
+      snapshotInfo <- getDirectorySnapshotInfo $ snapshotRoot s
+      case snapshotInfo of
         Left _ ->
           return DirectoryOutDated
         Right info -> do
-          update <- latestUpdate (repositoryUrl repo) (repositoryBranch repo)
+          update <- latestUpdate (repositoryUrl s) (repositoryBranch s)
           return $
-            if update == Right (zonedTimeToUTC $ lastModificationCommitDate info)
+            if update == Right (lastModificationCommitDate info)
               then DirectoryUpToDate
               else DirectoryOutDated
 
-defaultRepository :: Repository
+defaultRepository :: Snapshot
 defaultRepository =
-  Repository
-    { repositoryUrl = "https://github.com/haskell/security-advisories",
-      repositoryRoot = "security-advisories",
-      repositoryBranch = "main"
+  Snapshot
+    { snapshotRoot = "security-advisories",
+      repositoryUrl = "https://snapshothub.com/haskell/security-advisories",
+      repositoryBranch = "generated/snapshot-export"
     }

@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Spec.SyncSpec (spec) where
@@ -8,10 +7,8 @@ import Data.Bifunctor (first)
 import Security.Advisories.Sync
 import qualified System.Directory as D
 import System.Environment (lookupEnv)
-import System.Exit (ExitCode (ExitSuccess))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
-import System.Process (readProcessWithExitCode)
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -22,65 +19,72 @@ spec =
     [ testGroup
         "sync"
         [ testCase "Invalid root should fail" $ do
-            let repo = withRepositoryAt "/dev/advisories"
-            status repo >>= (@?= DirectoryMissing)
+            let snapshot = withSnapshotAt "/dev/advisories"
+            status snapshot >>= (@?= DirectoryMissing)
             isGitHubActionRunner <- lookupEnv "GITHUB_ACTIONS"
             unless (isGitHubActionRunner == Just "true") $ do
               -- GitHub Action runners let you write anywhere
-              result <- sync repo
+              result <- sync snapshot
               first (const ("<Redacted error>" :: String)) result @?= Left "<Redacted error>"
-            status repo >>= (@?= DirectoryMissing),
+            status snapshot >>= (@?= DirectoryMissing),
           testCase "Subdirectory creation should work" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let repo = withRepositoryAt $ p </> "repo"
-              status repo >>= (@?= DirectoryMissing)
-              result <- sync repo
+              let snapshot = withSnapshotAt $ p </> "snapshot"
+              status snapshot >>= (@?= DirectoryMissing)
+              result <- sync snapshot
               result @?= Right Created
-              status repo >>= (@?= DirectoryUpToDate),
+              status snapshot >>= (@?= DirectoryUpToDate),
           testCase "With existing subdirectory creation should work" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              D.createDirectory $ p </> "repo"
-              let repo = withRepositoryAt $ p </> "repo"
-              result <- sync repo
+              D.createDirectory $ p </> "snapshot"
+              let snapshot = withSnapshotAt $ p </> "snapshot"
+              result <- sync snapshot
               result @?= Right Created,
           testCase "Sync twice should be a no-op" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let repo = withRepositoryAt p
-              status repo >>= (@?= DirectoryEmpty)
-              resultCreate <- sync repo
+              let snapshot = withSnapshotAt p
+              status snapshot >>= (@?= DirectoryIncoherent)
+              resultCreate <- sync snapshot
               resultCreate @?= Right Created
-              resultResync <- sync repo
+              resultResync <- sync snapshot
               resultResync @?= Right AlreadyUpToDate,
           testCase "Sync behind should update" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let repo = withRepositoryAt p
-              resultCreate <- sync repo
+              let snapshot = withSnapshotAt p
+              resultCreate <- sync snapshot
               resultCreate @?= Right Created
-              D.withCurrentDirectory p $ do
-                (statusReset, _, _) <-
-                  readProcessWithExitCode "git" ["reset", "--hard", "HEAD~50"] ""
-                statusReset @?= ExitSuccess
-              status repo >>= (@?= DirectoryOutDated)
-              resultResync <- sync repo
+              writeFile
+                (p </> "snapshot.json")
+                "{\"latestUpdate\":\"2020-03-11T12:26:51Z\",\"snapshotVersion\":\"0.1.0.0\"}"
+              status snapshot >>= (@?= DirectoryOutDated)
+              resultResync <- sync snapshot
               resultResync @?= Right Updated
-              status repo >>= (@?= DirectoryUpToDate),
-          testCase "Sync behind and changed remote should update" $
+              status snapshot >>= (@?= DirectoryUpToDate),
+          testCase "Sync a broken snapshot.json" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let repo = withRepositoryAt p
-              resultCreate <- sync repo
+              let snapshot = withSnapshotAt p
+              resultCreate <- sync snapshot
               resultCreate @?= Right Created
-              D.withCurrentDirectory p $ do
-                (statusReset, _, _) <-
-                  readProcessWithExitCode "git" ["reset", "--hard", "HEAD~50"] ""
-                statusReset @?= ExitSuccess
-                (statusRemote, _, _) <-
-                  readProcessWithExitCode "git" ["remote", "rename", "origin", "old"] ""
-                statusRemote @?= ExitSuccess
-              resultResync <- sync repo
+              writeFile
+                (p </> "snapshot.json")
+                "{\"latestpdate\":\"2020-03-11T12:26:51Z\",\"snapshotVersion\":\"0.1.0.0\"}"
+              status snapshot >>= (@?= DirectoryIncoherent)
+              resultResync <- sync snapshot
               resultResync @?= Right Updated
+              status snapshot >>= (@?= DirectoryUpToDate),
+          testCase "Sync a deleted snapshot.json" $
+            withSystemTempDirectory "hsec-sync" $ \p -> do
+              let snapshot = withSnapshotAt p
+              resultCreate <- sync snapshot
+              resultCreate @?= Right Created
+              D.removeFile (p </> "snapshot.json")
+              status snapshot >>= (@?= DirectoryOutDated)
+              resultResync <- sync snapshot
+              resultResync @?= Right Updated
+              status snapshot >>= (@?= DirectoryIncoherent)
         ]
     ]
 
-withRepositoryAt :: FilePath -> Repository
-withRepositoryAt root =
-  defaultRepository {repositoryRoot = root}
+withSnapshotAt :: FilePath -> Snapshot
+withSnapshotAt root =
+  defaultRepository {snapshotRoot = root}
