@@ -1,4 +1,5 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Security.Advisories.Sync
   ( Snapshot (..),
@@ -53,8 +54,8 @@ status s =
   status' s =<< snapshotRepositoryStatus s
 
 status' :: Snapshot -> SnapshotRepositoryStatus -> IO RepositoryStatus
-status' s snapshotStatus = do
-  case snapshotStatus of
+status' s =
+  \case
     SnapshotDirectoryMissing ->
       return DirectoryMissing
     SnapshotDirectoryIncoherent ->

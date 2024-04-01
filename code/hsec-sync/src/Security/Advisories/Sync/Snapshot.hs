@@ -22,11 +22,11 @@ where
 
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Compression.GZip as GZip
-import Control.Exception (IOException, try)
+import Control.Exception (Exception (displayException), IOException, try)
 import Control.Lens
 import Control.Monad.Extra (unlessM, whenM)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Except (runExceptT, throwE)
+import Control.Monad.Trans.Except (runExceptT, throwE, withExceptT)
 import Data.Aeson (FromJSON, eitherDecodeFileStrict)
 import qualified Data.ByteString.Lazy as BL
 import Data.Either.Combinators (whenLeft)
@@ -35,10 +35,10 @@ import Data.Time (UTCTime)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 import Network.Wreq
+import Security.Advisories.Sync.Url
 import qualified System.Directory as D
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
-import Security.Advisories.Sync.Url
 
 data SnapshotError
   = SnapshotDirectoryMissingE
@@ -57,11 +57,11 @@ explainSnapshotError =
     SnapshotIncoherent e -> "Snapshot directory is incoherent: " <> e
     SnapshotProcessError e ->
       unlines
-        [ "An exception occurred during snapshot processing:"
-        , case e of
+        [ "An exception occurred during snapshot processing:",
+          case e of
             FetchSnapshotArchive x -> "Fetching failed with: " <> show x
             DirectorySetupSnapshotArchive x -> "Directory setup got an exception: " <> show x
-            ExtractSnapshotArchive x -> "Extraction got an exception: " <> show x
+            ExtractSnapshotArchive x -> "Extraction got an exception: " <> displayException x
         ]
 
 data Snapshot = Snapshot
@@ -113,17 +113,17 @@ ensureSnapshot s =
 
 overwriteSnapshot :: Snapshot -> IO (Either SnapshotError ())
 overwriteSnapshot s =
-  runExceptT $ do
-    let root = snapshotRoot s
-    ensuringPerformed <- liftIO $ try $ ensureEmptyRoot root
-    whenLeft ensuringPerformed $
-      throwE . SnapshotProcessError . DirectorySetupSnapshotArchive
+  runExceptT $
+    withExceptT SnapshotProcessError $ do
+      let root = snapshotRoot s
+      ensuringPerformed <- liftIO $ try $ ensureEmptyRoot root
+      whenLeft ensuringPerformed $
+        throwE . DirectorySetupSnapshotArchive
 
-    resultE <- liftIO $ try $ get $ snapshotArchiveUrl s
-    case resultE of
-      Left e ->
-        throwE $
-          SnapshotProcessError $
+      resultE <- liftIO $ try $ get $ snapshotArchiveUrl s
+      case resultE of
+        Left e ->
+          throwE $
             FetchSnapshotArchive $
               case e of
                 InvalidUrlException url reason ->
@@ -134,17 +134,17 @@ overwriteSnapshot s =
                       "Request failed with " <> show (response ^. responseStatus) <> ": " <> show body
                     _ ->
                       "Request failed: " <> show content
-      Right result -> do
-        performed <-
-          liftIO $
-            try $
-              withSystemTempDirectory "security-advisories" $ \tempDir -> do
-                let archivePath = tempDir <> "/snapshot-export.tar.gz"
-                BL.writeFile archivePath $ result ^. responseBody
-                contents <- BL.readFile archivePath
-                Tar.unpack root $ Tar.read $ GZip.decompress contents
-        whenLeft performed $
-          throwE . SnapshotProcessError . ExtractSnapshotArchive
+        Right result -> do
+          performed <-
+            liftIO $
+              try $
+                withSystemTempDirectory "security-advisories" $ \tempDir -> do
+                  let archivePath = tempDir <> "/snapshot-export.tar.gz"
+                  BL.writeFile archivePath $ result ^. responseBody
+                  contents <- BL.readFile archivePath
+                  Tar.unpack root $ Tar.read $ GZip.decompress contents
+          whenLeft performed $
+            throwE . ExtractSnapshotArchive
 
 ensureEmptyRoot :: FilePath -> IO ()
 ensureEmptyRoot root = do
