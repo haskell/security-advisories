@@ -39,6 +39,7 @@ library
     Security.Advisories.Generate.HTML
     Security.Advisories.Generate.TH
     Security.Advisories.Git
+    Security.Advisories.Format
     Security.Advisories.Parse
     Security.Advisories.Queries
 
