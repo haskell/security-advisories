@@ -100,7 +100,7 @@ data OS
   | OpenBSD
   deriving stock (Show)
 
-newtype Keyword = Keyword Text
+newtype Keyword = Keyword {unKeyword :: Text}
   deriving stock (Eq, Ord)
   deriving (Show) via Text
 
