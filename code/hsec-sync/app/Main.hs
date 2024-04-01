@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -7,6 +6,7 @@ import Control.Monad (join)
 import Options.Applicative
 import Security.Advisories.Sync
 import System.Exit (die)
+import System.IO (hPutStrLn, stderr)
 
 main :: IO ()
 main =
@@ -50,7 +50,7 @@ commandStatus = go <$> repositoryParser
   where
     go repo = do
       result <- status repo
-      putStrLn $
+      hPutStrLn stderr $
         case result of
           DirectoryMissing -> "Directory is missing"
           DirectoryIncoherent -> "Directory is incoherent"
