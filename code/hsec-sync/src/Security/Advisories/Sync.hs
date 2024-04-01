@@ -10,6 +10,9 @@ module Security.Advisories.Sync
   )
 where
 
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Except (runExceptT, throwE)
+import Data.Either.Combinators (whenLeft)
 import Security.Advisories.Sync.Atom
 import Security.Advisories.Sync.Snapshot
 
@@ -20,21 +23,23 @@ data SyncStatus
   deriving stock (Eq, Show)
 
 sync :: Snapshot -> IO (Either String SyncStatus)
-sync s = do
-  snapshotStatus <- snapshotRepositoryStatus s
-  ensured <- ensureSnapshot s snapshotStatus
-  let mkSnapshotError = Left . explainSnapshotError
-  case ensured of
-    Left e -> return $ mkSnapshotError e
-    Right ensuredStatus ->
-      case ensuredStatus of
-        SnapshotRepositoryCreated ->
-          return $ Right Created
-        SnapshotRepositoryExisting -> do
-          repoStatus <- status' s snapshotStatus
-          if repoStatus == DirectoryOutDated
-            then either mkSnapshotError (const $ Right Updated) <$> overwriteSnapshot s
-            else return $ Right AlreadyUpToDate
+sync s =
+  runExceptT $ do
+    let snapshotError = throwE . explainSnapshotError
+    snapshotStatus <- liftIO $ snapshotRepositoryStatus s
+    ensured <- liftIO $ ensureSnapshot s snapshotStatus
+    ensuredStatus <- either snapshotError return ensured
+    case ensuredStatus of
+      SnapshotRepositoryCreated ->
+        return Created
+      SnapshotRepositoryExisting -> do
+        repoStatus <- liftIO $ status' s snapshotStatus
+        if repoStatus == DirectoryOutDated
+          then do
+            overwrittenStatus <- liftIO $ overwriteSnapshot s
+            whenLeft overwrittenStatus snapshotError
+            return Updated
+          else return AlreadyUpToDate
 
 data RepositoryStatus
   = DirectoryMissing
@@ -70,6 +75,6 @@ defaultRepository :: Snapshot
 defaultRepository =
   Snapshot
     { snapshotRoot = "security-advisories",
-      repositoryUrl = "https://snapshothub.com/haskell/security-advisories",
+      repositoryUrl = "https://github.com/haskell/security-advisories",
       repositoryBranch = "generated/snapshot-export"
     }
