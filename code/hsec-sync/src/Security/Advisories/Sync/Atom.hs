@@ -3,6 +3,7 @@ module Security.Advisories.Sync.Atom
   )
 where
 
+import Security.Advisories.Sync.Url
 import Control.Exception (try)
 import Control.Lens
 import Data.Either.Extra (maybeToEither)
@@ -18,7 +19,7 @@ import qualified Text.RSS.Syntax as FeedRSS
 
 latestUpdate :: String -> String -> IO (Either String UTCTime)
 latestUpdate repoUrl branch = do
-  resultE <- try $ get $ repoUrl </> "commits" </> branch </> "advisories.atom"
+  resultE <- try $ get $ mkUrl [repoUrl, "commits", branch, "advisories.atom"]
   return $
     case resultE of
       Left e ->
@@ -46,14 +47,3 @@ latestUpdate repoUrl branch = do
           Just (FeedTypes.RSS1Feed _) -> Left "RSS1 feed are not supported"
           Just (FeedTypes.XMLFeed _) -> Left "XML feed are not supported"
           Nothing -> Left "No feed found"
-
-infixr 5 </>
-
-(</>) :: String -> String -> String
-"/" </> ('/' : ys) = '/' : ys
-"/" </> ys = '/' : ys
-"" </> ('/' : ys) = '/' : ys
-"" </> ys = '/' : ys
-[x] </> ('/' : ys) = x : '/' : ys
-[x] </> ys = x : '/' : ys
-(x0 : x1 : xs) </> ys = x0 : ((x1 : xs) </> ys)
