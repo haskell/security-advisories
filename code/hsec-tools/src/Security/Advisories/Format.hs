@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Security.Advisories.Format
   ( FrontMatter (..),
@@ -399,7 +398,8 @@ mergeOobMandatory policy oob k ib sendError =
 -- the first block element.  We can use it to delete the lines
 -- from the input.
 newtype FirstSourceRange = FirstSourceRange (First SourceRange)
-  deriving (Show, Semigroup, Monoid)
+  deriving stock (Show)
+  deriving newtype (Semigroup, Monoid)
 
 instance Rangeable FirstSourceRange where
   ranged range = (FirstSourceRange (First (Just range)) <>)
