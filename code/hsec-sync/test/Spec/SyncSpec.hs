@@ -22,7 +22,7 @@ _spec =
     [ testGroup
         "sync"
         [ testCase "Invalid root should fail" $ do
-            let snapshot = withSnapshotAt "/dev/advisories"
+            let snapshot = snapshotAt "/dev/advisories"
             status snapshot >>= (@?= DirectoryMissing)
             isGitHubActionRunner <- lookupEnv "GITHUB_ACTIONS"
             unless (isGitHubActionRunner == Just "true") $ do
@@ -32,7 +32,7 @@ _spec =
             status snapshot >>= (@?= DirectoryMissing),
           testCase "Subdirectory creation should work" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let snapshot = withSnapshotAt $ p </> "snapshot"
+              let snapshot = snapshotAt $ p </> "snapshot"
               status snapshot >>= (@?= DirectoryMissing)
               result <- sync snapshot
               result @?= Right Created
@@ -40,12 +40,12 @@ _spec =
           testCase "With existing subdirectory creation should work" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
               D.createDirectory $ p </> "snapshot"
-              let snapshot = withSnapshotAt $ p </> "snapshot"
+              let snapshot = snapshotAt $ p </> "snapshot"
               result <- sync snapshot
               result @?= Right Created,
           testCase "Sync twice should be a no-op" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let snapshot = withSnapshotAt p
+              let snapshot = snapshotAt p
               status snapshot >>= (@?= DirectoryIncoherent)
               resultCreate <- sync snapshot
               resultCreate @?= Right Created
@@ -53,7 +53,7 @@ _spec =
               resultResync @?= Right AlreadyUpToDate,
           testCase "Sync behind should update" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let snapshot = withSnapshotAt p
+              let snapshot = snapshotAt p
               resultCreate <- sync snapshot
               resultCreate @?= Right Created
               writeFile
@@ -65,7 +65,7 @@ _spec =
               status snapshot >>= (@?= DirectoryUpToDate),
           testCase "Sync a broken snapshot.json" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let snapshot = withSnapshotAt p
+              let snapshot = snapshotAt p
               resultCreate <- sync snapshot
               resultCreate @?= Right Created
               writeFile
@@ -77,7 +77,7 @@ _spec =
               status snapshot >>= (@?= DirectoryUpToDate),
           testCase "Sync a deleted snapshot.json" $
             withSystemTempDirectory "hsec-sync" $ \p -> do
-              let snapshot = withSnapshotAt p
+              let snapshot = snapshotAt p
               resultCreate <- sync snapshot
               resultCreate @?= Right Created
               D.removeFile (p </> "snapshot.json")
@@ -88,6 +88,6 @@ _spec =
         ]
     ]
 
-withSnapshotAt :: FilePath -> Snapshot
-withSnapshotAt root =
+snapshotAt :: FilePath -> Snapshot
+snapshotAt root =
   defaultRepository {snapshotRoot = root}
