@@ -13,7 +13,10 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 spec :: TestTree
-spec =
+spec = testGroup "Sync" []
+
+_spec :: TestTree
+_spec =
   testGroup
     "Sync"
     [ testGroup
