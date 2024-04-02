@@ -80,7 +80,7 @@ jobs:
       - name: Generate snapshot data
         run: |
           docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-snapshot . snapshot
-          diff -r advisories snapshot | grep -v snapshot.json | grep Only && echo 'Some advisories have been created/deleted' && exit 1
+          diff -r advisories snapshot/advisories | grep -v gitkeep | grep Only && echo 'Some advisories have been created/deleted' && exit 1 || exit 0
       - name: Publish snapshot data
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         env:
