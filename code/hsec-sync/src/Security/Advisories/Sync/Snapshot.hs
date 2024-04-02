@@ -26,11 +26,10 @@ import Control.Exception (Exception (displayException), IOException, try)
 import Control.Lens
 import Control.Monad.Extra (unlessM, whenM)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Except (runExceptT, throwE, withExceptT)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE, withExceptT)
 import Data.Aeson (FromJSON, eitherDecodeFileStrict)
 import qualified Data.ByteString.Lazy as BL
 import Data.Either.Combinators (whenLeft)
-import Data.Functor (($>))
 import Data.Time (UTCTime)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
@@ -99,52 +98,51 @@ data SnapshotRepositoryEnsuredStatus
 ensureSnapshot ::
   Snapshot ->
   SnapshotRepositoryStatus ->
-  IO (Either SnapshotError SnapshotRepositoryEnsuredStatus)
+  ExceptT SnapshotError IO SnapshotRepositoryEnsuredStatus
 ensureSnapshot s =
   \case
-    SnapshotDirectoryMissing ->
-      ($> SnapshotRepositoryCreated)
-        <$> overwriteSnapshot s
-    SnapshotDirectoryIncoherent ->
-      ($> SnapshotRepositoryCreated)
-        <$> overwriteSnapshot s
+    SnapshotDirectoryMissing -> do
+      overwriteSnapshot s
+      return SnapshotRepositoryCreated
+    SnapshotDirectoryIncoherent -> do
+      overwriteSnapshot s
+      return SnapshotRepositoryCreated
     SnapshotDirectoryInitialized ->
-      return $ Right SnapshotRepositoryExisting
+      return SnapshotRepositoryExisting
 
-overwriteSnapshot :: Snapshot -> IO (Either SnapshotError ())
+overwriteSnapshot :: Snapshot -> ExceptT SnapshotError IO ()
 overwriteSnapshot s =
-  runExceptT $
-    withExceptT SnapshotProcessError $ do
-      let root = snapshotRoot s
-      ensuringPerformed <- liftIO $ try $ ensureEmptyRoot root
-      whenLeft ensuringPerformed $
-        throwE . DirectorySetupSnapshotArchive
+  withExceptT SnapshotProcessError $ do
+    let root = snapshotRoot s
+    ensuringPerformed <- liftIO $ try $ ensureEmptyRoot root
+    whenLeft ensuringPerformed $
+      throwE . DirectorySetupSnapshotArchive
 
-      resultE <- liftIO $ try $ get $ snapshotArchiveUrl s
-      case resultE of
-        Left e ->
-          throwE $
-            FetchSnapshotArchive $
-              case e of
-                InvalidUrlException url reason ->
-                  "Invalid URL " <> show url <> ": " <> show reason
-                HttpExceptionRequest _ content ->
-                  case content of
-                    StatusCodeException response body ->
-                      "Request failed with " <> show (response ^. responseStatus) <> ": " <> show body
-                    _ ->
-                      "Request failed: " <> show content
-        Right result -> do
-          performed <-
-            liftIO $
-              try $
-                withSystemTempDirectory "security-advisories" $ \tempDir -> do
-                  let archivePath = tempDir <> "/snapshot-export.tar.gz"
-                  BL.writeFile archivePath $ result ^. responseBody
-                  contents <- BL.readFile archivePath
-                  Tar.unpack root $ Tar.read $ GZip.decompress contents
-          whenLeft performed $
-            throwE . ExtractSnapshotArchive
+    resultE <- liftIO $ try $ get $ snapshotArchiveUrl s
+    case resultE of
+      Left e ->
+        throwE $
+          FetchSnapshotArchive $
+            case e of
+              InvalidUrlException url reason ->
+                "Invalid URL " <> show url <> ": " <> show reason
+              HttpExceptionRequest _ content ->
+                case content of
+                  StatusCodeException response body ->
+                    "Request failed with " <> show (response ^. responseStatus) <> ": " <> show body
+                  _ ->
+                    "Request failed: " <> show content
+      Right result -> do
+        performed <-
+          liftIO $
+            try $
+              withSystemTempDirectory "security-advisories" $ \tempDir -> do
+                let archivePath = tempDir <> "/snapshot-export.tar.gz"
+                BL.writeFile archivePath $ result ^. responseBody
+                contents <- BL.readFile archivePath
+                Tar.unpack root $ Tar.read $ GZip.decompress contents
+        whenLeft performed $
+          throwE . ExtractSnapshotArchive
 
 ensureEmptyRoot :: FilePath -> IO ()
 ensureEmptyRoot root = do
