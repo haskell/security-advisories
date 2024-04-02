@@ -21,7 +21,7 @@ import Security.Advisories.Filesystem (advisoryFromFile, forAdvisory, forReserve
 import Security.Advisories.Format (codecFrontMatter, fromAdvisory)
 import System.Directory (copyFileWithMetadata, createDirectoryIfMissing)
 import System.FilePath (takeDirectory, (</>))
-import System.IO (hPrint, stderr)
+import System.IO (hPrint, stderr, hPutStrLn)
 import Text.Pandoc (Block (CodeBlock), Pandoc (Pandoc), nullMeta, runIOorExplode)
 import Text.Pandoc.Writers (writeCommonMark)
 import qualified Toml
@@ -35,13 +35,13 @@ createSnapshot src dst = do
 
   forReserved src $ \p _ -> do
     createDirectoryIfMissing True $ takeDirectory $ toDstFilePath p
-    putStrLn $ "Copying '" <> p <> "' to '" <> toDstFilePath p <> "'"
+    hPutStrLn stderr $ "Copying '" <> p <> "' to '" <> toDstFilePath p <> "'"
     copyFileWithMetadata p $ toDstFilePath p
 
   advisoriesLatestUpdates <-
     forAdvisory src $ \p _ -> do
       createDirectoryIfMissing True $ takeDirectory $ toDstFilePath p
-      putStrLn $ "Taking a snapshot of '" <> p <> "' to '" <> toDstFilePath p <> "'"
+      hPutStrLn stderr $ "Taking a snapshot of '" <> p <> "' to '" <> toDstFilePath p <> "'"
       advisoryFromFile p
         >>= \case
           Failure e -> do
@@ -65,7 +65,7 @@ createSnapshot src dst = do
           { latestUpdate = maximum advisoriesLatestUpdates,
             snapshotVersion = version
           }
-  putStrLn $ "Writing snapshot metadata to '" <> metadataPath <> "'"
+  hPutStrLn stderr $ "Writing snapshot metadata to '" <> metadataPath <> "'"
   encodeFile metadataPath metadata
 
 data SnapshotMetadata = SnapshotMetadata
