@@ -24,6 +24,7 @@ import Data.Bifunctor (first)
 import Data.Foldable (toList)
 import Data.Monoid (First (..))
 import Data.Sequence (Seq ((:<|)))
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
 import GHC.Generics (Generic)
@@ -42,9 +43,9 @@ import Text.Parsec.Pos (sourceLine)
 import qualified Toml
 
 data ParseAdvisoryError
-    = MarkdownError Commonmark.ParseError T.Text
-    | MarkdownFormatError T.Text
-    | TomlError String T.Text
+    = MarkdownError Commonmark.ParseError Text
+    | MarkdownFormatError Text
+    | TomlError String Text
     | AdvisoryError [Toml.TomlDecodeError]
     deriving stock (Eq, Show, Generic)
 
@@ -55,7 +56,7 @@ parseAdvisory ::
     AttributeOverridePolicy ->
     OutOfBandAttributes ->
     -- | input (CommonMark with TOML header)
-    T.Text ->
+    Text ->
     Either ParseAdvisoryError Advisory
 parseAdvisory policy attrs raw = do
     markdown <-
@@ -98,25 +99,21 @@ parseAdvisory policy attrs raw = do
         fm <- Toml.decode codecFrontMatter frontMatter
         toAdvisory attrs policy doc summary details html fm
   where
-    -- case parseAdvisoryToml attrs policy doc summary details html toml of
-    --   Left es -> Left (AdvisoryError es (T.pack (unlines (map undefined es))))
-    --   Right adv -> pure adv
-
     firstPretty ::
-        (e -> T.Text -> ParseAdvisoryError) ->
-        (e -> T.Text) ->
+        (e -> Text -> ParseAdvisoryError) ->
+        (e -> Text) ->
         Either e a ->
         Either ParseAdvisoryError a
     firstPretty ctr f = first $ mkPretty ctr f
 
     mkPretty ::
-        (e -> T.Text -> ParseAdvisoryError) ->
-        (e -> T.Text) ->
+        (e -> Text -> ParseAdvisoryError) ->
+        (e -> Text) ->
         e ->
         ParseAdvisoryError
     mkPretty ctr f x = ctr x $ f x
 
-advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
+advisoryDoc :: Blocks -> Either Text (Text, [Block])
 advisoryDoc (Many blocks) = case blocks of
     CodeBlock (_, classes, _) frontMatter :<| t
         | "toml" `elem` classes ->
@@ -124,10 +121,10 @@ advisoryDoc (Many blocks) = case blocks of
     _ ->
         Left "Does not have toml code block as first element"
 
-parseAdvisorySummary :: Pandoc -> Either T.Text T.Text
+parseAdvisorySummary :: Pandoc -> Either Text Text
 parseAdvisorySummary = fmap inlineText . firstHeading
 
-firstHeading :: Pandoc -> Either T.Text [Inline]
+firstHeading :: Pandoc -> Either Text [Inline]
 firstHeading (Pandoc _ xs) = go xs
   where
     go [] = Left "Does not have summary heading"
@@ -135,7 +132,7 @@ firstHeading (Pandoc _ xs) = go xs
     go (_ : t) = go t
 
 -- yield "plain" terminal inline content; discard formatting
-inlineText :: [Inline] -> T.Text
+inlineText :: [Inline] -> Text
 inlineText = query f
   where
     f inl = case inl of
