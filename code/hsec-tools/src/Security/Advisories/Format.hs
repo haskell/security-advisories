@@ -21,13 +21,14 @@ module Security.Advisories.Format
 where
 
 import Commonmark.Types (HasAttributes (..), IsBlock (..), IsInline (..), Rangeable (..), SourceRange (..))
+import Control.Monad (mfilter)
 import Data.Bifunctor (first)
 import Data.Either.Extra (maybeToEither)
 import Data.Foldable (toList)
+import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First (..))
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Text as T
 import Data.Time (ZonedTime (..))
 import Data.Tuple (swap)
@@ -207,9 +208,9 @@ codecAffected =
     .= affectedCVSS
     <*> Toml.list codecAffectedVersionRange "versions"
     .= affectedVersions
-    <*> Toml.dioptional (defaultingArrayOf codecArchitecture "arch")
+    <*> Toml.dioptional (Toml.arrayOf codecArchitecture "arch")
     .= affectedArchitectures
-    <*> Toml.dioptional (defaultingArrayOf codecOS "os")
+    <*> Toml.dioptional (Toml.arrayOf codecOS "os")
     .= affectedOS
     <*> Toml.dimap Map.fromList Map.toList (Toml.tableMap Toml._KeyText codecVersionRange "declarations")
     .= affectedDeclarations
@@ -340,14 +341,18 @@ codecReferenceType = Toml.textBy toStr fromStr
         Nothing -> Left $ "'" <> x <> "' reference.type should be one of: " <> T.intercalate ", " (snd <$> referenceTypes)
 
 defaultingArrayOf :: Toml.TomlBiMap a Toml.AnyValue -> Toml.Key -> Toml.TomlCodec [a]
-defaultingArrayOf d = Toml.dimap Just (fromMaybe mempty) . Toml.dioptional . Toml.arrayOf d
+defaultingArrayOf d =
+  Toml.dimap (mfilter (not . null) . Just) (fromMaybe mempty)
+    . Toml.dioptional
+    . Toml.arrayOf d
 
 mandatoryList :: forall a. Toml.TomlCodec a -> Toml.Key -> Toml.TomlCodec [a]
-mandatoryList codec key = Toml.Codec
-    { Toml.codecRead = fmap toList . Toml.codecRead nonEmptyCodec
-    , Toml.codecWrite = \case
+mandatoryList codec key =
+  Toml.Codec
+    { Toml.codecRead = fmap toList . Toml.codecRead nonEmptyCodec,
+      Toml.codecWrite = \case
         [] -> pure []
-        l@(x:xs) -> l <$ Toml.codecWrite nonEmptyCodec (x :| xs)
+        l@(x : xs) -> l <$ Toml.codecWrite nonEmptyCodec (x :| xs)
     }
   where
     nonEmptyCodec :: Toml.TomlCodec (NonEmpty a)
