@@ -165,26 +165,18 @@ withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
   input <- maybe T.getContents T.readFile file
 
-  oob <-
-    ($ emptyOutOfBandAttributes) <$> case file of
-      Nothing -> pure id
-      Just path ->
-        getAdvisoryGitInfo path <&> \case
-          Left _ -> id
-          Right gitInfo -> \oob ->
-            oob
-              { oobPublished = Just (firstAppearanceCommitDate gitInfo),
-                oobModified = Just (lastModificationCommitDate gitInfo)
-              }
+  oob <- runExceptT $ case file of
+    Nothing -> throwE StdInHasNoOOB
+    Just path -> withExceptT GitHasNoOOB $ do 
+      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path 
+      pure OutOfBandAttributes
+        { oobPublished = firstAppearanceCommitDate gitInfo
+        , oobModified = lastModificationCommitDate gitInfo
+        }
 
   case parseAdvisory NoOverrides oob input of
     Left e -> do
-      T.hPutStrLn stderr $
-        case e of
-          MarkdownError _ explanation -> "Markdown parsing error:\n" <> explanation
-          MarkdownFormatError explanation -> "Markdown structure error:\n" <> explanation
-          TomlError _ explanation -> "Couldn't parse front matter as TOML:\n" <> explanation
-          AdvisoryError _ -> "Advisory structure error"
+      hPutStrLn stderr (displayException e)
       exitFailure
     Right advisory -> do
       go file advisory

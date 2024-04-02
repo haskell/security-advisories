@@ -16,12 +16,14 @@ import Data.Time (UTCTime, zonedTimeToUTC)
 import Data.Version (Version)
 import GHC.Generics (Generic)
 import Paths_hsec_tools (version)
+import qualified Prettyprinter as Pretty
+import qualified Prettyprinter.Render.Text as Pretty
 import Security.Advisories.Core.Advisory
 import Security.Advisories.Filesystem (advisoryFromFile, forAdvisory, forReserved)
-import Security.Advisories.Format (codecFrontMatter, fromAdvisory)
+import Security.Advisories.Format (fromAdvisory)
 import System.Directory (copyFileWithMetadata, createDirectoryIfMissing)
 import System.FilePath (takeDirectory, (</>))
-import System.IO (hPrint, stderr, hPutStrLn)
+import System.IO (hPrint, hPutStrLn, stderr)
 import Text.Pandoc (Block (CodeBlock), Pandoc (Pandoc), nullMeta, runIOorExplode)
 import Text.Pandoc.Writers (writeCommonMark)
 import qualified Toml
@@ -51,7 +53,13 @@ createSnapshot src dst = do
             let pandoc =
                   Pandoc
                     nullMeta
-                    ( CodeBlock ("", ["toml"], []) (Toml.encode codecFrontMatter $ fromAdvisory advisory)
+                    ( CodeBlock
+                        ("", ["toml"], [])
+                        ( Pretty.renderStrict $
+                            Pretty.layoutPretty Pretty.defaultLayoutOptions $
+                              Toml.encode $
+                                fromAdvisory advisory
+                        )
                         : blocks (advisoryPandoc advisory)
                     )
                 blocks (Pandoc _ xs) = xs
