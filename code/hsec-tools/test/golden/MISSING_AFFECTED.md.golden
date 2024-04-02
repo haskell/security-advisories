@@ -1,7 +1,17 @@
 Left
     ( AdvisoryError
-        [ TableArrayNotFound
-            ( "affected" :| [] )
-        ]
+        [ MatchMessage
+            { matchAnn = Just
+                ( Position
+                    { posIndex = 0
+                    , posLine = 1
+                    , posColumn = 1
+                    }
+                )
+            , matchPath = []
+            , matchMessage = "missing key: affected"
+            }
+        ] "1:1: missing key: affected in <top-level>
+      "
     )
 
