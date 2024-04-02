@@ -42,8 +42,8 @@ Right
                         , affectedVersionRangeFixed = Nothing
                         }
                     ]
-                , affectedArchitectures = Just []
-                , affectedOS = Just []
+                , affectedArchitectures = Nothing
+                , affectedOS = Nothing
                 , affectedDeclarations = []
                 }
             ]
