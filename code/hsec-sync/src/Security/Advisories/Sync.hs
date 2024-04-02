@@ -12,8 +12,7 @@ module Security.Advisories.Sync
 where
 
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Except (runExceptT, throwE)
-import Data.Either.Combinators (whenLeft)
+import Control.Monad.Trans.Except (runExceptT, withExceptT)
 import Security.Advisories.Sync.Atom
 import Security.Advisories.Sync.Snapshot
 
@@ -26,10 +25,8 @@ data SyncStatus
 sync :: Snapshot -> IO (Either String SyncStatus)
 sync s =
   runExceptT $ do
-    let snapshotError = throwE . explainSnapshotError
     snapshotStatus <- liftIO $ snapshotRepositoryStatus s
-    ensured <- liftIO $ ensureSnapshot s snapshotStatus
-    ensuredStatus <- either snapshotError return ensured
+    ensuredStatus <- withExceptT explainSnapshotError $ ensureSnapshot s snapshotStatus
     case ensuredStatus of
       SnapshotRepositoryCreated ->
         return Created
@@ -37,14 +34,14 @@ sync s =
         repoStatus <- liftIO $ status' s snapshotStatus
         if repoStatus == DirectoryOutDated
           then do
-            overwrittenStatus <- liftIO $ overwriteSnapshot s
-            whenLeft overwrittenStatus snapshotError
+            withExceptT explainSnapshotError $ overwriteSnapshot s
             return Updated
           else return AlreadyUpToDate
 
 data RepositoryStatus
   = DirectoryMissing
-  | DirectoryIncoherent
+  | -- | Used when expected files/directories are missing or not readable
+    DirectoryIncoherent
   | DirectoryUpToDate
   | DirectoryOutDated
   deriving stock (Eq, Show)
