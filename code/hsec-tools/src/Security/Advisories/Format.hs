@@ -1,10 +1,12 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Security.Advisories.Format
   ( FrontMatter (..),
@@ -21,9 +23,11 @@ where
 import Commonmark.Types (HasAttributes (..), IsBlock (..), IsInline (..), Rangeable (..), SourceRange (..))
 import Data.Bifunctor (first)
 import Data.Either.Extra (maybeToEither)
+import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First (..))
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Text as T
 import Data.Time (ZonedTime (..))
 import Data.Tuple (swap)
@@ -149,7 +153,7 @@ codecFrontMatter =
     .= frontMatterAdvisory
     <*> Toml.list codecReference "references"
     .= frontMatterReferences
-    <*> Toml.list codecAffected "affected"
+    <*> mandatoryList codecAffected "affected"
     .= frontMatterAffected
 
 -- | Internal type corresponding to the @[advisory]@ subsection of the
@@ -337,6 +341,17 @@ codecReferenceType = Toml.textBy toStr fromStr
 
 defaultingArrayOf :: Toml.TomlBiMap a Toml.AnyValue -> Toml.Key -> Toml.TomlCodec [a]
 defaultingArrayOf d = Toml.dimap Just (fromMaybe mempty) . Toml.dioptional . Toml.arrayOf d
+
+mandatoryList :: forall a. Toml.TomlCodec a -> Toml.Key -> Toml.TomlCodec [a]
+mandatoryList codec key = Toml.Codec
+    { Toml.codecRead = fmap toList . Toml.codecRead nonEmptyCodec
+    , Toml.codecWrite = \case
+        [] -> pure []
+        l@(x:xs) -> l <$ Toml.codecWrite nonEmptyCodec (x :| xs)
+    }
+  where
+    nonEmptyCodec :: Toml.TomlCodec (NonEmpty a)
+    nonEmptyCodec = Toml.nonEmpty codec key
 
 mergeOob ::
   AttributeOverridePolicy ->
