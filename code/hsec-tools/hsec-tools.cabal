@@ -120,21 +120,29 @@ test-suite spec
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Spec.hs
-  other-modules:    Spec.QueriesSpec
+  other-modules:
+    Spec.FormatSpec
+    Spec.QueriesSpec
   build-depends:
     , aeson-pretty   <2
     , base           <5
     , Cabal-syntax
+    , containers
     , cvss
     , directory
+    , hedgehog       <2
     , hsec-core
     , hsec-tools
+    , osv
     , pretty-simple  <5
+    , prettyprinter
     , tasty          <1.5
     , tasty-golden   <2.4
+    , tasty-hedgehog <2
     , tasty-hunit    <0.11
     , text
     , time
+    , toml-parser
 
   default-language: Haskell2010
   ghc-options:

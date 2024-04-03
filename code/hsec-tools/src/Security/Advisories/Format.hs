@@ -61,7 +61,7 @@ data FrontMatter = FrontMatter {
   frontMatterAdvisory :: AdvisoryMetadata,
   frontMatterReferences :: [Reference],
   frontMatterAffected :: [Affected]
-} deriving (Generic)
+} deriving (Show, Generic)
 
 instance Toml.FromValue FrontMatter where
   fromValue = Toml.parseTableFromValue $
@@ -96,6 +96,7 @@ data AdvisoryMetadata = AdvisoryMetadata
   , amdAliases    :: [T.Text]
   , amdRelated    :: [T.Text]
   }
+  deriving (Show, Generic)
 
 instance Toml.FromValue AdvisoryMetadata where
   fromValue = Toml.parseTableFromValue $
@@ -131,7 +132,7 @@ instance Toml.ToTable AdvisoryMetadata where
     ["cwe"       Toml..= amdCWEs x | not (null (amdCWEs x))] ++
     ["keywords"  Toml..= amdKeywords x | not (null (amdKeywords x))] ++
     ["aliases"   Toml..= amdAliases x | not (null (amdAliases x))] ++
-    ["Related"   Toml..= amdRelated x | not (null (amdRelated x))]
+    ["related"   Toml..= amdRelated x | not (null (amdRelated x))]
 
 instance Toml.FromValue Affected where
   fromValue = Toml.parseTableFromValue $

@@ -51,6 +51,7 @@ data CVSS = CVSS
     -- | The metrics are stored as provided by the user
     cvssMetrics :: [Metric]
   }
+  deriving stock (Eq)
 
 instance Show CVSS where
   show = Text.unpack . cvssVectorString
@@ -100,7 +101,7 @@ data Metric = Metric
   { mName :: MetricShortName,
     mChar :: MetricValueChar
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- example CVSS string: CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N
 

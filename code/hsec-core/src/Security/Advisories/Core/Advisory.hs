@@ -54,13 +54,13 @@ data Affected = Affected
   , affectedOS :: Maybe [OS]
   , affectedDeclarations :: [(Text, VersionRange)]
   }
-  deriving stock (Show)
+  deriving stock (Eq, Show)
 
 newtype CAPEC = CAPEC {unCAPEC :: Integer}
-  deriving stock (Show)
+  deriving stock (Eq, Show)
 
 newtype CWE = CWE {unCWE :: Integer}
-  deriving stock (Show)
+  deriving stock (Eq, Show)
 
 data Architecture
   = AArch64
@@ -88,7 +88,7 @@ data Architecture
   | SPARC64
   | VAX
   | X86_64
-  deriving stock (Show)
+  deriving stock (Eq, Show, Enum, Bounded)
 
 data OS
   = Windows
@@ -98,7 +98,7 @@ data OS
   | Android
   | NetBSD
   | OpenBSD
-  deriving stock (Show)
+  deriving stock (Eq, Show, Enum, Bounded)
 
 newtype Keyword = Keyword {unKeyword :: Text}
   deriving stock (Eq, Ord)
@@ -108,4 +108,4 @@ data AffectedVersionRange = AffectedVersionRange
   { affectedVersionRangeIntroduced :: Version,
     affectedVersionRangeFixed :: Maybe Version
   }
-  deriving stock (Show)
+  deriving stock (Eq, Show)
