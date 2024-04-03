@@ -236,7 +236,7 @@ feed advisories =
       (maybe "" (T.pack . iso8601Show) . minimumMay . fmap (zonedTimeToUTC . advisoryModified) $ advisories)
   )
     { Feed.feedEntries = fmap toEntry advisories
-    , Feed.feedLinks = [Feed.nullLink advisoriesRootUrl]
+    , Feed.feedLinks = [(Feed.nullLink atomFeedUrl) { Feed.linkRel = Just (Left "self") }]
     , Feed.feedAuthors = [Feed.nullPerson { Feed.personName = "Haskell Security Response Team" }]
     }
   where
