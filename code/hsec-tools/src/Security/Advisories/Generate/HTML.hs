@@ -25,7 +25,7 @@ import System.IO (hPrint, stderr)
 
 import Distribution.Pretty (prettyShow)
 import Lucid
-import Safe (minimumMay)
+import Safe (maximumMay)
 import qualified Text.Atom.Feed as Feed
 import qualified Text.Atom.Feed.Export as FeedExport
 import Validation (Validation (..))
@@ -233,7 +233,7 @@ feed advisories =
   ( Feed.nullFeed
       atomFeedUrl
       (Feed.TextString "Haskell Security Advisory DB") -- Title
-      (maybe "" (T.pack . iso8601Show) . minimumMay . fmap (zonedTimeToUTC . Advisories.advisoryModified) $ advisories)
+      (maybe "" (T.pack . iso8601Show) . maximumMay . fmap (zonedTimeToUTC . Advisories.advisoryModified) $ advisories)
   )
     { Feed.feedEntries = fmap toEntry advisories
     , Feed.feedLinks = [(Feed.nullLink atomFeedUrl) { Feed.linkRel = Just (Left "self") }]
