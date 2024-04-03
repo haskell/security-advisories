@@ -241,10 +241,15 @@ feed advisories =
     }
   where
     toEntry advisory =
-      Feed.nullEntry
-        (advisoriesRootUrl <> "/" <> advisoryLink (advisoryId advisory))
+      ( Feed.nullEntry
+        (toUrl advisory)
         (Feed.TextString $ advisorySummary advisory)
         (T.pack . iso8601Show $ advisoryModified advisory)
+      )
+        { Feed.entryLinks = [(Feed.nullLink (toUrl advisory)) { Feed.linkRel = Just (Left "alternate") }]
+        }
+
+    toUrl advisory = advisoriesRootUrl <> "/" <> advisoryLink (advisoryId advisory)
 
 renderFeed :: [AdvisoryR] -> Text
 renderFeed =
