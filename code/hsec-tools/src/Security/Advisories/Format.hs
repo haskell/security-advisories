@@ -23,8 +23,9 @@ import Data.List (intercalate)
 import Data.Tuple (swap)
 import GHC.Generics (Generic)
 
+import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Time (ZonedTime (..), LocalTime (LocalTime), midnight, utc)
+import Data.Time (utc, UTCTime(..), zonedTimeToUTC, localTimeToUTC)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Pretty (pretty)
 import Distribution.Types.Version (Version)
@@ -88,8 +89,8 @@ instance Toml.ToTable FrontMatter where
 -- TOML frontmatter in an advisory markdown file.
 data AdvisoryMetadata = AdvisoryMetadata
   { amdId         :: HsecId
-  , amdModified   :: Maybe ZonedTime
-  , amdPublished  :: Maybe ZonedTime
+  , amdModified   :: Maybe UTCTime
+  , amdPublished  :: Maybe UTCTime
   , amdCAPECs     :: [CAPEC]
   , amdCWEs       :: [CWE]
   , amdKeywords   :: [Keyword]
@@ -213,10 +214,10 @@ instance Toml.ToValue Keyword where
   toValue (Keyword x) = Toml.toValue x
 
 -- | Get a datetime with the timezone defaulted to UTC and the time defaulted to midnight
-getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l ZonedTime
-getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure x
-getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (ZonedTime x utc)
-getDefaultedZonedTime (Toml.Day' _       x) = pure (ZonedTime (LocalTime x midnight) utc)
+getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l UTCTime
+getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure (zonedTimeToUTC x)
+getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (localTimeToUTC utc x)
+getDefaultedZonedTime (Toml.Day' _       x) = pure (UTCTime x 0)
 getDefaultedZonedTime v                     = Toml.failAt (Toml.valueAnn v) "expected a date with optional time and timezone"
 
 instance Toml.FromValue Reference where
@@ -269,63 +270,18 @@ instance Toml.ToValue OS where
 instance Toml.FromValue Architecture where
   fromValue v =
    do s <- Toml.fromValue v
-      case s :: String of
-        "aarch64" -> pure AArch64
-        "alpha" -> pure Alpha
-        "arm" -> pure Arm
-        "hppa" -> pure HPPA
-        "hppa1_1" -> pure HPPA1_1
-        "i386" -> pure I386
-        "ia64" -> pure IA64
-        "m68k" -> pure M68K
-        "mips" -> pure MIPS
-        "mipseb" -> pure MIPSEB
-        "mipsel" -> pure MIPSEL
-        "nios2" -> pure NIOS2
-        "powerpc" -> pure PowerPC
-        "powerpc64" -> pure PowerPC64
-        "powerpc64le" -> pure PowerPC64LE
-        "riscv32" -> pure RISCV32
-        "riscv64" -> pure RISCV64
-        "rs6000" -> pure RS6000
-        "s390" -> pure S390
-        "s390x" -> pure S390X
-        "sh4" -> pure SH4
-        "sparc" -> pure SPARC
-        "sparc64" -> pure SPARC64
-        "vax" -> pure VAX
-        "x86_64" -> pure X86_64
-        other -> Toml.failAt (Toml.valueAnn v) ("Invalid architecture: " ++ show other)
+      case parseArchitecture s of
+        Just a -> pure a
+        Nothing -> Toml.failAt (Toml.valueAnn v) ("Invalid architecture: " ++ show s)
 
 instance Toml.ToValue Architecture where
-  toValue x =
-    Toml.toValue $
-    case x of
-        AArch64 -> "aarch64" :: String
-        Alpha -> "alpha"
-        Arm -> "arm"
-        HPPA -> "hppa"
-        HPPA1_1 -> "hppa1_1"
-        I386 -> "i386"
-        IA64 -> "ia64"
-        M68K -> "m68k"
-        MIPS -> "mips"
-        MIPSEB -> "mipseb"
-        MIPSEL -> "mipsel"
-        NIOS2 -> "nios2"
-        PowerPC -> "powerpc"
-        PowerPC64 -> "powerpc64"
-        PowerPC64LE -> "powerpc64le"
-        RISCV32 -> "riscv32"
-        RISCV64 -> "riscv64"
-        RS6000 -> "rs6000"
-        S390 -> "s390"
-        S390X -> "s390x"
-        SH4 -> "sh4"
-        SPARC -> "sparc"
-        SPARC64 -> "sparc64"
-        VAX -> "vax"
-        X86_64 -> "x86_64"
+  toValue = Toml.toValue . printArchitecture
+
+printArchitecture :: Architecture -> Text
+printArchitecture = T.toLower . T.pack . show
+
+parseArchitecture :: Text -> Maybe Architecture
+parseArchitecture = flip lookup [(printArchitecture arch, arch) | arch <- [minBound .. maxBound]]
 
 instance Toml.FromValue Version where
   fromValue v =
