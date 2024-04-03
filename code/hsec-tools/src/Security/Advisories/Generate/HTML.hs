@@ -235,8 +235,9 @@ feed advisories =
       (Feed.TextString "Haskell Security Advisory DB") -- Title
       (maybe "" (T.pack . iso8601Show) . minimumMay . fmap (zonedTimeToUTC . advisoryModified) $ advisories)
   )
-    { Feed.feedEntries = fmap toEntry advisories,
-      Feed.feedLinks = [Feed.nullLink advisoriesRootUrl]
+    { Feed.feedEntries = fmap toEntry advisories
+    , Feed.feedLinks = [Feed.nullLink advisoriesRootUrl]
+    , Feed.feedAuthors = [Feed.nullPerson { Feed.personName = "Haskell Security Response Team" }]
     }
   where
     toEntry advisory =
