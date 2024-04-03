@@ -65,7 +65,7 @@ renderAdvisoriesIndex src dst = do
           toHtmlRaw (Advisories.advisoryHtml advisory)
 
   putStrLn $ "Rendering " <> (dst </> "atom.xml")
-  writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed indexAdvisories
+  writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed advisories
 
 -- * Rendering types
 
@@ -228,12 +228,12 @@ toAdvisoryR x =
 
 -- * Atom/RSS feed
 
-feed :: [AdvisoryR] -> Feed.Feed
+feed :: [Advisories.Advisory] -> Feed.Feed
 feed advisories =
   ( Feed.nullFeed
       atomFeedUrl
       (Feed.TextString "Haskell Security Advisory DB") -- Title
-      (maybe "" (T.pack . iso8601Show) . minimumMay . fmap (zonedTimeToUTC . advisoryModified) $ advisories)
+      (maybe "" (T.pack . iso8601Show) . minimumMay . fmap (zonedTimeToUTC . Advisories.advisoryModified) $ advisories)
   )
     { Feed.feedEntries = fmap toEntry advisories
     , Feed.feedLinks = [(Feed.nullLink atomFeedUrl) { Feed.linkRel = Just (Left "self") }]
@@ -243,15 +243,15 @@ feed advisories =
     toEntry advisory =
       ( Feed.nullEntry
         (toUrl advisory)
-        (Feed.TextString $ advisorySummary advisory)
-        (T.pack . iso8601Show $ advisoryModified advisory)
+        (Feed.TextString $ Advisories.advisorySummary advisory)
+        (T.pack . iso8601Show $ Advisories.advisoryModified advisory)
       )
         { Feed.entryLinks = [(Feed.nullLink (toUrl advisory)) { Feed.linkRel = Just (Left "alternate") }]
         }
 
-    toUrl advisory = advisoriesRootUrl <> "/" <> advisoryLink (advisoryId advisory)
+    toUrl advisory = advisoriesRootUrl <> "/" <> advisoryLink (Advisories.advisoryId advisory)
 
-renderFeed :: [AdvisoryR] -> Text
+renderFeed :: [Advisories.Advisory] -> Text
 renderFeed =
   maybe (error "Cannot render atom feed") TL.toStrict
     . FeedExport.textFeed
