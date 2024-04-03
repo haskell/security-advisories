@@ -11,24 +11,27 @@ import Control.Monad (forM_)
 import Data.List (sortOn)
 import Data.List.Extra (groupSort)
 import qualified Data.Map.Strict as Map
-import Data.Maybe (listToMaybe)
 import Data.Ord (Down (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import Data.Time (ZonedTime, zonedTimeToUTC)
-import Distribution.Pretty (prettyShow)
-import Lucid
-import qualified Security.Advisories as Advisories
-import Security.Advisories.Filesystem (listAdvisories)
+import Data.Time.Format.ISO8601
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
 import System.FilePath ((</>))
 import System.IO (hPrint, stderr)
+
+import Distribution.Pretty (prettyShow)
+import Lucid
+import Safe (minimumMay)
 import qualified Text.Atom.Feed as Feed
 import qualified Text.Atom.Feed.Export as FeedExport
 import Validation (Validation (..))
+
+import qualified Security.Advisories as Advisories
+import Security.Advisories.Filesystem (listAdvisories)
 
 -- * Actions
 
@@ -230,7 +233,7 @@ feed advisories =
   ( Feed.nullFeed
       atomFeedUrl
       (Feed.TextString "Haskell Security Advisory DB") -- Title
-      (maybe "" (T.pack . show) $ listToMaybe $ sortOn (Down . zonedTimeToUTC . advisoryModified) advisories)
+      (maybe "" (T.pack . iso8601Show) . minimumMay . fmap (zonedTimeToUTC . advisoryModified) $ advisories)
   )
     { Feed.feedEntries = fmap toEntry advisories,
       Feed.feedLinks = [Feed.nullLink advisoriesRootUrl]
@@ -240,7 +243,7 @@ feed advisories =
       Feed.nullEntry
         (advisoriesRootUrl <> "/" <> advisoryLink (advisoryId advisory))
         (Feed.TextString $ advisorySummary advisory)
-        (T.pack $ show $ advisoryModified advisory)
+        (T.pack . iso8601Show $ advisoryModified advisory)
 
 renderFeed :: [AdvisoryR] -> Text
 renderFeed =
