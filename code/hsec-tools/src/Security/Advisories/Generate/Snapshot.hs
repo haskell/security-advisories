@@ -12,7 +12,7 @@ where
 import Data.Aeson (ToJSON, encodeFile)
 import Data.Default (def)
 import qualified Data.Text.IO as T
-import Data.Time (UTCTime, zonedTimeToUTC)
+import Data.Time (UTCTime)
 import Data.Version (Version)
 import GHC.Generics (Generic)
 import Paths_hsec_tools (version)
@@ -65,7 +65,7 @@ createSnapshot src dst = do
                 blocks (Pandoc _ xs) = xs
             rendered <- runIOorExplode $ writeCommonMark def pandoc
             T.writeFile (toDstFilePath p) rendered
-            return [zonedTimeToUTC $ advisoryModified advisory]
+            return [advisoryModified advisory]
 
   let metadataPath = dst </> "snapshot.json"
       metadata =
