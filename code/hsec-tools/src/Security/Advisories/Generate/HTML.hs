@@ -243,13 +243,18 @@ feed advisories =
     toEntry advisory =
       ( Feed.nullEntry
         (toUrl advisory)
-        (Feed.TextString $ Advisories.advisorySummary advisory)
+        (mkSummary advisory)
         (T.pack . iso8601Show $ Advisories.advisoryModified advisory)
       )
         { Feed.entryLinks = [(Feed.nullLink (toUrl advisory)) { Feed.linkRel = Just (Left "alternate") }]
         , Feed.entryContent = Just (Feed.HTMLContent (Advisories.advisoryHtml advisory))
         }
 
+    mkSummary advisory =
+      Feed.TextString $
+        T.pack (Advisories.printHsecId (Advisories.advisoryId advisory))
+        <> " - "
+        <> Advisories.advisorySummary advisory
     toUrl advisory = advisoriesRootUrl <> "/" <> advisoryLink (Advisories.advisoryId advisory)
 
 renderFeed :: [Advisories.Advisory] -> Text
