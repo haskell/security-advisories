@@ -16,7 +16,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
-import Data.Time (ZonedTime, zonedTimeToUTC)
+import Data.Time (UTCTime, ZonedTime, addUTCTime, getCurrentTime, nominalDay, zonedTimeToUTC)
 import Data.Time.Format.ISO8601
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
@@ -65,7 +65,8 @@ renderAdvisoriesIndex src dst = do
           toHtmlRaw (Advisories.advisoryHtml advisory)
 
   putStrLn $ "Rendering " <> (dst </> "atom.xml")
-  writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed advisories
+  now <- getCurrentTime
+  writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed now advisories
 
 -- * Rendering types
 
@@ -257,11 +258,25 @@ feed advisories =
         <> Advisories.advisorySummary advisory
     toUrl advisory = advisoriesRootUrl <> "/" <> advisoryLink (Advisories.advisoryId advisory)
 
-renderFeed :: [Advisories.Advisory] -> Text
-renderFeed =
+renderFeed :: UTCTime -> [Advisories.Advisory] -> Text
+renderFeed now =
   maybe (error "Cannot render atom feed") TL.toStrict
     . FeedExport.textFeed
     . feed
+    . sortAndDropOld now
+
+-- | Sort advisories by modification date (recent updates first).
+-- Then, keep all advisories that were modified in the last month.
+-- Finally, if there are fewer than 10 such advisories, top up the
+-- list to include 10 entries.
+--
+sortAndDropOld :: UTCTime -> [Advisories.Advisory] -> [Advisories.Advisory]
+sortAndDropOld now =
+  (\(h,t) -> h <> take (10 - length h) t)
+  . span ((> thirtyDaysAgo) . zonedTimeToUTC . Advisories.advisoryModified)
+  . sortOn (Down . zonedTimeToUTC . Advisories.advisoryModified)
+  where
+    thirtyDaysAgo = addUTCTime (negate (nominalDay * 30)) now
 
 advisoriesRootUrl :: T.Text
 advisoriesRootUrl = "https://haskell.github.io/security-advisories"
