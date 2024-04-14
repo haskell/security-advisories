@@ -3,7 +3,10 @@
 
 module Security.Advisories.Sync
   ( Snapshot (..),
-    defaultRepository,
+    SnapshotUrl (..),
+    UpdatesUrl (..),
+    defaultSnapshot,
+    githubSnapshot,
     SyncStatus (..),
     sync,
     RepositoryStatus (..),
@@ -15,6 +18,28 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (runExceptT, withExceptT)
 import Security.Advisories.Sync.Atom
 import Security.Advisories.Sync.Snapshot
+import Security.Advisories.Sync.Url
+
+data Snapshot = Snapshot
+  { snapshotRoot :: FilePath,
+    snapshotUrl :: SnapshotUrl,
+    updatesUrl :: UpdatesUrl
+  }
+
+defaultSnapshot :: Snapshot
+defaultSnapshot =
+  githubSnapshot
+    "security-advisories"
+    "https://github.com/haskell/security-advisories"
+    "generated/snapshot-export"
+
+githubSnapshot :: FilePath -> String -> String -> Snapshot
+githubSnapshot root repoUrl repoBranch =
+  Snapshot
+    { snapshotRoot = root,
+      snapshotUrl = SnapshotUrl $ ensureFile (mkUrl [repoUrl, "archive/refs/heads", repoBranch]) <> ".tar.gz",
+      updatesUrl = UpdatesUrl $ mkUrl [repoUrl, "commits", repoBranch, "advisories.atom"]
+    }
 
 data SyncStatus
   = Created
@@ -25,8 +50,8 @@ data SyncStatus
 sync :: Snapshot -> IO (Either String SyncStatus)
 sync s =
   runExceptT $ do
-    snapshotStatus <- liftIO $ snapshotRepositoryStatus s
-    ensuredStatus <- withExceptT explainSnapshotError $ ensureSnapshot s snapshotStatus
+    snapshotStatus <- liftIO $ snapshotRepositoryStatus $ snapshotRoot s
+    ensuredStatus <- withExceptT explainSnapshotError $ ensureSnapshot (snapshotRoot s) (snapshotUrl s) snapshotStatus
     case ensuredStatus of
       SnapshotRepositoryCreated ->
         return Created
@@ -34,7 +59,7 @@ sync s =
         repoStatus <- liftIO $ status' s snapshotStatus
         if repoStatus == DirectoryOutDated
           then do
-            withExceptT explainSnapshotError $ overwriteSnapshot s
+            withExceptT explainSnapshotError $ overwriteSnapshot (snapshotRoot s) (snapshotUrl s)
             return Updated
           else return AlreadyUpToDate
 
@@ -48,7 +73,7 @@ data RepositoryStatus
 
 status :: Snapshot -> IO RepositoryStatus
 status s =
-  status' s =<< snapshotRepositoryStatus s
+  status' s =<< snapshotRepositoryStatus (snapshotRoot s)
 
 status' :: Snapshot -> SnapshotRepositoryStatus -> IO RepositoryStatus
 status' s =
@@ -63,16 +88,8 @@ status' s =
         Left _ ->
           return DirectoryOutDated
         Right info -> do
-          update <- latestUpdate (repositoryUrl s) (repositoryBranch s)
+          update <- latestUpdate $ updatesUrl s
           return $
             if update == Right (lastModificationCommitDate info)
               then DirectoryUpToDate
               else DirectoryOutDated
-
-defaultRepository :: Snapshot
-defaultRepository =
-  Snapshot
-    { snapshotRoot = "security-advisories",
-      repositoryUrl = "https://github.com/haskell/security-advisories",
-      repositoryBranch = "generated/snapshot-export"
-    }

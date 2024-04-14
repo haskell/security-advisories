@@ -10,7 +10,7 @@ module Security.Advisories.Sync.Snapshot
   ( SnapshotDirectoryInfo (..),
     SnapshotError (..),
     explainSnapshotError,
-    Snapshot (..),
+    SnapshotUrl (..),
     SnapshotRepositoryEnsuredStatus (..),
     ensureSnapshot,
     getDirectorySnapshotInfo,
@@ -34,7 +34,6 @@ import Data.Time (UTCTime)
 import GHC.Generics (Generic)
 import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 import Network.Wreq
-import Security.Advisories.Sync.Url
 import qualified System.Directory as D
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -63,28 +62,20 @@ explainSnapshotError =
             ExtractSnapshotArchive x -> "Extraction got an exception: " <> displayException x
         ]
 
-data Snapshot = Snapshot
-  { snapshotRoot :: FilePath,
-    repositoryUrl :: String,
-    repositoryBranch :: String
-  }
-
-snapshotArchiveUrl :: Snapshot -> String
-snapshotArchiveUrl s =
-  ensureFile (mkUrl [repositoryUrl s, "archive/refs/heads", repositoryBranch s]) <> ".tar.gz"
+newtype SnapshotUrl = SnapshotUrl {getSnapshotUrl :: String}
 
 data SnapshotRepositoryStatus
   = SnapshotDirectoryMissing
   | SnapshotDirectoryInitialized
   | SnapshotDirectoryIncoherent
 
-snapshotRepositoryStatus :: Snapshot -> IO SnapshotRepositoryStatus
-snapshotRepositoryStatus s = do
-  dirExists <- D.doesDirectoryExist $ snapshotRoot s
+snapshotRepositoryStatus :: FilePath -> IO SnapshotRepositoryStatus
+snapshotRepositoryStatus root = do
+  dirExists <- D.doesDirectoryExist root
   if dirExists
     then do
-      dirAdvisoriesExists <- D.doesDirectoryExist $ snapshotRoot s </> "advisories"
-      fileMetadataExists <- D.doesFileExist $ snapshotRoot s </> "snapshot.json"
+      dirAdvisoriesExists <- D.doesDirectoryExist $ root </> "advisories"
+      fileMetadataExists <- D.doesFileExist $ root </> "snapshot.json"
       return $
         if dirAdvisoriesExists && fileMetadataExists
           then SnapshotDirectoryInitialized
@@ -96,36 +87,36 @@ data SnapshotRepositoryEnsuredStatus
   | SnapshotRepositoryExisting
 
 ensureSnapshot ::
-  Snapshot ->
+  FilePath ->
+  SnapshotUrl ->
   SnapshotRepositoryStatus ->
   ExceptT SnapshotError IO SnapshotRepositoryEnsuredStatus
-ensureSnapshot s =
+ensureSnapshot root url =
   \case
     SnapshotDirectoryMissing -> do
-      overwriteSnapshot s
+      overwriteSnapshot root url
       return SnapshotRepositoryCreated
     SnapshotDirectoryIncoherent -> do
-      overwriteSnapshot s
+      overwriteSnapshot root url
       return SnapshotRepositoryCreated
     SnapshotDirectoryInitialized ->
       return SnapshotRepositoryExisting
 
-overwriteSnapshot :: Snapshot -> ExceptT SnapshotError IO ()
-overwriteSnapshot s =
+overwriteSnapshot :: FilePath -> SnapshotUrl -> ExceptT SnapshotError IO ()
+overwriteSnapshot root url =
   withExceptT SnapshotProcessError $ do
-    let root = snapshotRoot s
     ensuringPerformed <- liftIO $ try $ ensureEmptyRoot root
     whenLeft ensuringPerformed $
       throwE . DirectorySetupSnapshotArchive
 
-    resultE <- liftIO $ try $ get $ snapshotArchiveUrl s
+    resultE <- liftIO $ try $ get $ getSnapshotUrl url
     case resultE of
       Left e ->
         throwE $
           FetchSnapshotArchive $
             case e of
-              InvalidUrlException url reason ->
-                "Invalid URL " <> show url <> ": " <> show reason
+              InvalidUrlException url' reason ->
+                "Invalid URL " <> show url' <> ": " <> show reason
               HttpExceptionRequest _ content ->
                 case content of
                   StatusCodeException response body ->

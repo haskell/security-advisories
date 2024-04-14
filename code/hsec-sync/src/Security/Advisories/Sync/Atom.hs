@@ -1,9 +1,9 @@
 module Security.Advisories.Sync.Atom
-  ( latestUpdate,
+  ( UpdatesUrl (..),
+    latestUpdate,
   )
 where
 
-import Security.Advisories.Sync.Url
 import Control.Exception (try)
 import Control.Lens
 import Data.Either.Extra (maybeToEither)
@@ -17,16 +17,18 @@ import qualified Text.Feed.Import as FeedImport
 import qualified Text.Feed.Types as FeedTypes
 import qualified Text.RSS.Syntax as FeedRSS
 
-latestUpdate :: String -> String -> IO (Either String UTCTime)
-latestUpdate repoUrl branch = do
-  resultE <- try $ get $ mkUrl [repoUrl, "commits", branch, "advisories.atom"]
+newtype UpdatesUrl = UpdatesUrl {getUpdatesUrl :: String}
+
+latestUpdate :: UpdatesUrl -> IO (Either String UTCTime)
+latestUpdate url = do
+  resultE <- try $ get $ getUpdatesUrl url
   return $
     case resultE of
       Left e ->
         Left $
           case e of
-            InvalidUrlException url reason ->
-              "Invalid URL " <> show url <> ": " <> show reason
+            InvalidUrlException url' reason ->
+              "Invalid URL " <> show url' <> ": " <> show reason
             HttpExceptionRequest _ content ->
               case content of
                 StatusCodeException response body ->

@@ -28,17 +28,17 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
 commandSync :: Parser (IO ())
 commandSync = go <$> repositoryParser
   where
-    go repo = do
-      result <- sync repo
+    go snapshot = do
+      result <- sync snapshot
       case result of
         Left e ->
           die e
         Right s -> do
           putStrLn $
             "Snapshot at "
-              <> show (snapshotRoot repo)
+              <> show (snapshotRoot snapshot)
               <> " from "
-              <> show (repositoryUrl repo <> "@" <> repositoryBranch repo)
+              <> show (getSnapshotUrl $ snapshotUrl snapshot)
           putStrLn $
             case s of
               Created -> "Snapshot just created"
@@ -48,8 +48,8 @@ commandSync = go <$> repositoryParser
 commandStatus :: Parser (IO ())
 commandStatus = go <$> repositoryParser
   where
-    go repo = do
-      result <- status repo
+    go snapshot = do
+      result <- status snapshot
       hPutStrLn stderr $
         case result of
           DirectoryMissing -> "Directory is missing"
@@ -59,22 +59,52 @@ commandStatus = go <$> repositoryParser
 
 repositoryParser :: Parser Snapshot
 repositoryParser =
-  Snapshot
+  mkSnapshotSnapshot
     <$> strOption
       ( long "snapshot-root"
           <> short 'd'
           <> metavar "SNAPSHOT-ROOT"
-          <> value (snapshotRoot defaultRepository)
+          <> value (snapshotRoot defaultSnapshot)
       )
-    <*> strOption
+    <*> (fmap Left repositoryGithubParser <|> fmap Right repositoryUrlParser)
+  where mkSnapshotSnapshot root params =
+          case params of
+            Left (repoUrl, repoBranch) ->
+              githubSnapshot root repoUrl repoBranch
+            Right (snapshotUrl', updatesUrl') ->
+              Snapshot
+                { snapshotRoot = root,
+                  snapshotUrl = SnapshotUrl snapshotUrl',
+                  updatesUrl = UpdatesUrl updatesUrl'
+                }
+
+
+repositoryGithubParser :: Parser (String, String)
+repositoryGithubParser =
+  (,)
+    <$> strOption
       ( long "repository-url"
           <> short 'r'
           <> metavar "REPOSITORY-URL"
-          <> value (repositoryUrl defaultRepository)
+          <> value "https://github.com/haskell/security-advisories"
       )
     <*> strOption
       ( long "repository-branch"
           <> short 'b'
           <> metavar "REPOSITORY-BRANCH"
-          <> value (repositoryBranch defaultRepository)
+          <> value "generated/snapshot-export"
+      )
+
+repositoryUrlParser :: Parser (String, String)
+repositoryUrlParser =
+  (,)
+    <$> strOption
+      ( long "archive-url"
+          <> short 'u'
+          <> metavar "ARCHIVE-URL"
+      )
+    <*> strOption
+      ( long "updates-url"
+          <> short 'u'
+          <> metavar "UPDATES-URL"
       )

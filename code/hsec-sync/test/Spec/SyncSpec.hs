@@ -90,4 +90,4 @@ _spec =
 
 snapshotAt :: FilePath -> Snapshot
 snapshotAt root =
-  defaultRepository {snapshotRoot = root}
+  defaultSnapshot {snapshotRoot = root}
