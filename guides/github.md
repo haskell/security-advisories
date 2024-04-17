@@ -18,7 +18,7 @@ repository owners to merge PRs.
 
 It is ideal to require PR reviews before merging. For security critical
 packages, having at least two reviewers is ideal, as this alleviates the risk
-of sock-puppet accounts.
+of [sock-puppet accounts][sock].
 
 To keep dependencies up to date, it is advisable to enable
 [Dependabot][dependabot] or [Renovate][renovate] or a similar tool which will
@@ -124,7 +124,8 @@ write access.
 Monitor all activity on the runners and have separate infrastructure to scan
 for malicious activity.
 
-[scorecard]: https://github.com/ossf/scorecard-action
 [dependabot]: https://github.com/dependabot
-[renovate]: https://github.com/renovatebot/renovate
 [gha-permissions]: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+[renovate]: https://github.com/renovatebot/renovate
+[scorecard]: https://github.com/ossf/scorecard-action
+[sock]: https://en.wikipedia.org/wiki/Sock_puppet_account
