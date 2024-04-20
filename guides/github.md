@@ -7,6 +7,15 @@ At least for critical packages, administrators should enable branch
 protection. Require CI to pass before merging to the main branch. Allow only
 repository owners to merge PRs.
 
+> [!WARNING]
+> It is recommended to run workflows only after the PR has been reviewed. The
+> "Require approval for all outside collaborators" setting is the recommended
+> one. However, this can cause friction in repositories with a high number of
+> PRs but small number of contributors. In this case, if all contributors are
+> trusted, "Require approval for first-time contributors" is a valid option,
+> but dedicate more efforts to separate sensitive steps into workflows that
+> can only run after approval.
+
 It is ideal to require PR reviews before merging. For security critical
 packages, having at least two reviewers is ideal, as this alleviates the risk
 of sock-puppet accounts.
