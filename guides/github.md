@@ -21,16 +21,18 @@ It is ideal to require PR reviews before merging. For security critical
 packages, having at least two reviewers is ideal, as this alleviates the risk
 of [sock-puppet accounts][sock].
 
-To keep dependencies up to date, it is advisable to enable
-[Dependabot][dependabot] or [Renovate][renovate] or a similar tool which will
-create PRs to update dependencies and alert on vulnerabilities in
-dependencies. Both of these tools can be configured to send a PR at regular
-intervals (e.g., once a week).
+To keep dependencies up to date, it is advisable to enable tools such as
+[Dependabot][dependabot] or [Renovate][renovate]. These create PRs to update
+dependencies and alert on vulnerabilities in dependencies. Both of these tools
+can be configured to send a PR at regular intervals (e.g., once a week).
 
 > [!NOTE]
 > Neither [Dependabot][dependabot-2745] nor [Renovate][renovate-8187]
 > currently support Haskell dependencies. Use these tools to update
 > dependencies from other ecosystems (in multi-language projects).
+
+For Haskell dependencies, one way to keep them up to date is to use
+[haskell-bounds-bump-action][haskell-dep-bump] as a GitHub Action.
 
 It is recommended to install [Scorecards action][scorecard] for public
 repositories and trying to improve the score as high as possible. This is a
@@ -54,9 +56,10 @@ workflow level.
       actions: read
 ```
 
-Minimize usage of actions that create PRs or push code to branch. Thoroughly
-inspect actions that can approve PRs and workflows that are triggered after a
-PR has been approved (time-of-check-vs-time-of-use type of concerns).
+Minimize usage of actions that create PRs or push code to branch, and review
+those that are indispensable for the repository. Thoroughly inspect actions
+that can approve PRs and workflows that are triggered after a PR has been
+approved (time-of-check-vs-time-of-use type of concerns).
 
 If using actions which are defined outside of your organisation (that is,
 using the `uses` syntax), these should be pinned by commit hash. Don't pin by
@@ -139,3 +142,4 @@ for malicious activity.
 [renovate]: https://github.com/renovatebot/renovate
 [scorecard]: https://github.com/ossf/scorecard-action
 [sock]: https://en.wikipedia.org/wiki/Sock_puppet_account
+[haskell-dep-bump]: https://github.com/nomeata/haskell-bounds-bump-action
