@@ -1,7 +1,8 @@
 # How to secure GitHub repositories
 
 It is recommended to turn on 2FA for most repositories, especially if building
-a package that is a dependency of multiple other packages.
+a package that is a dependency of multiple other packages. Note that this is
+not a complete security guarantee, as it can easily be circumvented.
 
 At least for critical packages, administrators should enable branch
 protection. Require CI to pass before merging to the main branch. Allow only
@@ -25,6 +26,11 @@ To keep dependencies up to date, it is advisable to enable
 create PRs to update dependencies and alert on vulnerabilities in
 dependencies. Both of these tools can be configured to send a PR at regular
 intervals (e.g., once a week).
+
+> [!NOTE]
+> Neither [Dependabot][dependabot-2745] nor [Renovate][renovate-8187]
+> currently support Haskell dependencies. Use these tools to update
+> dependencies from other ecosystems (in multi-language projects).
 
 It is recommended to install [Scorecards action][scorecard] for public
 repositories and trying to improve the score as high as possible. This is a
