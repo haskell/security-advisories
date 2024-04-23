@@ -52,11 +52,12 @@ Minimize usage of actions that create PRs or push code to branch. Thoroughly
 inspect actions that can approve PRs and workflows that are triggered after a
 PR has been approved (time-of-check-vs-time-of-use type of concerns).
 
-If using actions outside of your organisation, these should be pinned by
-commit hash. Don't pin be version tag as these tags can be forced pushed. The
-[Scorecards Pinned Dependencies workflow][scorecard] can help identify which
-actions should still be pinned. [Dependabot][dependabot] is able to upgrade
-the versions of these actions periodically:
+If using actions which are defined outside of your organisation (that is,
+using the `uses` syntax), these should be pinned by commit hash. Don't pin be
+version tag as these tags can be forced pushed. The [Scorecards Pinned
+Dependencies workflow][scorecard] can help identify which actions should still
+be pinned. [Dependabot][dependabot] is able to upgrade the versions of these
+actions periodically:
 
 ```
       - name: Upload sdist as an artifact for later jobs in workflow
