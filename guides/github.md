@@ -110,7 +110,7 @@ self-hosted runners. A compromise of the runner can result in compromise of
 the repository otherwise.
 
 All CI runners should have a timeout. All workflows that run on CI runners
-should not run on forks of the repository. Gate workflows run by checking the
+should not run on forks of the repository. Gate workflow runs by checking the
 value of the `github.repository` variable:
 
 ```
