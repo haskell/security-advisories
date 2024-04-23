@@ -132,8 +132,10 @@ write access.
 Monitor all activity on the runners and have separate infrastructure to scan
 for malicious activity.
 
+[dependabot-2745]: https://github.com/dependabot/dependabot-core/issues/2745
 [dependabot]: https://github.com/dependabot
 [gha-permissions]: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+[renovate-8187]: https://github.com/renovatebot/renovate/issues/8187
 [renovate]: https://github.com/renovatebot/renovate
 [scorecard]: https://github.com/ossf/scorecard-action
 [sock]: https://en.wikipedia.org/wiki/Sock_puppet_account
