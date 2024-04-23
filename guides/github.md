@@ -33,9 +33,10 @@ this document.
 
 ## Securing GitHub Actions
 
-It is preferable to use the hosted runners as possible. The large runners
-supported by GitHub come with usage costs, but are better from the point of
-view of supply chain security than hosting your own infrastructure for CI.
+It is preferable to use the hosted runners whenever possible. The large
+runners supported by GitHub come with usage costs, but are better from the
+point of view of supply chain security than hosting your own infrastructure
+for CI.
 
 All GitHub Actions workflows should restrict [permissions][gha-permissions] to
 the minimum scope needed. Scope the permissions at job level, instead of at
