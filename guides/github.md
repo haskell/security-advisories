@@ -5,8 +5,11 @@ a package that is a dependency of multiple other packages. Note that this is
 not a complete security guarantee, as it can easily be circumvented.
 
 At least for critical packages, administrators should enable branch
-protection. Require CI to pass before merging to the main branch. Allow only
-repository owners to merge PRs.
+protection: allow only repository owners to merge PRs, and only after CI
+passes. Contributors should contribute via forks. It is recommended to
+contribute via PRs instead of direct pushes to main branch, even for
+repository owners, as this prevents accidental pushes of bad code. Only
+repository owners should be able to change the main branch, by merging PRs.
 
 > [!WARNING]
 > It is recommended to run workflows only after the PR has been reviewed. The
@@ -39,12 +42,16 @@ repositories and trying to improve the score as high as possible. This is a
 scanner for security best practices, most of which are already discussed in
 this document.
 
-## Securing GitHub Actions
+## Securing GitHub Actions and GitHub Apps
 
 It is preferable to use the hosted runners whenever possible. The large
 runners supported by GitHub come with usage costs, but are better from the
 point of view of supply chain security than hosting your own infrastructure
 for CI.
+
+> [!NOTE]
+> If you have the ability to secure your own hosting infrastructure, it is
+> feasible to use that instead of GitHub's large hosted runners.
 
 All GitHub Actions workflows should restrict [permissions][gha-permissions] to
 the minimum scope needed. Scope the permissions at job level, instead of at
@@ -59,7 +66,9 @@ workflow level.
 Minimize usage of actions that create PRs or push code to branch, and review
 those that are indispensable for the repository. Thoroughly inspect actions
 that can approve PRs and workflows that are triggered after a PR has been
-approved (time-of-check-vs-time-of-use type of concerns).
+approved (time-of-check-vs-time-of-use type of concerns). Similarly,
+thoroughly review any GitHub application (bot, tool) that you use to maintain
+the repository (e.g., [mergify][mergify]).
 
 If using actions which are defined outside of your organisation (that is,
 using the `uses` syntax), these should be pinned by commit hash. Don't pin by
@@ -111,8 +120,9 @@ the release pool and never trigger jobs on the release pool on code that is
 not reviewed.
 
 Ideally, the self-hosted runners should be ephemeral. Destroy them as soon as
-the CI run finishes. If caching between jobs is required, periodically recycle
-all runners (e.g., destroy them every week).
+the CI run finishes (see [Github documentation for scripting
+this][ephemeral-runner]). If caching between jobs is required, periodically
+recycle all runners (e.g., destroy them every week).
 
 Do not allow writing to the repository from the workflow actions if using
 self-hosted runners. A compromise of the runner can result in compromise of
@@ -137,9 +147,11 @@ for malicious activity.
 
 [dependabot-2745]: https://github.com/dependabot/dependabot-core/issues/2745
 [dependabot]: https://github.com/dependabot
+[ephemeral-runner]: https://docs.github.com/en/rest/actions/self-hosted-runners?apiVersion=2022-11-28#create-configuration-for-a-just-in-time-runner-for-an-organization
 [gha-permissions]: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+[haskell-dep-bump]: https://github.com/nomeata/haskell-bounds-bump-action
+[mergify]: https://github.com/marketplace/mergify
 [renovate-8187]: https://github.com/renovatebot/renovate/issues/8187
 [renovate]: https://github.com/renovatebot/renovate
 [scorecard]: https://github.com/ossf/scorecard-action
 [sock]: https://en.wikipedia.org/wiki/Sock_puppet_account
-[haskell-dep-bump]: https://github.com/nomeata/haskell-bounds-bump-action
