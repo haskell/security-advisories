@@ -13,8 +13,8 @@ description:        Core package representing Haskell advisories.
 
 -- The license under which the package is released.
 license:            BSD-3-Clause
-author:             David Christiansen
-maintainer:         david@davidchristiansen.dk
+author:             Haskell Security Response Team
+maintainer:         security-advisories@haskell.org
 
 -- A copyright notice.
 -- copyright:
@@ -32,10 +32,10 @@ library
   build-depends:
     , base          >=4.14    && <4.20
     , Cabal-syntax  >=3.8.1.0 && <3.11
-    , cvss
-    , osv
+    , cvss >= 0.1 && < 0.2
+    , osv >= 0.1 && < 0.2
     , pandoc-types  >=1.22    && <2
-    , safe          >=0.3
+    , safe          >=0.3     && <0.4
     , text          >=1.2     && <3
     , time          >=1.9     && <1.14
 
