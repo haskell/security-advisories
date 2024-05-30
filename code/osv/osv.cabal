@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               osv
-version:            0.1.0.0
+version:            0.1.0.1
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -15,8 +15,8 @@ description:
 
 -- The license under which the package is released.
 license:            BSD-3-Clause
-author:             David Christiansen
-maintainer:         david@davidchristiansen.dk
+author:             Haskell Security Response Team
+maintainer:         security-advisories@haskell.org
 
 -- A copyright notice.
 -- copyright:
@@ -33,7 +33,7 @@ library
   build-depends:
     , aeson                 >=2.0.1.0  && <3
     , base                  >=4.14     && <4.20
-    , cvss
+    , cvss >= 0.1 && < 0.2
     , text                  >=1.2      && <3
     , time                  >=1.9      && <1.14
 
