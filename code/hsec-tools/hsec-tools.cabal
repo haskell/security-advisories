@@ -15,8 +15,8 @@ description:
 
 -- The license under which the package is released.
 license:            BSD-3-Clause
-author:             David Christiansen
-maintainer:         david@davidchristiansen.dk
+author:             Haskell Security Response Team
+maintainer:         security-advisories@haskell.org
 
 -- A copyright notice.
 -- copyright:
@@ -46,20 +46,20 @@ library
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2      && <0.3
     , containers            >=0.6      && <0.7
-    , cvss
+    , cvss                  >= 0.1     && < 0.2
     , directory             <2
     , extra                 ^>=1.7.5
     , filepath              >=1.4      && <1.5
-    , hsec-core
+    , hsec-core             >= 0.1     && < 0.2
     , feed                  ==1.3.*
-    , lucid                 >=2.9.0
+    , lucid                 >=2.9.0    && < 3
     , mtl                   >=2.2      && <2.4
-    , osv
+    , osv                   >= 0.1     && < 0.2
     , pandoc-types          >=1.22     && <2
     , parsec                >=3        && <4
-    , pathwalk              >=0.3
+    , pathwalk              >=0.3      && < 0.4
     , process               >=1.6      && <1.7
-    , safe                  >=0.3
+    , safe                  >=0.3      && < 0.4
     , text                  >=1.2      && <3
     , time                  >=1.9      && <1.14
     , toml-parser           ^>=2.0.0.0
@@ -86,7 +86,7 @@ executable hsec-tools
     , bytestring            >=0.10    && <0.13
     , Cabal-syntax          >=3.8.1.0 && <3.11
     , filepath              >=1.4     && <1.5
-    , hsec-core
+    , hsec-core             >= 0.1    && < 0.2
     , hsec-tools
     , optparse-applicative  >=0.17    && <0.19
     , text                  >=1.2     && <3
