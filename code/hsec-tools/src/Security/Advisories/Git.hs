@@ -18,11 +18,12 @@ module Security.Advisories.Git
 
 import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
-import Data.Time (ZonedTime)
+import Data.Time (ZonedTime, utcToZonedTime, utc)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath (splitFileName)
 import System.Process (readProcessWithExitCode)
+import Control.Applicative ((<|>))
 
 data AdvisoryGitInfo = AdvisoryGitInfo
   { firstAppearanceCommitDate :: ZonedTime
@@ -117,4 +118,7 @@ getAdvisoryGitInfo path = do
       -- the same as `ExitFailure`
       pure . Left $ GitProcessError status stdout stderr
   where
-    parseTime s = maybe (Left $ GitTimeParseError s) Right $ iso8601ParseM s
+    parseTime :: String -> Either GitError ZonedTime
+    parseTime s = maybe (Left $ GitTimeParseError s) Right $
+       iso8601ParseM s
+         <|> utcToZonedTime utc <$> iso8601ParseM s
