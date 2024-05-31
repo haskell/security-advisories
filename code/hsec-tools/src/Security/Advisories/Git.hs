@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 {-|
 
@@ -33,7 +34,7 @@ data AdvisoryGitInfo = AdvisoryGitInfo
 data GitError
   = GitProcessError ExitCode String String -- ^ exit code, stdout and stderr
   | GitTimeParseError String -- ^ unable to parse this input as a datetime
-  deriving (Show)
+  deriving stock (Eq, Ord, Show)
 
 explainGitError :: GitError -> String
 explainGitError = \case
