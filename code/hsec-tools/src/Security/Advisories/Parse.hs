@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# LANGUAGE LambdaCase #-}
 module Security.Advisories.Parse
   ( parseAdvisory
   , OutOfBandAttributes(..)
@@ -47,6 +48,8 @@ import Security.Advisories.Core.HsecId
 import Security.Advisories.Core.Advisory
 import Security.OSV (Reference(..), ReferenceType, referenceTypes)
 import qualified Security.CVSS as CVSS
+import Control.Exception (Exception(displayException))
+
 -- | A source of attributes supplied out of band from the advisory
 -- content.  Values provided out of band are treated according to
 -- the 'AttributeOverridePolicy'.
@@ -79,6 +82,14 @@ data ParseAdvisoryError
   | TomlError String T.Text
   | AdvisoryError [Toml.MatchMessage Toml.Position] T.Text
   deriving stock (Eq, Show, Generic)
+
+-- | @since 0.1.1.0
+instance Exception ParseAdvisoryError where 
+  displayException = T.unpack . \case 
+    MarkdownError _ explanation -> "Markdown parsing error:\n\t" <> explanation
+    MarkdownFormatError explanation -> "Markdown structure error:\n\t" <> explanation
+    TomlError _ explanation -> "Couldn't parse front matter as TOML:\n\t" <> explanation
+    AdvisoryError _ explanation -> "Advisory structure error:\n\t" <> explanation
 
 -- | The main parsing function.  'OutOfBandAttributes' are handled
 -- according to the 'AttributeOverridePolicy'.

@@ -19,6 +19,7 @@ import Validation (Validation(..))
 import qualified Data.Aeson
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Control.Exception (Exception(displayException))
 import Options.Applicative
 
 import Security.Advisories
@@ -165,12 +166,7 @@ withAdvisory go file = do
 
   case parseAdvisory NoOverrides oob input of
     Left e -> do
-      T.hPutStrLn stderr $
-        case e of
-          MarkdownError _ explanation -> "Markdown parsing error:\n" <> explanation
-          MarkdownFormatError explanation -> "Markdown structure error:\n" <> explanation
-          TomlError _ explanation -> "Couldn't parse front matter as TOML:\n" <> explanation
-          AdvisoryError _ explanation -> "Advisory structure error:\n" <> explanation
+      hPutStrLn stderr (displayException e)
       exitFailure
     Right advisory -> do
       go file advisory

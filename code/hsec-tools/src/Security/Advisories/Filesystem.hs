@@ -27,7 +27,7 @@ module Security.Advisories.Filesystem
 import Control.Applicative (liftA2)
 import Data.Bifunctor (bimap)
 import Data.Foldable (fold)
-import Data.Functor ((<&>))
+import Data.Functor (($>))
 import Data.Semigroup (Max(Max, getMax))
 import Data.Traversable (for)
 
@@ -41,7 +41,8 @@ import Validation (Validation, eitherToValidation)
 
 import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, emptyOutOfBandAttributes, parseAdvisory)
 import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
-import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
+import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate, explainGitError)
+import System.IO (stderr, hPutStrLn)
 
 
 dirNameAdvisories :: FilePath
@@ -129,10 +130,12 @@ listAdvisories root =
       then return $ pure []
       else do
         oob <-
-          liftIO (getAdvisoryGitInfo advisoryPath) <&> \case
-            Left _ -> emptyOutOfBandAttributes
+          liftIO (getAdvisoryGitInfo advisoryPath) >>= \case
+            Left gitErr -> 
+              liftIO (hPutStrLn stderr ("obtaining out of band attributes failed: \n" <> explainGitError gitErr))
+                $> emptyOutOfBandAttributes
             Right gitInfo ->
-              emptyOutOfBandAttributes
+              pure emptyOutOfBandAttributes
                 { oobPublished = Just (firstAppearanceCommitDate gitInfo),
                   oobModified = Just (lastModificationCommitDate gitInfo)
                 }
