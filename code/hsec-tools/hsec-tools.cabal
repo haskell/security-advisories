@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               hsec-tools
-version:            0.1.1.0
+version:            0.2.0.0
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -90,6 +90,7 @@ executable hsec-tools
     , hsec-tools
     , optparse-applicative  >=0.17    && <0.19
     , text                  >=1.2     && <3
+    , transformers
     , validation-selective  >=0.1     && <1
 
   hs-source-dirs:   app
