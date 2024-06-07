@@ -1,4 +1,3 @@
-{-# LANGUAGE BlockArguments #-}
 {-|
 
 Helpers for the /security-advisories/ file system.
@@ -127,7 +126,7 @@ listAdvisories root =
     if isSym
       then return $ pure []
       else do
-        oob <- runExceptT $ withExceptT GitHasNoOOB do
+        oob <- runExceptT $ withExceptT GitHasNoOOB $ do
           gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
           pure OutOfBandAttributes
             { oobPublished = firstAppearanceCommitDate gitInfo

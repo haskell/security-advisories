@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE BlockArguments #-}
 
 module Main where
 
@@ -155,9 +154,9 @@ withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
   input <- maybe T.getContents T.readFile file
 
-  oob <- runExceptT case file of
+  oob <- runExceptT $ case file of
     Nothing -> throwE StdInHasNoOOB
-    Just path -> withExceptT GitHasNoOOB do 
+    Just path -> withExceptT GitHasNoOOB $ do 
       gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path 
       pure OutOfBandAttributes
         { oobPublished = firstAppearanceCommitDate gitInfo
