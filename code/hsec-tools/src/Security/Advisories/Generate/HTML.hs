@@ -97,7 +97,8 @@ data AffectedPackageR = AffectedPackageR
 
 listByDates :: [AdvisoryR] -> Html ()
 listByDates advisories =
-  inPage PageListByDates $
+  inPage PageListByDates $ do
+    indexDescription
     div_ [class_ "advisories"] $ do
       table_ [class_ "pure-table pure-table-horizontal"] $ do
         thead_ $ do
@@ -120,6 +121,8 @@ listByDates advisories =
 listByPackages :: [AdvisoryR] -> Html ()
 listByPackages advisories =
   inPage PageListByPackages $ do
+    indexDescription
+
     let byPackage :: Map.Map Text [(AdvisoryR, AffectedPackageR)]
         byPackage =
           Map.fromList $
@@ -148,6 +151,18 @@ listByPackages advisories =
               td_ [class_ "advisory-introduced"] $ toHtml $ introduced package
               td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml $ fixed package
               td_ [class_ "advisory-summary"] $ toHtml $ advisorySummary advisory
+
+indexDescription :: Html ()
+indexDescription =
+  div_ [class_ "description"] $ do
+    p_ "The Haskell Security Advisory Database is a repository of security advisories filed against packages published via Hackage."
+    p_  $ do
+      "It is generated from "
+      a_ [href_ "https://github.com/haskell/security-advisories/", target_ "_blank", rel_ "noopener noreferrer"] "Haskell Security Advisory Database"
+      ". "
+      "Feel free to "
+      a_ [href_ "https://github.com/haskell/security-advisories/blob/main/PROCESS.md", target_ "_blank", rel_ "noopener noreferrer"] "report new or historic security issues"
+      "."
 
 -- * Utils
 
