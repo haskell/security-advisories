@@ -19,7 +19,7 @@ module Security.Advisories.Git
 
 import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
-import Data.Time (ZonedTime, utcToZonedTime, utc)
+import Data.Time (UTCTime, zonedTimeToUTC)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath (splitFileName)
@@ -27,8 +27,8 @@ import System.Process (readProcessWithExitCode)
 import Control.Applicative ((<|>))
 
 data AdvisoryGitInfo = AdvisoryGitInfo
-  { firstAppearanceCommitDate :: ZonedTime
-  , lastModificationCommitDate :: ZonedTime
+  { firstAppearanceCommitDate :: UTCTime
+  , lastModificationCommitDate :: UTCTime
   }
 
 data GitError
@@ -119,7 +119,7 @@ getAdvisoryGitInfo path = do
       -- the same as `ExitFailure`
       pure . Left $ GitProcessError status stdout stderr
   where
-    parseTime :: String -> Either GitError ZonedTime
+    parseTime :: String -> Either GitError UTCTime
     parseTime s = maybe (Left $ GitTimeParseError s) Right $
        iso8601ParseM s
-         <|> utcToZonedTime utc <$> iso8601ParseM s
+         <|> zonedTimeToUTC <$> iso8601ParseM s

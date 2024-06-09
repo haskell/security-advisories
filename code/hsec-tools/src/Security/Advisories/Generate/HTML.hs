@@ -16,7 +16,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
-import Data.Time (ZonedTime, zonedTimeToUTC)
+import Data.Time (UTCTime)
 import Data.Time.Format.ISO8601
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
@@ -73,7 +73,7 @@ data AdvisoryR = AdvisoryR
   { advisoryId :: Advisories.HsecId,
     advisorySummary :: Text,
     advisoryAffected :: [AffectedPackageR],
-    advisoryModified :: ZonedTime
+    advisoryModified :: UTCTime
   }
   deriving stock (Show)
 
@@ -233,7 +233,7 @@ feed advisories =
   ( Feed.nullFeed
       atomFeedUrl
       (Feed.TextString "Haskell Security Advisory DB") -- Title
-      (maybe "" (T.pack . iso8601Show) . maximumMay . fmap (zonedTimeToUTC . Advisories.advisoryModified) $ advisories)
+      (maybe "" (T.pack . iso8601Show) . maximumMay . fmap Advisories.advisoryModified $ advisories)
   )
     { Feed.feedEntries = fmap toEntry advisories
     , Feed.feedLinks = [(Feed.nullLink atomFeedUrl) { Feed.linkRel = Just (Left "self") }]

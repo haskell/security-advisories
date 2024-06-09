@@ -6,7 +6,6 @@ module Security.Advisories.Convert.OSV
   where
 
 import qualified Data.Text as T
-import Data.Time (zonedTimeToUTC)
 import Data.Void
 import Distribution.Pretty (prettyShow)
 
@@ -17,9 +16,9 @@ convert :: Advisory -> OSV.Model Void Void Void Void
 convert adv =
   ( OSV.newModel'
     (T.pack . printHsecId $ advisoryId adv)
-    (zonedTimeToUTC $ advisoryModified adv)
+    (advisoryModified adv)
   )
-  { OSV.modelPublished = Just $ zonedTimeToUTC (advisoryPublished adv)
+  { OSV.modelPublished = Just $ advisoryPublished adv
   , OSV.modelAliases = advisoryAliases adv
   , OSV.modelRelated = advisoryRelated adv
   , OSV.modelSummary = Just $ advisorySummary adv
