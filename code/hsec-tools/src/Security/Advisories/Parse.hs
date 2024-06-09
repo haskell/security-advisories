@@ -29,7 +29,7 @@ import qualified Data.Map as Map
 import Data.Sequence (Seq((:<|)))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
-import Data.Time (ZonedTime(..), LocalTime (LocalTime), midnight, utc)
+import Data.Time (utc, UTCTime(..), zonedTimeToUTC, localTimeToUTC)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
@@ -67,8 +67,8 @@ type OOB = Either OOBError OutOfBandAttributes
 -- set particular fields.
 --
 data OutOfBandAttributes = OutOfBandAttributes
-  { oobModified :: ZonedTime
-  , oobPublished :: ZonedTime
+  { oobModified :: UTCTime
+  , oobPublished :: UTCTime
   }
   deriving (Show)
 
@@ -245,8 +245,8 @@ instance Toml.ToTable FrontMatter where
 -- TOML frontmatter in an advisory markdown file.
 data AdvisoryMetadata = AdvisoryMetadata
   { amdId         :: HsecId
-  , amdModified   :: Maybe ZonedTime
-  , amdPublished  :: Maybe ZonedTime
+  , amdModified   :: Maybe UTCTime
+  , amdPublished  :: Maybe UTCTime
   , amdCAPECs     :: [CAPEC]
   , amdCWEs       :: [CWE]
   , amdKeywords   :: [Keyword]
@@ -369,10 +369,10 @@ instance Toml.ToValue Keyword where
   toValue (Keyword x) = Toml.toValue x
 
 -- | Get a datetime with the timezone defaulted to UTC and the time defaulted to midnight
-getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l ZonedTime
-getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure x
-getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (ZonedTime x utc)
-getDefaultedZonedTime (Toml.Day' _       x) = pure (ZonedTime (LocalTime x midnight) utc)
+getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l UTCTime
+getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure (zonedTimeToUTC x)
+getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (localTimeToUTC utc x)
+getDefaultedZonedTime (Toml.Day' _       x) = pure (UTCTime x 0)
 getDefaultedZonedTime v                     = Toml.failAt (Toml.valueAnn v) "expected a date with optional time and timezone"
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])

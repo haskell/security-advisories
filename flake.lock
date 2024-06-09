@@ -37,8 +37,7 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "toml-parser": "toml-parser"
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {
@@ -53,23 +52,6 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
-        "type": "github"
-      }
-    },
-    "toml-parser": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1708792062,
-        "narHash": "sha256-RiRBBnDriQi9jH76JVr72ygYWtGF963iv/XoPBuMA3U=",
-        "owner": "glguy",
-        "repo": "toml-parser",
-        "rev": "4bcf07dc403a0882e9ce5a423473306cf1863f2f",
-        "type": "github"
-      },
-      "original": {
-        "owner": "glguy",
-        "ref": "toml-parser-2.0.0.0",
-        "repo": "toml-parser",
         "type": "github"
       }
     }

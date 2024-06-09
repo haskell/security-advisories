@@ -7,8 +7,8 @@ import Data.List (isSuffixOf)
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Lazy.Encoding as LText
+import Data.Time (UTCTime(UTCTime))
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
-import Data.Time.LocalTime
 import System.Directory (listDirectory)
 import Test.Tasty (defaultMain, testGroup, TestTree)
 import Test.Tasty.Golden (goldenVsString)
@@ -41,7 +41,7 @@ doGoldenTest fp = goldenVsString fp (fp <> ".golden") (LText.encodeUtf8 <$> doCh
     doCheck :: IO LText.Text
     doCheck = do
         input <- T.readFile fp
-        let fakeDate = ZonedTime (LocalTime (fromOrdinalDate 1970 0) midnight) utc
+        let fakeDate = UTCTime (fromOrdinalDate 1970 0) 0
             attr = OutOfBandAttributes                    
               { oobPublished = fakeDate
               , oobModified = fakeDate
