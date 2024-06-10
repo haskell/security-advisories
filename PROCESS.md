@@ -27,14 +27,26 @@ disclosure process. Here are the steps we follow.
 
 ### Reception
 
-Private report can be received by email to [security-advisories@haskell.org](mailto:security-advisories@haskell.org).
-The HSRT does not presently handle embargoed vulnerabilities.
-Please ensure embargoes have been lifted and details have been disclosed to the public prior to filing a report.
+High-impact vulnerabilities can be reported privately to
+[security-advisories@haskell.org](mailto:security-advisories@haskell.org).
+We do not use PGP.  Alternatively, Haskell vulnerabilities can be
+reported via the CERT/CC [VINCE] system.  Use "Haskell Programming
+Language" as the vendor name.
 
-The HSRT may *provisionally* offer coordinated disclosure for
-HIGH severity issues, affecting a widely used library or tool.
+[VINCE]: https://kb.cert.org/vince/
 
-Public report can be submitted as a [regular issue on the security-advisories repo](https://github.com/haskell/security-advisories/issues).
+As a volunteer effort with limited resources, we coordinate security
+response for embargoed vulnerabilities for high impact issues only.
+Factors that influence whether we will deal with an issue under
+embargo or not include:
+
+- How severe is the vulnerability?
+- How widely used is the library or tool in which the issue occurs?
+- Does the issue also affect other ecosystems, or is there already a
+  security response underway?  (We will not break someone else's
+  embargo.)
+
+Public reports can be submitted as a [regular issue or PR on the security-advisories repo](https://github.com/haskell/security-advisories/issues).
 In that case, please follow the process defined in
 the [Reporting Vulnerabilities](./CONTRIBUTING.md) document.
 
