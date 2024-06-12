@@ -189,6 +189,19 @@ data MetricValue = MetricValue
     mvDesc :: Text
   }
 
+cvss40 :: CVSSDB
+cvss40 =
+  CVSSDB
+    [ MetricGroup "Base" baseMetrics,
+      MetricGroup "Temporal" temporalMetrics,
+      MetricGroup "Environmental" environmentalMetrics
+    ]
+  where
+    baseMetrics = []
+    temporalMetrics = []
+    environmentalMetrics = [] 
+
+
 -- | CVSS3.1 metrics pulled from section 2. "Base Metrics" and section section 7.4. "Metric Values"
 cvss31 :: CVSSDB
 cvss31 =
