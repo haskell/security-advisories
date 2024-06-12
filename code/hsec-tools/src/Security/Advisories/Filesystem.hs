@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 {-|
 
 Helpers for the /security-advisories/ file system.
@@ -25,9 +23,7 @@ module Security.Advisories.Filesystem
   ) where
 
 import Control.Applicative (liftA2)
-import Data.Bifunctor (bimap)
 import Data.Foldable (fold)
-import Data.Functor ((<&>))
 import Data.Semigroup (Max(Max, getMax))
 import Data.Traversable (for)
 
@@ -37,11 +33,13 @@ import qualified Data.Text.IO as T
 import System.FilePath ((</>), takeBaseName)
 import System.Directory (doesDirectoryExist, pathIsSymbolicLink)
 import System.Directory.PathWalk
-import Validation (Validation, eitherToValidation)
+import Validation (Validation (..))
 
-import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, emptyOutOfBandAttributes, parseAdvisory)
+import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory)
 import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
 import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
+import Control.Monad.Except (runExceptT, ExceptT (ExceptT), withExceptT)
+import Security.Advisories.Parse (OOBError(GitHasNoOOB))
 
 
 dirNameAdvisories :: FilePath
@@ -128,16 +126,16 @@ listAdvisories root =
     if isSym
       then return $ pure []
       else do
-        oob <-
-          liftIO (getAdvisoryGitInfo advisoryPath) <&> \case
-            Left _ -> emptyOutOfBandAttributes
-            Right gitInfo ->
-              emptyOutOfBandAttributes
-                { oobPublished = Just (firstAppearanceCommitDate gitInfo),
-                  oobModified = Just (lastModificationCommitDate gitInfo)
-                }
+        oob <- runExceptT $ withExceptT GitHasNoOOB $ do
+          gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
+          pure OutOfBandAttributes
+            { oobPublished = firstAppearanceCommitDate gitInfo
+            , oobModified = lastModificationCommitDate gitInfo
+            }
         fileContent <- liftIO $ T.readFile advisoryPath
-        return $ eitherToValidation $ bimap return return $ parseAdvisory NoOverrides oob fileContent
+        pure 
+          $ either (Failure . (: [])) (Success . (: [])) 
+          $ parseAdvisory NoOverrides oob fileContent
 
 -- | Get names (not paths) of subdirectories of the given directory
 -- (one level).  There's no monoidal, interruptible variant of

@@ -4,13 +4,9 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    toml-parser = {
-      url = "github:glguy/toml-parser/toml-parser-2.0.0.0";
-      flake = false;
-    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, toml-parser }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         overlays = [ ];
@@ -34,7 +30,7 @@
             overrides = self: super: {
               inherit cvss hsec-core osv;
               Cabal-syntax = super.Cabal-syntax_3_8_1_0;
-              toml-parser = jailbreakUnbreak (super.callCabal2nix "toml-parser" toml-parser { });
+              toml-parser = jailbreakUnbreak (super.callHackageDirect {pkg = "toml-parser"; ver = "2.0.1.0"; sha256 = "sha256-+2d8tflkqT3g7QJVjw/FTdluBASiHP3lDr7w5eNr4bY=";} {});
             };
 
             modifier = drv:

@@ -4,3 +4,5 @@ package hsec-core
 package hsec-tools
 package cvss
 package osv
+
+test-show-details: direct

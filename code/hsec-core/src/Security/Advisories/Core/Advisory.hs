@@ -14,20 +14,20 @@ module Security.Advisories.Core.Advisory
   where
 
 import Data.Text (Text)
-import Data.Time (ZonedTime)
+import Data.Time (UTCTime)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
 
 import Text.Pandoc.Definition (Pandoc)
 
-import Security.Advisories.Core.HsecId
+import Security.Advisories.Core.HsecId (HsecId)
 import qualified Security.CVSS as CVSS
 import Security.OSV (Reference)
 
 data Advisory = Advisory
   { advisoryId :: HsecId
-  , advisoryModified :: ZonedTime
-  , advisoryPublished :: ZonedTime
+  , advisoryModified :: UTCTime
+  , advisoryPublished :: UTCTime
   , advisoryCAPECs :: [CAPEC]
   , advisoryCWEs :: [CWE]
   , advisoryKeywords :: [Keyword]

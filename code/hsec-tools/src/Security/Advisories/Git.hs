@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DerivingStrategies #-}
 
 {-|
 
@@ -18,21 +19,22 @@ module Security.Advisories.Git
 
 import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
-import Data.Time (ZonedTime)
+import Data.Time (UTCTime, zonedTimeToUTC)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import System.Exit (ExitCode(ExitSuccess))
 import System.FilePath (splitFileName)
 import System.Process (readProcessWithExitCode)
+import Control.Applicative ((<|>))
 
 data AdvisoryGitInfo = AdvisoryGitInfo
-  { firstAppearanceCommitDate :: ZonedTime
-  , lastModificationCommitDate :: ZonedTime
+  { firstAppearanceCommitDate :: UTCTime
+  , lastModificationCommitDate :: UTCTime
   }
 
 data GitError
   = GitProcessError ExitCode String String -- ^ exit code, stdout and stderr
   | GitTimeParseError String -- ^ unable to parse this input as a datetime
-  deriving (Show)
+  deriving stock (Eq, Ord, Show)
 
 explainGitError :: GitError -> String
 explainGitError = \case
@@ -117,4 +119,7 @@ getAdvisoryGitInfo path = do
       -- the same as `ExitFailure`
       pure . Left $ GitProcessError status stdout stderr
   where
-    parseTime s = maybe (Left $ GitTimeParseError s) Right $ iso8601ParseM s
+    parseTime :: String -> Either GitError UTCTime
+    parseTime s = maybe (Left $ GitTimeParseError s) Right $
+       iso8601ParseM s
+         <|> zonedTimeToUTC <$> iso8601ParseM s

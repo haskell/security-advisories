@@ -1,13 +1,13 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import Control.Monad (forM_, join, void, when)
+import Control.Monad.Trans.Except (runExceptT, ExceptT (ExceptT), withExceptT, throwE)
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.ByteString.Lazy as L
 import Data.Maybe (fromMaybe)
 import Data.Foldable (for_)
-import Data.Functor ((<&>))
 import Data.List (intercalate, isPrefixOf)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange, anyVersion)
@@ -19,6 +19,7 @@ import Validation (Validation(..))
 import qualified Data.Aeson
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import Control.Exception (Exception(displayException))
 import Options.Applicative
 
 import Security.Advisories
@@ -153,24 +154,18 @@ withAdvisory :: (Maybe FilePath -> Advisory -> IO ()) -> Maybe FilePath -> IO ()
 withAdvisory go file = do
   input <- maybe T.getContents T.readFile file
 
-  oob <- ($ emptyOutOfBandAttributes) <$> case file of
-    Nothing -> pure id
-    Just path ->
-      getAdvisoryGitInfo path <&> \case
-        Left _ -> id
-        Right gitInfo -> \oob -> oob
-          { oobPublished = Just (firstAppearanceCommitDate gitInfo)
-          , oobModified = Just (lastModificationCommitDate gitInfo)
-          }
+  oob <- runExceptT $ case file of
+    Nothing -> throwE StdInHasNoOOB
+    Just path -> withExceptT GitHasNoOOB $ do 
+      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path 
+      pure OutOfBandAttributes
+        { oobPublished = firstAppearanceCommitDate gitInfo
+        , oobModified = lastModificationCommitDate gitInfo
+        }
 
   case parseAdvisory NoOverrides oob input of
     Left e -> do
-      T.hPutStrLn stderr $
-        case e of
-          MarkdownError _ explanation -> "Markdown parsing error:\n" <> explanation
-          MarkdownFormatError explanation -> "Markdown structure error:\n" <> explanation
-          TomlError _ explanation -> "Couldn't parse front matter as TOML:\n" <> explanation
-          AdvisoryError _ explanation -> "Advisory structure error:\n" <> explanation
+      hPutStrLn stderr (displayException e)
       exitFailure
     Right advisory -> do
       go file advisory

@@ -48,8 +48,8 @@ examples of qualifying vulnerabilities:
 
 **Q: Do I need to be the maintainer of a package to file an advisory?**
 
-A:  No, anyone can file an advisory against any package. The legitimacy of
-    vulnerabilities will be determined prior to merging. If a vulnerability
+A:  No, anyone can file an advisory against any package.  Reports
+    will be verified prior to merging.  If a report
     turns out to be incorrect then it will be corrected or removed from the
     database.
 
@@ -58,14 +58,16 @@ A:  No, anyone can file an advisory against any package. The legitimacy of
 A: Yes, instead of creating a full advisory yourself you can also
    [open an issue on the security-advisories repo](https://github.com/haskell/security-advisories/issues)
    or email information about the vulnerability to
-   [security-advisories@haskell.org](mailto:security-advisories@haskell.org).
 
-**Q: Does this project have a GPG key or other means of handling embargoed vulnerabilities?**
+**Q: Does this project have a PGP key or other means of handling embargoed vulnerabilities?**
 
-A: We do not presently handle embargoed vulnerabilities. Please ensure embargoes
-   have been lifted and details have been disclosed to the public prior to filing
-   them here.
+A: High-impact vulnerabilities can be reported privately to
+[security-advisories@haskell.org](mailto:security-advisories@haskell.org),
+but we do not use PGP.  Alternatively, Haskell vulnerabilities can
+be reported via the CERT/CC [VINCE] system.  Use "Haskell
+Programming Language" as the vendor name.
 
+[VINCE]: https://kb.cert.org/vince/
 [Pull Request]: https://github.com/haskell/security-advisories/pulls
 [TOML advisory template]: https://github.com/haskell/security-advisories/blob/main/README.md#advisory-format
 [example]: https://raw.githubusercontent.com/haskell/security-advisories/main/EXAMPLE_ADVISORY.md

@@ -2,13 +2,16 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Security.Advisories.Parse
   ( parseAdvisory
+  , OOB
+  , OOBError (..)
   , OutOfBandAttributes(..)
-  , emptyOutOfBandAttributes
+  , displayOOBError
   , AttributeOverridePolicy(..)
   , ParseAdvisoryError(..)
   )
@@ -26,7 +29,7 @@ import qualified Data.Map as Map
 import Data.Sequence (Seq((:<|)))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as T (toStrict)
-import Data.Time (ZonedTime(..), LocalTime (LocalTime), midnight, utc)
+import Data.Time (utc, UTCTime(..), zonedTimeToUTC, localTimeToUTC)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
@@ -47,6 +50,14 @@ import Security.Advisories.Core.HsecId
 import Security.Advisories.Core.Advisory
 import Security.OSV (Reference(..), ReferenceType, referenceTypes)
 import qualified Security.CVSS as CVSS
+import Control.Exception (Exception(displayException))
+import Security.Advisories.Git (GitError, explainGitError)
+
+-- | if there are no out of band attributes, attach a reason why that's the case
+--
+-- @since 0.2.0.0
+type OOB = Either OOBError OutOfBandAttributes
+
 -- | A source of attributes supplied out of band from the advisory
 -- content.  Values provided out of band are treated according to
 -- the 'AttributeOverridePolicy'.
@@ -56,16 +67,10 @@ import qualified Security.CVSS as CVSS
 -- set particular fields.
 --
 data OutOfBandAttributes = OutOfBandAttributes
-  { oobModified :: Maybe ZonedTime
-  , oobPublished :: Maybe ZonedTime
+  { oobModified :: UTCTime
+  , oobPublished :: UTCTime
   }
   deriving (Show)
-
-emptyOutOfBandAttributes :: OutOfBandAttributes
-emptyOutOfBandAttributes = OutOfBandAttributes
-  { oobModified = Nothing
-  , oobPublished = Nothing
-  }
 
 data AttributeOverridePolicy
   = PreferInBand
@@ -80,12 +85,34 @@ data ParseAdvisoryError
   | AdvisoryError [Toml.MatchMessage Toml.Position] T.Text
   deriving stock (Eq, Show, Generic)
 
+-- | @since 0.2.0.0
+instance Exception ParseAdvisoryError where 
+  displayException = T.unpack . \case 
+    MarkdownError _ explanation -> "Markdown parsing error:\n" <> explanation
+    MarkdownFormatError explanation -> "Markdown structure error:\n" <> explanation
+    TomlError _ explanation -> "Couldn't parse front matter as TOML:\n" <> explanation
+    AdvisoryError _ explanation -> "Advisory structure error:\n" <> explanation
+
+-- | errors that may occur while ingesting oob data
+--
+-- @since 0.2.0.0
+data OOBError 
+  = StdInHasNoOOB -- ^ we obtain the advisory via stdin and can hence not parse git history
+  | GitHasNoOOB GitError -- ^ processing oob info via git failed
+  deriving stock (Eq, Show, Generic)
+
+displayOOBError :: OOBError -> String 
+displayOOBError = \case 
+  StdInHasNoOOB -> "stdin doesn't provide out of band information"
+  GitHasNoOOB gitErr -> "no out of band information obtained with git error:\n"
+    <> explainGitError gitErr
+
 -- | The main parsing function.  'OutOfBandAttributes' are handled
 -- according to the 'AttributeOverridePolicy'.
 --
 parseAdvisory
   :: AttributeOverridePolicy
-  -> OutOfBandAttributes
+  -> OOB
   -> T.Text -- ^ input (CommonMark with TOML header)
   -> Either ParseAdvisoryError Advisory
 parseAdvisory policy attrs raw = do
@@ -145,7 +172,7 @@ parseAdvisory policy attrs raw = do
     mkPretty ctr pretty x = ctr x $ pretty x
 
 parseAdvisoryTable
-  :: OutOfBandAttributes
+  :: OOB
   -> AttributeOverridePolicy
   -> Pandoc -- ^ parsed document (without frontmatter)
   -> T.Text -- ^ summary
@@ -158,13 +185,14 @@ parseAdvisoryTable oob policy doc summary details html tab =
    do fm <- Toml.fromValue (Toml.Table' Toml.startPos tab)
       published <-
         mergeOobMandatory policy
-          (oobPublished oob)
+          (oobPublished <$> oob)
+          displayOOBError
           "advisory.date"
           (amdPublished (frontMatterAdvisory fm))
       modified <-
         fromMaybe published <$>
           mergeOobOptional policy
-            (oobPublished oob)
+            (oobPublished <$> oob)
             "advisory.modified"
             (amdModified (frontMatterAdvisory fm))
       pure Advisory
@@ -217,8 +245,8 @@ instance Toml.ToTable FrontMatter where
 -- TOML frontmatter in an advisory markdown file.
 data AdvisoryMetadata = AdvisoryMetadata
   { amdId         :: HsecId
-  , amdModified   :: Maybe ZonedTime
-  , amdPublished  :: Maybe ZonedTime
+  , amdModified   :: Maybe UTCTime
+  , amdPublished  :: Maybe UTCTime
   , amdCAPECs     :: [CAPEC]
   , amdCWEs       :: [CWE]
   , amdKeywords   :: [Keyword]
@@ -341,10 +369,10 @@ instance Toml.ToValue Keyword where
   toValue (Keyword x) = Toml.toValue x
 
 -- | Get a datetime with the timezone defaulted to UTC and the time defaulted to midnight
-getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l ZonedTime
-getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure x
-getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (ZonedTime x utc)
-getDefaultedZonedTime (Toml.Day' _       x) = pure (ZonedTime (LocalTime x midnight) utc)
+getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l UTCTime
+getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure (zonedTimeToUTC x)
+getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (localTimeToUTC utc x)
+getDefaultedZonedTime (Toml.Day' _       x) = pure (UTCTime x 0)
 getDefaultedZonedTime v                     = Toml.failAt (Toml.valueAnn v) "expected a date with optional time and timezone"
 
 advisoryDoc :: Blocks -> Either T.Text (T.Text, [Block])
@@ -520,41 +548,47 @@ instance Toml.ToValue CVSS.CVSS where
 mergeOob
   :: MonadFail m
   => AttributeOverridePolicy
-  -> Maybe a  -- ^ out-of-band value
+  -> Either e a  -- ^ out-of-band value
   -> String  -- ^ key
   -> Maybe a -- ^ in-band-value
-  -> m b  -- ^ when key and out-of-band value absent
+  -> (e -> m b)  -- ^ when key and out-of-band value absent
   -> (a -> m b) -- ^ when value present
   -> m b
 mergeOob policy oob k ib absent present = do
   case (oob, ib) of
-    (Just l, Just r) -> case policy of
+    (Right l, Just r) -> case policy of
       NoOverrides -> fail ("illegal out of band override: " ++ k)
       PreferOutOfBand -> present l
       PreferInBand -> present r
-    (Just a, Nothing) -> present a
-    (Nothing, Just a) -> present a
-    (Nothing, Nothing) -> absent
+    (Right a, Nothing) -> present a
+    (Left _, Just a) -> present a
+    (Left e, Nothing) -> absent e
 
 mergeOobOptional
   :: MonadFail m
   => AttributeOverridePolicy
-  -> Maybe a  -- ^ out-of-band value
+  -> Either e a  -- ^ out-of-band value
   -> String -- ^ key
   -> Maybe a -- ^ in-band-value
   -> m (Maybe a)
 mergeOobOptional policy oob k ib =
-  mergeOob policy oob k ib (pure Nothing) (pure . Just)
+  mergeOob policy oob k ib (const $ pure Nothing) (pure . Just)
 
 mergeOobMandatory
   :: MonadFail m
   => AttributeOverridePolicy
-  -> Maybe a  -- ^ out-of-band value
+  -> Either e a  -- ^ out-of-band value
+  -> (e -> String) -- ^ how to display information about a missing out of band value
   -> String  -- ^ key
   -> Maybe a -- ^ in-band value
   -> m a
-mergeOobMandatory policy oob k ib =
-  mergeOob policy oob k ib (fail ("missing mandatory key: " ++ k)) pure
+mergeOobMandatory policy eoob doob k ib =
+  mergeOob policy eoob k ib everythingFailed pure
+    where 
+      everythingFailed e = fail $ unlines 
+        [ "while trying to lookup mandatory key " <> show k <> ":" 
+        , doob e 
+        ]
 
 -- | A solution to an awkward problem: how to delete the TOML
 -- block.  We parse into this type to get the source range of
