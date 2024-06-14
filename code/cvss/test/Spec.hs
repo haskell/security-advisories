@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BlockArguments #-}
 
 module Main where
 
@@ -9,30 +10,49 @@ import Test.Tasty.HUnit
 
 main :: IO ()
 main = defaultMain $
-    testGroup "Security.CVSS" $
-        map runTest testCases where
-            runTest (cvssString, score, rating) = testCase (unpack cvssString) $
-                case CVSS.parseCVSS cvssString of
-                    Left e -> assertFailure (show e)
-                    Right cvss -> do
-                        CVSS.cvssScore cvss @?= (rating, score)
-                        CVSS.cvssVectorString cvss @?= cvssString
-                        CVSS.cvssVectorStringOrdered cvss @?= cvssString
+    testGroup "Security.CVSS" [
+        testGroup "Security.CVSS:2.0" $ runTest testCases20
+        , testGroup "Security.CVSS:3.0" $ runTest testCases30
+        , testGroup "Security.CVSS:3.1" $ runTest testCases31
+        -- , testGroup "Security.CVSS:4.0" $ runTest testCases40
+    ]
 
-testCases :: [(Text, Float, CVSS.Rating)]
-testCases =
-    [--("CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/S:P/AU:Y/V:C/RE:L", 9.4, CVSS.Critical)
-    ("CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H", 8.8, CVSS.High)
-    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:L/A:N", 5.8, CVSS.Medium)
-    , ("CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium)
-    , ("CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low)
-    , ("CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N", 6.1, CVSS.Medium)
+runTest :: [(Text, Float, CVSS.Rating)] -> [TestTree]
+runTest = map \(cvssString, score, rating) -> testCase (unpack cvssString) $
+    case CVSS.parseCVSS cvssString of
+        Left e -> assertFailure (show e)
+        Right cvss -> do
+            CVSS.cvssScore cvss @?= (rating, score)
+            CVSS.cvssVectorString cvss @?= cvssString
+            CVSS.cvssVectorStringOrdered cvss @?= cvssString
+
+testCases30 :: [(Text, Float, CVSS.Rating)]
+testCases30 =
+    [("CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N", 6.1, CVSS.Medium)
     , ("CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium)
     , ("CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low)
     , ("CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N", 4.0, CVSS.Medium)
     , ("CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H", 9.9, CVSS.Critical)
     , ("CVSS:3.0/AV:L/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:L", 4.2, CVSS.Medium)
-    , ("CVSS:2.0/AV:N/AC:L/Au:N/C:N/I:N/A:C",          7.8, CVSS.High)
+    ]
+
+testCases31 :: [(Text, Float, CVSS.Rating)]
+testCases31 =
+    [("CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",  8.8, CVSS.High)
+    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:L/A:N", 5.8, CVSS.Medium)
+    , ("CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium)
+    , ("CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low)
+    ]
+
+testCases20 :: [(Text, Float, CVSS.Rating)]
+testCases20 =
+    [("CVSS:2.0/AV:N/AC:L/Au:N/C:N/I:N/A:C",           7.8, CVSS.High)
     , ("CVSS:2.0/AV:N/AC:L/Au:N/C:C/I:C/A:C",          10,  CVSS.Critical)
     , ("CVSS:2.0/AV:L/AC:H/Au:N/C:C/I:C/A:C",          6.2, CVSS.Medium)
+    ]
+
+testCases40 :: [(Text, Float, CVSS.Rating)]
+testCases40 =
+    [("CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/S:P/AU:Y/V:C/RE:L", 9.4, CVSS.Critical)
+    , ("CVSS:4.0/AV:L/AC:L/AT:P/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",                  7.3, CVSS.High)
     ]

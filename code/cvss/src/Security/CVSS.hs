@@ -36,7 +36,9 @@ import GHC.Float (powerFloat)
 
 -- | The CVSS version.
 data CVSSVersion
-  = -- | Version 3.1: https://www.first.org/cvss/v3-1/
+  = -- | Version 4.0: https://www.first.org/cvss/v4.0/
+    CVSS40
+  | -- | Version 3.1: https://www.first.org/cvss/v3-1/
     CVSS31
   | -- | Version 3.0: https://www.first.org/cvss/v3.0/
     CVSS30
@@ -107,6 +109,7 @@ data Metric = Metric
 -- | Parse a CVSS string.
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
+  | "CVSS:4.0/" `Text.isPrefixOf` txt = CVSS CVSS40 <$> validateComponents validateCvss40
   | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents validateCvss31
   | "CVSS:3.0/" `Text.isPrefixOf` txt = CVSS CVSS30 <$> validateComponents validateCvss30
   | "CVSS:2.0/" `Text.isPrefixOf` txt = CVSS CVSS20 <$> validateComponents validateCvss20
@@ -127,6 +130,7 @@ parseCVSS txt
 -- | Compute the base score.
 cvssScore :: CVSS -> (Rating, Float)
 cvssScore cvss = case cvssVersion cvss of
+  CVSS40 -> cvss40score (cvssMetrics cvss)
   CVSS31 -> cvss31score (cvssMetrics cvss)
   CVSS30 -> cvss30score (cvssMetrics cvss)
   CVSS20 -> cvss20score (cvssMetrics cvss)
@@ -145,6 +149,7 @@ cvssVectorStringOrdered = cvssShow True
 
 cvssShow :: Bool -> CVSS -> Text
 cvssShow ordered cvss = case cvssVersion cvss of
+  CVSS40 -> Text.intercalate "/" ("CVSS:4.0" : components)
   CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : components)
   CVSS30 -> Text.intercalate "/" ("CVSS:3.0" : components)
   CVSS20 -> Text.intercalate "/" ("CVSS:2.0" : components)
@@ -162,6 +167,7 @@ newtype CVSSDB = CVSSDB [MetricGroup]
 
 cvssDB :: CVSSVersion -> CVSSDB
 cvssDB v = case v of
+  CVSS40 -> cvss40
   CVSS31 -> cvss31
   CVSS30 -> cvss30
   CVSS20 -> cvss20
@@ -189,18 +195,271 @@ data MetricValue = MetricValue
     mvDesc :: Text
   }
 
+-- | CVSS4.0 metrics pulled from the specification https://www.first.org/cvss/v4.0/specification-document
 cvss40 :: CVSSDB
 cvss40 =
   CVSSDB
     [ MetricGroup "Base" baseMetrics,
-      MetricGroup "Temporal" temporalMetrics,
-      MetricGroup "Environmental" environmentalMetrics
+      MetricGroup "Threat" threatMetrics,
+      MetricGroup "Environmental" environmentalMetrics,
+      MetricGroup "Supplemental" supplementalMetrics
     ]
   where
-    baseMetrics = []
-    temporalMetrics = []
-    environmentalMetrics = [] 
+    baseMetrics = [ MetricInfo 
+        "Attack Vector" 
+        "AV" 
+        True 
+        [MetricValue "Network" (C 'N') 0.0 Nothing "The vulnerable system is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet. Such a vulnerability is often termed “remotely exploitable” and can be thought of as an attack being exploitable at the protocol level one or more network hops away (e.g., across one or more routers)."
+        ,MetricValue "Adjacent" (C 'A') 0.0 Nothing "The vulnerable system is bound to a protocol stack, but the attack is limited at the protocol level to a logically adjacent topology. This can mean an attack must be launched from the same shared proximity (e.g., Bluetooth, NFC, or IEEE 802.11) or logical network (e.g., local IP subnet), or from within a secure or otherwise limited administrative domain (e.g., MPLS, secure VPN within an administrative network zone)."
+        ,MetricValue "Local" (C 'L') 0.0 Nothing "The vulnerable system is not bound to the network stack and the attacker’s path is via read/write/execute capabilities. Either the attacker exploits the vulnerability by accessing the target system locally (e.g., keyboard, console), or through terminal emulation (e.g., SSH); or the attacker relies on User Interaction by another person to perform actions required to exploit the vulnerability (e.g., using social engineering techniques to trick a legitimate user into opening a malicious document)."
+        ,MetricValue "Physical" (C 'P') 0.0 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable system. Physical interaction may be brief (e.g., evil maid attack) or persistent."]
+      ,MetricInfo 
+        "Attack Complexity" 
+        "AC" 
+        True 
+        [MetricValue "Low" (C 'L') 0.0 Nothing "The attacker must take no measurable action to exploit the vulnerability. The attack requires no target-specific circumvention to exploit the vulnerability. An attacker can expect repeatable success against the vulnerable system."
+        ,MetricValue "High" (C 'H') 0.0 Nothing "The successful attack depends on the evasion or circumvention of security-enhancing techniques in place that would otherwise hinder the attack. These include: Evasion of exploit mitigation techniques, for example, circumvention of address space randomization (ASLR) or data execution prevention (DEP) must be performed for the attack to be successful; Obtaining target-specific secrets. The attacker must gather some target-specific secret before the attack can be successful. A secret is any piece of information that cannot be obtained through any amount of reconnaissance. To obtain the secret the attacker must perform additional attacks or break otherwise secure measures (e.g. knowledge of a secret key may be needed to break a crypto channel). This operation must be performed for each attacked target."]
+      ,MetricInfo 
+        "Attack Requirements" 
+        "AT" 
+        True 
+        [MetricValue "None" (C 'N') 0.0 Nothing "The successful attack does not depend on the deployment and execution conditions of the vulnerable system. The attacker can expect to be able to reach the vulnerability and execute the exploit under all or most instances of the vulnerability."
+          ,MetricValue "Present" (C 'P') 0.0 Nothing "The successful attack depends on the presence of specific deployment and execution conditions of the vulnerable system that enable the attack. These include: a race condition must be won to successfully exploit the vulnerability (the successfulness of the attack is conditioned on execution conditions that are not under full control of the attacker, or the attack may need to be launched multiple times against a single target before being successful); the attacker must inject themselves into the logical network path between the target and the resource requested by the victim (e.g. vulnerabilities requiring an on-path attacker)."]
+      ,MetricInfo 
+        "Privileges Required" 
+        "PR" 
+        True 
+        [MetricValue "None" (C 'N') 0.0 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "The attacker requires privileges that provide basic capabilities that are typically limited to settings and resources owned by a single low-privileged user. Alternatively, an attacker with Low privileges has the ability to access only non-sensitive resources."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable system allowing full access to the vulnerable system’s settings and files."]
+      ,MetricInfo 
+        "User Interaction" 
+        "UI" 
+        True 
+        [MetricValue "None" (C 'N') 0.0 Nothing "The vulnerable system can be exploited without interaction from any human user, other than the attacker."
+          ,MetricValue "Passive" (C 'P') 0.0 Nothing "Successful exploitation of this vulnerability requires limited interaction by the targeted user with the vulnerable system and the attacker’s payload. These interactions would be considered involuntary and do not require that the user actively subvert protections built into the vulnerable system."
+          ,MetricValue "Active" (C 'A') 0.0 Nothing "Successful exploitation of this vulnerability requires a targeted user to perform specific, conscious interactions with the vulnerable system and the attacker’s payload, or the user’s interactions would actively subvert protection mechanisms which would lead to exploitation of the vulnerability."]
+      ,MetricInfo 
+        "Confidentiality" 
+        "VC" 
+        True 
+        [MetricValue "High" (C 'H') 0.0 Nothing "There is a total loss of confidentiality, resulting in all information within the Vulnerable System being divulged to the attacker. Alternatively, access to only some restricted information is obtained, but the disclosed information presents a direct, serious impact. For example, an attacker steals the administrator's password, or private encryption keys of a web server."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "There is some loss of confidentiality. Access to some restricted information is obtained, but the attacker does not have control over what information is obtained, or the amount or kind of loss is limited. The information disclosure does not cause a direct, serious loss to the Vulnerable System."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "There is no loss of confidentiality within the Vulnerable System."]
+      ,MetricInfo 
+        "Integrity"
+        "VI"
+        True
+        [MetricValue "High" (C 'H') 0.0 Nothing "There is a total loss of integrity, or a complete loss of protection. For example, the attacker is able to modify any/all files protected by the vulnerable system. Alternatively, only some files can be modified, but malicious modification would present a direct, serious consequence to the vulnerable system."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited. The data modification does not have a direct, serious impact to the Vulnerable System."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "There is no loss of integrity within the Vulnerable System."]
+      ,MetricInfo
+        "Availability"
+        "VA"
+        True 
+        [MetricValue "High" (C 'H') 0.0 Nothing "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the Vulnerable System; this loss is either sustained (while the attacker continues to deliver the attack) or persistent (the condition persists even after the attack has completed). Alternatively, the attacker has the ability to deny some availability, but the loss of availability presents a direct, serious consequence to the Vulnerable System (e.g., the attacker cannot disrupt existing connections, but can prevent new connections; the attacker can repeatedly exploit a vulnerability that, in each instance of a successful attack, leaks a only small amount of memory, but after repeated exploitation causes a service to become completely unavailable)."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Performance is reduced or there are interruptions in resource availability. Even if repeated exploitation of the vulnerability is possible, the attacker does not have the ability to completely deny service to legitimate users. The resources in the Vulnerable System are either partially available all of the time, or fully available only some of the time, but overall there is no direct, serious consequence to the Vulnerable System."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "There is no impact to availability within the Vulnerable System."]
+      ,MetricInfo 
+        "Confidentiality"
+        "SC"
+        True
+        [MetricValue "High" (C 'H') 0.0 Nothing "There is a total loss of confidentiality, resulting in all resources within the Subsequent System being divulged to the attacker. Alternatively, access to only some restricted information is obtained, but the disclosed information presents a direct, serious impact. For example, an attacker steals the administrator's password, or private encryption keys of a web server."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "There is some loss of confidentiality. Access to some restricted information is obtained, but the attacker does not have control over what information is obtained, or the amount or kind of loss is limited. The information disclosure does not cause a direct, serious loss to the Subsequent System."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "There is no loss of confidentiality within the Subsequent System or all confidentiality impact is constrained to the Vulnerable System."]
+      ,MetricInfo
+        "Integrity"
+        "SI"
+        True
+        [MetricValue "High" (C 'H') 0.0 Nothing "There is a total loss of integrity, or a complete loss of protection. For example, the attacker is able to modify any/all files protected by the Subsequent System. Alternatively, only some files can be modified, but malicious modification would present a direct, serious consequence to the Subsequent System."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited. The data modification does not have a direct, serious impact to the Subsequent System."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "There is no loss of integrity within the Subsequent System or all integrity impact is constrained to the Vulnerable System."]
+      ,MetricInfo
+        "Availability"
+        "SA"
+        True
+        [MetricValue "High" (C 'H') 0.0 Nothing "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the Subsequent System; this loss is either sustained (while the attacker continues to deliver the attack) or persistent (the condition persists even after the attack has completed). Alternatively, the attacker has the ability to deny some availability, but the loss of availability presents a direct, serious consequence to the Subsequent System (e.g., the attacker cannot disrupt existing connections, but can prevent new connections; the attacker can repeatedly exploit a vulnerability that, in each instance of a successful attack, leaks a only small amount of memory, but after repeated exploitation causes a service to become completely unavailable)."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Performance is reduced or there are interruptions in resource availability. Even if repeated exploitation of the vulnerability is possible, the attacker does not have the ability to completely deny service to legitimate users. The resources in the Subsequent System are either partially available all of the time, or fully available only some of the time, but overall there is no direct, serious consequence to the Subsequent System."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "There is no impact to availability within the Subsequent System or all availability impact is constrained to the Vulnerable System."]
+      ]
+    threatMetrics = [MetricInfo
+        "Exploit Maturity"
+        "E"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The Exploit Maturity metric is not being used.  Reliable threat intelligence is not available to determine Exploit Maturity characteristics."
+          ,MetricValue "Attacked" (C 'A') 0.0 Nothing "Based on threat intelligence sources either of the following must apply: Attacks targeting this vulnerability (attempted or successful) have been reported Solutions to simplify attempts to exploit the vulnerability are publicly or privately available (such as exploit toolkits)"
+          ,MetricValue "POC" (C 'P') 0.0 Nothing "Based on threat intelligence sources each of the following must apply: Proof-of-concept is publicly available No knowledge of reported attempts to exploit this vulnerability No knowledge of publicly available solutions used to simplify attempts to exploit the vulnerability"
+          ,MetricValue "Unreported" (C 'U') 0.0 Nothing "Based on threat intelligence sources each of the following must apply: No knowledge of publicly available proof-of-concept No knowledge of reported attempts to exploit this vulnerability No knowledge of publicly available solutions used to simplify attempts to exploit the vulnerability"]
+      ]
+    environmentalMetrics = [MetricInfo
+        "Attack Vector"
+        "MAV"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Network" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Adjacent" (C 'A') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Local" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Physical" (C 'P') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Attack Complexity"
+        "MAC"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Attack Requirements"
+        "MAT"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Present" (C 'P') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Privileges Required"
+        "MPR"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "User Interaction"
+        "MUI"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Passive" (C 'P') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Active" (C 'A') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Confidentiality"
+        "MVC"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Integrity"
+        "MVI"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Availability"
+        "MVA"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "None" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Confidentiality"
+        "MSC"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Negligible" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Integrity" 
+        "MSI"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Safety" (C 'S') 0.0 Nothing "The exploited vulnerability will result in integrity impacts that could cause serious injury or worse (categories of \"Marginal\" or worse as described in IEC 61508) to a human actor or participant."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Negligible" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Availability"
+        "MSA"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Safety" (C 'S') 0.0 Nothing "The exploited vulnerability will result in availability impacts that could cause serious injury or worse (categories of \"Marginal\" or worse as described in IEC 61508) to a human actor or participant."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."
+          ,MetricValue "Negligible" (C 'N') 0.0 Nothing "This metric values has the same definition as the Base Metric value defined above."]
+      ,MetricInfo
+        "Confidentiality Requirements"
+        "CR"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score"
+          ,MetricValue "High" (C 'H') 0.0 Nothing "Loss of Confidentiality is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+          ,MetricValue "Medium" (C 'M') 0.0 Nothing "Loss of Confidentiality is likely to have a serious adverse effect on the organization or individuals associated with the organization."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Loss of Confidentiality is likely to have only a limited adverse effect on the organization or individuals associated with the organization."]
+      ,MetricInfo
+        "Integrity Requirements"
+        "IR"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score"
+          ,MetricValue "High" (C 'H') 0.0 Nothing "Loss of Integrity is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+          ,MetricValue "Medium" (C 'M') 0.0 Nothing "Loss of Integrity is likely to have a serious adverse effect on the organization or individuals associated with the organization."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Loss of Integrity is likely to have only a limited adverse effect on the organization or individuals associated with the organization."]
+      ,MetricInfo
+        "Availability Requirements"
+        "AR"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score"
+          ,MetricValue "High" (C 'H') 0.0 Nothing "Loss of Availability is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+          ,MetricValue "Medium" (C 'M') 0.0 Nothing "Loss of Availability is likely to have a serious adverse effect on the organization or individuals associated with the organization."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "Loss of Availability is likely to have only a limited adverse effect on the organization or individuals associated with the organization."]
+      ]
+    supplementalMetrics = [MetricInfo 
+        "Safety"
+        "S"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Negligible" (C 'N') 0.0 Nothing "Consequences of the vulnerability meet definition of IEC 61508 consequence category \"negligible.\""
+          ,MetricValue "Present" (C 'P') 0.0 Nothing "Consequences of the vulnerability meet definition of IEC 61508 consequence categories of \"marginal,\" \"critical,\" or \"catastrophic.\""]
+      ,MetricInfo
+        "Automatable"
+        "AU"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "No" (C 'N') 0.0 Nothing "Attackers cannot reliably automate all 4 steps of the kill chain for this vulnerability for some reason. These steps are reconnaissance, weaponization, delivery, and exploitation."
+          ,MetricValue "Yes" (C 'Y') 0.0 Nothing "Attackers can reliably automate all 4 steps of the kill chain. These steps are reconnaissance, weaponization, delivery, and exploitation (e.g., the vulnerability is “wormable”)."]
+      ,MetricInfo
+        "Recovery"
+        "R"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Automatic" (C 'A') 0.0 Nothing "The system recovers services automatically after an attack has been performed."
+          ,MetricValue "User" (C 'U') 0.0 Nothing "The system requires manual intervention by the user to recover services, after an attack has been performed."
+          ,MetricValue "Irrecoverable" (C 'I') 0.0 Nothing "The system services are irrecoverable by the user, after an attack has been performed."]
+      ,MetricInfo
+        "Value Density"
+        "V"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Diffuse" (C 'D') 0.0 Nothing "The vulnerable system has limited resources. That is, the resources that the attacker will gain control over with a single exploitation event are relatively small. An example of Diffuse (think: limited) Value Density would be an attack on a single email client vulnerability."
+          ,MetricValue "Concentrated" (C 'C') 0.0 Nothing "The vulnerable system is rich in resources. Heuristically, such systems are often the direct responsibility of “system operators” rather than users. An example of Concentrated (think: broad) Value Density would be an attack on a central email server."]
+      ,MetricInfo
+        "Vulnerability Response Effort"
+        "RE"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Low" (C 'L') 0.0 Nothing "The effort required to respond to a vulnerability is low/trivial. Examples include: communication on better documentation, configuration workarounds, or guidance from the vendor that does not require an immediate update, upgrade, or replacement by the consuming entity, such as firewall filter configuration."
+          ,MetricValue "Moderate" (C 'M') 0.0 Nothing "The actions required to respond to a vulnerability require some effort on behalf of the consumer and could cause minimal service impact to implement. Examples include: simple remote update, disabling of a subsystem, or a low-touch software upgrade such as a driver update."
+          ,MetricValue "High" (C 'H') 0.0 Nothing "The actions required to respond to a vulnerability are significant and/or difficult, and may possibly lead to an extended, scheduled service impact.  This would need to be considered for scheduling purposes including honoring any embargo on deployment of the selected response. Alternatively, response to the vulnerability in the field is not possible remotely. The only resolution to the vulnerability involves physical replacement (e.g. units deployed would have to be recalled for a depot level repair or replacement). Examples include: a highly privileged driver update, microcode or UEFI BIOS updates, or software upgrades requiring careful analysis and understanding of any potential infrastructure impact before implementation. A UEFI BIOS update that impacts Trusted Platform Module (TPM) attestation without impacting disk encryption software such as Bit locker is a good recent example. Irreparable failures such as non-bootable flash subsystems, failed disks or solid-state drives (SSD), bad memory modules, network devices, or other non-recoverable under warranty hardware, should also be scored as having a High effort."]
+      ,MetricInfo
+        "Provider Urgency"
+        "U"
+        False
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."]
+          -- ,MetricValue "Clear" (C 'Clear') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having no urgency (Informational)."
+          -- ,MetricValue "Green" (C 'Green') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having a reduced urgency."
+          -- ,MetricValue "Amber" (C 'Amber') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having a moderate urgency."
+          -- ,MetricValue "Red" (C 'Red') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having the highest urgency."]
+      ]
 
+validateCvss40 :: [Metric] -> Either CVSSError [Metric]
+validateCvss40 metrics = do
+  traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss40, validateRequired cvss40]
+  pure metrics
+
+cvss40score :: [Metric] -> (Rating, Float)
+cvss40score metrics = undefined
 
 -- | CVSS3.1 metrics pulled from section 2. "Base Metrics" and section section 7.4. "Metric Values"
 cvss31 :: CVSSDB
