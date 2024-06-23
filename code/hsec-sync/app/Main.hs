@@ -71,11 +71,10 @@ repositoryParser =
           case params of
             Left (repoUrl, repoBranch) ->
               githubSnapshot root repoUrl repoBranch
-            Right (snapshotUrl', updatesUrl') ->
+            Right snapshotUrl' ->
               Snapshot
                 { snapshotRoot = root,
-                  snapshotUrl = SnapshotUrl snapshotUrl',
-                  updatesUrl = UpdatesUrl updatesUrl'
+                  snapshotUrl = SnapshotUrl snapshotUrl'
                 }
 
 
@@ -95,16 +94,10 @@ repositoryGithubParser =
           <> value "generated/snapshot-export"
       )
 
-repositoryUrlParser :: Parser (String, String)
+repositoryUrlParser :: Parser String
 repositoryUrlParser =
-  (,)
-    <$> strOption
-      ( long "archive-url"
-          <> short 'u'
-          <> metavar "ARCHIVE-URL"
-      )
-    <*> strOption
-      ( long "updates-url"
-          <> short 'u'
-          <> metavar "UPDATES-URL"
-      )
+  strOption
+    ( long "archive-url"
+        <> short 'u'
+        <> metavar "ARCHIVE-URL"
+    )
