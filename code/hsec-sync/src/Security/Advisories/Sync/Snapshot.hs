@@ -1,13 +1,13 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- |
 --
 -- Helpers for deriving advisory metadata from a Snapshot s.
 module Security.Advisories.Sync.Snapshot
   ( SnapshotDirectoryInfo (..),
+    ETag (..),
     SnapshotError (..),
     explainSnapshotError,
     SnapshotUrl (..),
@@ -17,6 +17,7 @@ module Security.Advisories.Sync.Snapshot
     overwriteSnapshot,
     SnapshotRepositoryStatus (..),
     snapshotRepositoryStatus,
+    latestUpdate,
   )
 where
 
@@ -27,11 +28,11 @@ import Control.Lens
 import Control.Monad.Extra (unlessM, whenM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE, withExceptT)
-import Data.Aeson (FromJSON, eitherDecodeFileStrict)
 import qualified Data.ByteString.Lazy as BL
 import Data.Either.Combinators (whenLeft)
-import Data.Time (UTCTime)
-import GHC.Generics (Generic)
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.IO as T
 import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 import Network.Wreq
 import qualified System.Directory as D
@@ -75,9 +76,9 @@ snapshotRepositoryStatus root = do
   if dirExists
     then do
       dirAdvisoriesExists <- D.doesDirectoryExist $ root </> "advisories"
-      fileMetadataExists <- D.doesFileExist $ root </> "snapshot.json"
+      etagMetadataExists <- D.doesFileExist $ root </> "snapshot-etag"
       return $
-        if dirAdvisoriesExists && fileMetadataExists
+        if dirAdvisoriesExists && etagMetadataExists
           then SnapshotDirectoryInitialized
           else SnapshotDirectoryIncoherent
     else return SnapshotDirectoryMissing
@@ -135,6 +136,15 @@ overwriteSnapshot root url =
         whenLeft performed $
           throwE . ExtractSnapshotArchive
 
+        etagWritten <-
+          liftIO $
+            try $
+              T.writeFile (root </> "snapshot-etag") $
+                T.decodeUtf8 $
+                  result ^. responseHeader "etag"
+        whenLeft etagWritten $
+          throwE . ExtractSnapshotArchive
+
 ensureEmptyRoot :: FilePath -> IO ()
 ensureEmptyRoot root = do
   D.createDirectoryIfMissing False root
@@ -143,28 +153,45 @@ ensureEmptyRoot root = do
     D.removeDirectoryRecursive $
       root </> "advisories"
 
-  whenM (D.doesFileExist $ root </> "snapshot.json") $
+  whenM (D.doesFileExist $ root </> "snapshot-etag") $
     D.removeFile $
-      root </> "snapshot.json"
+      root </> "snapshot-etag"
 
 newtype SnapshotDirectoryInfo = SnapshotDirectoryInfo
-  { lastModificationCommitDate :: UTCTime
+  { etag :: ETag
   }
+  deriving stock (Eq, Show)
+
+newtype ETag = ETag T.Text
+  deriving stock (Eq, Show)
 
 getDirectorySnapshotInfo :: FilePath -> IO (Either SnapshotError SnapshotDirectoryInfo)
 getDirectorySnapshotInfo root =
   runExceptT $ do
-    let metadataPath = root </> "snapshot.json"
+    let metadataPath = root </> "snapshot-etag"
     unlessM (liftIO $ D.doesFileExist metadataPath) $
       throwE SnapshotDirectoryMissingE
 
-    metadataE <- liftIO $ eitherDecodeFileStrict metadataPath
-    case metadataE of
-      Left e -> throwE $ SnapshotIncoherent $ "Cannot parse " <> show metadataPath <> ": " <> e
-      Right metadata -> return $ SnapshotDirectoryInfo $ latestUpdate metadata
+    SnapshotDirectoryInfo . ETag <$> liftIO (T.readFile metadataPath)
 
-newtype SnapshotMetadata = SnapshotMetadata
-  { latestUpdate :: UTCTime
-  }
-  deriving stock (Generic)
-  deriving anyclass (FromJSON)
+latestUpdate :: SnapshotUrl -> ExceptT SnapshotError IO ETag
+latestUpdate url =
+  withExceptT SnapshotProcessError $ do
+    resultE <- liftIO $ try $ headWith (defaults & redirects .~ 3) $ getSnapshotUrl url
+    case resultE of
+      Left e ->
+        throwE $
+          FetchSnapshotArchive $
+            case e of
+              InvalidUrlException url' reason ->
+                "Invalid URL " <> show url' <> ": " <> show reason
+              HttpExceptionRequest _ content ->
+                case content of
+                  StatusCodeException response body ->
+                    "Request failed with " <> show (response ^. responseStatus) <> ": " <> show body
+                  _ ->
+                    "Request failed: " <> show content
+      Right result ->
+        case result ^? responseHeader "etag" of
+          Nothing -> throwE $ FetchSnapshotArchive "Missing ETag header"
+          Just rawETag -> return $ ETag $ T.decodeUtf8 rawETag

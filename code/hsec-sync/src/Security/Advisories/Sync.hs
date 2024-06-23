@@ -4,7 +4,6 @@
 module Security.Advisories.Sync
   ( Snapshot (..),
     SnapshotUrl (..),
-    UpdatesUrl (..),
     defaultSnapshot,
     githubSnapshot,
     SyncStatus (..),
@@ -16,14 +15,12 @@ where
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (runExceptT, withExceptT)
-import Security.Advisories.Sync.Atom
 import Security.Advisories.Sync.Snapshot
 import Security.Advisories.Sync.Url
 
 data Snapshot = Snapshot
   { snapshotRoot :: FilePath,
-    snapshotUrl :: SnapshotUrl,
-    updatesUrl :: UpdatesUrl
+    snapshotUrl :: SnapshotUrl
   }
 
 defaultSnapshot :: Snapshot
@@ -37,8 +34,7 @@ githubSnapshot :: FilePath -> String -> String -> Snapshot
 githubSnapshot root repoUrl repoBranch =
   Snapshot
     { snapshotRoot = root,
-      snapshotUrl = SnapshotUrl $ ensureFile (mkUrl [repoUrl, "archive/refs/heads", repoBranch]) <> ".tar.gz",
-      updatesUrl = UpdatesUrl $ mkUrl [repoUrl, "commits", repoBranch, "advisories.atom"]
+      snapshotUrl = SnapshotUrl $ ensureFile (mkUrl [repoUrl, "archive/refs/heads", repoBranch]) <> ".tar.gz"
     }
 
 data SyncStatus
@@ -88,8 +84,10 @@ status' s =
         Left _ ->
           return DirectoryOutDated
         Right info -> do
-          update <- latestUpdate $ updatesUrl s
+          update <- runExceptT $ latestUpdate $ snapshotUrl s
           return $
-            if update == Right (lastModificationCommitDate info)
-              then DirectoryUpToDate
-              else DirectoryOutDated
+            case update of
+              Right latestETag | latestETag == etag info ->
+                DirectoryUpToDate
+              _ ->
+                DirectoryOutDated

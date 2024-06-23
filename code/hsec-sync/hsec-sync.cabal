@@ -26,7 +26,6 @@ tested-with:
 library
   exposed-modules:  Security.Advisories.Sync
   other-modules:
-    Security.Advisories.Sync.Atom
     Security.Advisories.Sync.Snapshot
     Security.Advisories.Sync.Url
 
