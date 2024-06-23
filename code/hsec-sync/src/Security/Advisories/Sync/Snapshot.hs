@@ -22,6 +22,7 @@ module Security.Advisories.Sync.Snapshot
 where
 
 import qualified Codec.Archive.Tar as Tar
+import qualified Codec.Archive.Tar.Entry as Tar
 import qualified Codec.Compression.GZip as GZip
 import Control.Exception (Exception (displayException), IOException, try)
 import Control.Lens
@@ -29,14 +30,14 @@ import Control.Monad.Extra (unlessM, whenM)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE, withExceptT)
 import qualified Data.ByteString.Lazy as BL
-import Data.Either.Combinators (whenLeft)
+import Data.Either.Combinators (whenLeft, fromRight)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import Network.HTTP.Client (HttpException (..), HttpExceptionContent (..))
 import Network.Wreq
 import qualified System.Directory as D
-import System.FilePath ((</>))
+import System.FilePath ((</>), hasTrailingPathSeparator, joinPath, splitPath)
 import System.IO.Temp (withSystemTempDirectory)
 
 data SnapshotError
@@ -132,7 +133,23 @@ overwriteSnapshot root url =
                 let archivePath = tempDir <> "/snapshot-export.tar.gz"
                 BL.writeFile archivePath $ result ^. responseBody
                 contents <- BL.readFile archivePath
-                Tar.unpack root $ Tar.read $ GZip.decompress contents
+                let fixEntry e = e { Tar.entryTarPath = fixEntryPath $ Tar.entryTarPath e }
+                    fixEntryPath :: Tar.TarPath -> Tar.TarPath
+                    fixEntryPath p =
+                      fromRight p $
+                        maybe
+                          (Right p)
+                          (Tar.toTarPath (hasTrailingPathSeparator $ Tar.fromTarPath p) . joinPath) $
+                        stripRootPath $
+                        splitPath $
+                        Tar.fromTarPath p
+                    stripRootPath =
+                      \case
+                        ("/":_:p:ps) -> Just (p:ps)
+                        (_:p:ps) -> Just (p:ps)
+                        [p] | hasTrailingPathSeparator p -> Nothing
+                        ps -> Just ps
+                Tar.unpack root $ Tar.mapEntriesNoFail fixEntry $ Tar.read $ GZip.decompress contents
         whenLeft performed $
           throwE . ExtractSnapshotArchive
 
