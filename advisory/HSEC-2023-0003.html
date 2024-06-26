@@ -1,0 +1,29 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>Advisories list</h1><div class="content"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0003&quot;
+cwe = [94]
+keywords = [&quot;code&quot;, &quot;injection&quot;, &quot;historical&quot;]
+aliases = [&quot;CVE-2013-1436&quot;]
+
+[[affected]]
+package = &quot;xmonad-contrib&quot;
+cvss = &quot;CVSS:2.0/AV:N/AC:L/Au:N/C:P/I:P/A:P&quot;
+[[affected.versions]]
+introduced = &quot;0.5&quot;
+fixed = &quot;0.11.2&quot;
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://security.gentoo.org/glsa/201405-28&quot;
+[[references]]
+type = &quot;DISCUSSION&quot;
+url = &quot;http://www.openwall.com/lists/oss-security/2013/07/26/5&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/xmonad/xmonad-contrib/commit/d3b2a01e3d01ac628e7a3139dd55becbfa37cf51&quot;
+</code></pre>
+<h1>code injection in <em>xmonad-contrib</em></h1>
+<p>The <code>XMonad.Hooks.DynamicLog</code> module in <em>xmonad-contrib</em> before
+<strong>0.11.2</strong> allows remote attackers to execute arbitrary commands via a
+web page title, which activates the commands when the user clicks on
+the xmobar window title, as demonstrated using an action tag.</p>
+</div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
