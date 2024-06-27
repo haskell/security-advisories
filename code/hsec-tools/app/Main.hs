@@ -23,10 +23,17 @@ import Security.Advisories.Generate.HTML
 import Security.Advisories.Generate.Snapshot
 import Security.Advisories.Git
 import Security.Advisories.Queries (listVersionRangeAffectedBy)
+
 import System.Exit (die, exitFailure, exitSuccess)
 import System.FilePath (takeBaseName)
 import System.IO (hPrint, hPutStrLn, stderr)
 import Validation (Validation (..))
+
+import Security.Advisories.Generate.HTML
+import Security.Advisories.Filesystem (parseEcosystem)
+
+import qualified Command.Reserve
+
 
 main :: IO ()
 main =
@@ -167,11 +174,14 @@ withAdvisory go file = do
 
   oob <- runExceptT $ case file of
     Nothing -> throwE StdInHasNoOOB
-    Just path -> withExceptT GitHasNoOOB $ do 
-      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path 
+    Just path -> do
+     ecosystem <- parseEcosystem path
+     withExceptT GitHasNoOOB $ do
+      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path
       pure OutOfBandAttributes
         { oobPublished = firstAppearanceCommitDate gitInfo
         , oobModified = lastModificationCommitDate gitInfo
+        , oobEcosystem = ecosystem
         }
 
   case parseAdvisory NoOverrides oob input of

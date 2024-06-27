@@ -1,4 +1,4 @@
-{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DerivingVia, OverloadedStrings #-}
 
 module Security.Advisories.Core.Advisory
   ( Advisory(..)
@@ -10,6 +10,10 @@ module Security.Advisories.Core.Advisory
   , AffectedVersionRange(..)
   , OS(..)
   , Keyword(..)
+  , Ecosystem(..)
+  , GHCComponent(..)
+  , ghcComponentToText
+  , ghcComponentFromText
   )
   where
 
@@ -44,10 +48,30 @@ data Advisory = Advisory
   }
   deriving stock (Show)
 
+data Ecosystem = Hackage Text | GHC GHCComponent
+  deriving stock (Show, Eq)
+
+-- Keep this list in sync with the 'ghcComponentFromText' below
+data GHCComponent = GHCCompiler | GHCi | GHCRTS
+  deriving stock (Show, Eq)
+
+ghcComponentToText :: GHCComponent -> Text
+ghcComponentToText c = case c of
+  GHCCompiler -> "compiler"
+  GHCi -> "ghci"
+  GHCRTS -> "rts"
+
+ghcComponentFromText :: Text -> Maybe GHCComponent
+ghcComponentFromText c = case c of
+  "compiler" -> Just GHCCompiler
+  "ghci" -> Just GHCi
+  "rts" -> Just GHCRTS
+  _ -> Nothing
+
 -- | An affected package (or package component).  An 'Advisory' must
 -- mention one or more packages.
 data Affected = Affected
-  { affectedPackage :: Text
+  { affectedEcosystem :: Ecosystem
   , affectedCVSS :: CVSS.CVSS
   , affectedVersions :: [AffectedVersionRange]
   , affectedArchitectures :: Maybe [Architecture]

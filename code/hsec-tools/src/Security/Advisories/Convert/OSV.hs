@@ -30,19 +30,23 @@ convert adv =
 mkAffected :: Affected -> OSV.Affected Void Void Void
 mkAffected aff =
   OSV.Affected
-    { OSV.affectedPackage = mkPackage (affectedPackage aff)
+    { OSV.affectedPackage = mkPackage (affectedEcosystem aff)
     , OSV.affectedRanges = pure $ mkRange (affectedVersions aff)
     , OSV.affectedSeverity = [OSV.Severity (affectedCVSS aff)]
     , OSV.affectedEcosystemSpecific = Nothing
     , OSV.affectedDatabaseSpecific = Nothing
     }
 
-mkPackage :: T.Text -> OSV.Package
-mkPackage name = OSV.Package
-  { OSV.packageName = name
-  , OSV.packageEcosystem = "Hackage"
+mkPackage :: Ecosystem -> OSV.Package
+mkPackage ecosystem = OSV.Package
+  { OSV.packageName = packageName
+  , OSV.packageEcosystem = ecosystemName
   , OSV.packagePurl = Nothing
   }
+  where
+    (ecosystemName, packageName) = case ecosystem of
+        Hackage n -> ("Hackage", n)
+        GHC c -> ("GHC", ghcComponentToText c)
 
 mkRange :: [AffectedVersionRange] -> OSV.Range Void
 mkRange ranges =

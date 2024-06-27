@@ -44,9 +44,10 @@ doGoldenTest fp = goldenVsString fp (fp <> ".golden") (LText.encodeUtf8 <$> doCh
     doCheck = do
         input <- T.readFile fp
         let fakeDate = UTCTime (fromOrdinalDate 1970 0) 0
-            attr = OutOfBandAttributes                    
+            attr = OutOfBandAttributes
               { oobPublished = fakeDate
               , oobModified = fakeDate
+              , oobEcosystem = Nothing
               }
             res = parseAdvisory NoOverrides (Right attr) input
             osvExport = case res of
