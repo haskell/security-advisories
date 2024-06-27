@@ -16,6 +16,7 @@ import Text.Pretty.Simple (pShowNoColor)
 
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Parse
+import Security.Advisories.Core.Advisory (Ecosystem(Hackage))
 import qualified Spec.QueriesSpec as QueriesSpec
 
 main :: IO ()
@@ -42,9 +43,10 @@ doGoldenTest fp = goldenVsString fp (fp <> ".golden") (LText.encodeUtf8 <$> doCh
     doCheck = do
         input <- T.readFile fp
         let fakeDate = UTCTime (fromOrdinalDate 1970 0) 0
-            attr = OutOfBandAttributes                    
+            attr = OutOfBandAttributes
               { oobPublished = fakeDate
               , oobModified = fakeDate
+              , oobEcosystem = Hackage
               }
             res = parseAdvisory NoOverrides (Right attr) input
             osvExport = case res of

@@ -61,14 +61,10 @@ type OOB = Either OOBError OutOfBandAttributes
 -- | A source of attributes supplied out of band from the advisory
 -- content.  Values provided out of band are treated according to
 -- the 'AttributeOverridePolicy'.
---
--- The convenient way to construct a value of this type is to start
--- with 'emptyOutOfBandAttributes', then use the record accessors to
--- set particular fields.
---
 data OutOfBandAttributes = OutOfBandAttributes
   { oobModified :: UTCTime
   , oobPublished :: UTCTime
+  , oobEcosystem :: Ecosystem
   }
   deriving (Show)
 
@@ -96,14 +92,16 @@ instance Exception ParseAdvisoryError where
 -- | errors that may occur while ingesting oob data
 --
 -- @since 0.2.0.0
-data OOBError 
+data OOBError
   = StdInHasNoOOB -- ^ we obtain the advisory via stdin and can hence not parse git history
+  | PathHasNoEcosystem -- ^ the path is missing 'hackage' or 'ghc' directory
   | GitHasNoOOB GitError -- ^ processing oob info via git failed
   deriving stock (Eq, Show, Generic)
 
-displayOOBError :: OOBError -> String 
-displayOOBError = \case 
+displayOOBError :: OOBError -> String
+displayOOBError = \case
   StdInHasNoOOB -> "stdin doesn't provide out of band information"
+  PathHasNoEcosystem -> "the path is missing 'hackage' or 'ghc' directory"
   GitHasNoOOB gitErr -> "no out of band information obtained with git error:\n"
     <> explainGitError gitErr
 
@@ -195,8 +193,15 @@ parseAdvisoryTable oob policy doc summary details html tab =
             (oobPublished <$> oob)
             "advisory.modified"
             (amdModified (frontMatterAdvisory fm))
+      ecosystem <-
+        mergeOobMandatory policy
+          (oobEcosystem <$> oob)
+          displayOOBError
+          "advisory.ecosystem"
+          Nothing
       pure Advisory
         { advisoryId = amdId (frontMatterAdvisory fm)
+        , advisoryEcosystem = ecosystem
         , advisoryPublished = published
         , advisoryModified = modified
         , advisoryCAPECs = amdCAPECs (frontMatterAdvisory fm)

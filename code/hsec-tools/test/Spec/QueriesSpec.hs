@@ -106,6 +106,7 @@ mkAdvisory :: VersionRange -> Advisory
 mkAdvisory versionRange =
    Advisory
      { advisoryId = fromMaybe (error "Cannot mkHsecId") $ mkHsecId 2023 42
+     , advisoryEcosystem = Hackage
      , advisoryModified = read "2023-01-01T00:00:00"
      , advisoryPublished = read "2023-01-01T00:00:00"
      , advisoryCAPECs = []
