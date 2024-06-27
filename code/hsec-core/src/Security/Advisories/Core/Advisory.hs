@@ -10,6 +10,8 @@ module Security.Advisories.Core.Advisory
   , AffectedVersionRange(..)
   , OS(..)
   , Keyword(..)
+  , Ecosystem(..)
+  , GHCComponent(..)
   )
   where
 
@@ -26,6 +28,7 @@ import Security.OSV (Reference)
 
 data Advisory = Advisory
   { advisoryId :: HsecId
+  , advisoryEcosystem :: Ecosystem
   , advisoryModified :: UTCTime
   , advisoryPublished :: UTCTime
   , advisoryCAPECs :: [CAPEC]
@@ -42,6 +45,13 @@ data Advisory = Advisory
   , advisoryDetails :: Text
     -- ^ Details of the vulnerability (CommonMark), without TOML front matter
   }
+  deriving stock (Show)
+
+data Ecosystem = Hackage | GHC GHCComponent
+  deriving stock (Show)
+
+-- Keep this list in sync with the 'Security.Advisories.Filesystem.parseEcosystem' pattern match.
+data GHCComponent = GHCCompiler | GHCi | GHCRTS
   deriving stock (Show)
 
 -- | An affected package (or package component).  An 'Advisory' must

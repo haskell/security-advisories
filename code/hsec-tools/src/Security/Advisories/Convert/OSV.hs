@@ -24,23 +24,25 @@ convert adv =
   , OSV.modelSummary = Just $ advisorySummary adv
   , OSV.modelDetails = Just $ advisoryDetails adv
   , OSV.modelReferences = advisoryReferences adv
-  , OSV.modelAffected = fmap mkAffected (advisoryAffected adv)
+  , OSV.modelAffected = fmap (mkAffected (advisoryEcosystem adv)) (advisoryAffected adv)
   }
 
-mkAffected :: Affected -> OSV.Affected Void Void Void
-mkAffected aff =
+mkAffected :: Ecosystem -> Affected -> OSV.Affected Void Void Void
+mkAffected ecosystem aff =
   OSV.Affected
-    { OSV.affectedPackage = mkPackage (affectedPackage aff)
+    { OSV.affectedPackage = mkPackage ecosystem (affectedPackage aff)
     , OSV.affectedRanges = pure $ mkRange (affectedVersions aff)
     , OSV.affectedSeverity = [OSV.Severity (affectedCVSS aff)]
     , OSV.affectedEcosystemSpecific = Nothing
     , OSV.affectedDatabaseSpecific = Nothing
     }
 
-mkPackage :: T.Text -> OSV.Package
-mkPackage name = OSV.Package
+mkPackage :: Ecosystem -> T.Text -> OSV.Package
+mkPackage ecosystem name = OSV.Package
   { OSV.packageName = name
-  , OSV.packageEcosystem = "Hackage"
+  , OSV.packageEcosystem = case ecosystem of
+      GHC _ -> "GHC"
+      Hackage -> "Hackage"
   , OSV.packagePurl = Nothing
   }
 
