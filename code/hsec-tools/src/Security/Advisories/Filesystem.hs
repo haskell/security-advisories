@@ -21,6 +21,7 @@ module Security.Advisories.Filesystem
   , forAdvisory
   , listAdvisories
   , advisoryFromFile
+  , parseEcosystem
   ) where
 
 import Control.Applicative (liftA2)
@@ -31,17 +32,19 @@ import Data.Traversable (for)
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Writer.Strict (execWriterT, tell)
+import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import System.FilePath ((</>), takeBaseName)
+import System.FilePath ((</>), takeBaseName, splitDirectories)
 import System.Directory (doesDirectoryExist, pathIsSymbolicLink)
 import System.Directory.PathWalk
 import Validation (Validation (..))
 
-import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory)
+import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory, Ecosystem(..))
 import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
 import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
 import Control.Monad.Except (runExceptT, ExceptT (ExceptT), withExceptT)
-import Security.Advisories.Parse (OOBError(GitHasNoOOB))
+import Security.Advisories.Parse (OOBError(GitHasNoOOB, PathHasNoEcosystem))
+import Security.Advisories.Core.Advisory (ghcComponentFromText)
 
 
 dirNameAdvisories :: FilePath
@@ -136,14 +139,17 @@ advisoryFromFile
   :: (MonadIO m)
   => FilePath -> m (Validation ParseAdvisoryError Advisory)
 advisoryFromFile advisoryPath = do
-  oob <- runExceptT $ withExceptT GitHasNoOOB $ do
+  oob <- runExceptT $ do
+   ecosystem <- parseEcosystem advisoryPath
+   withExceptT GitHasNoOOB $ do
     gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
     pure OutOfBandAttributes
       { oobPublished = firstAppearanceCommitDate gitInfo
       , oobModified = lastModificationCommitDate gitInfo
+      , oobEcosystem = ecosystem
       }
   fileContent <- liftIO $ T.readFile advisoryPath
-  pure 
+  pure
     $ either Failure Success
     $ parseAdvisory NoOverrides oob fileContent
 
@@ -169,3 +175,10 @@ _forFiles root go =
       case parseHsecId (takeBaseName file) of
         Nothing -> pure mempty
         Just hsid -> go (dir </> file) hsid
+
+parseEcosystem :: Monad m => FilePath -> ExceptT OOBError m (Maybe Ecosystem)
+parseEcosystem fp = ExceptT . pure $ case drop 1 $ reverse $ splitDirectories fp of
+  package : "hackage" : _ -> pure (Just $ Hackage $ T.pack package)
+  component : "ghc" : _ | Just ghc <- ghcComponentFromText (T.pack component) -> pure (Just $ GHC ghc)
+  _ : _ : "advisories" : _ -> Left PathHasNoEcosystem
+  _ -> pure Nothing

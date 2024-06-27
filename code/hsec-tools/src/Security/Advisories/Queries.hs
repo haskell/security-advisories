@@ -38,9 +38,10 @@ isAffectedByHelper checkWithRange queryPackageName queryVersionish =
     any checkAffected . advisoryAffected
     where
       checkAffected :: Affected -> Bool
-      checkAffected affected =
-        queryPackageName == affectedPackage affected
-          && checkWithRange queryVersionish (fromAffected affected)
+      checkAffected affected = case affectedEcosystem affected of
+        Hackage pkg -> queryPackageName == pkg && checkWithRange queryVersionish (fromAffected affected)
+        -- TODO: support GHC ecosystem query, e.g. by adding a cli flag
+        _ -> False
 
       fromAffected :: Affected -> VersionRange
       fromAffected = foldr (unionVersionRanges . fromAffectedVersionRange) noVersion . affectedVersions

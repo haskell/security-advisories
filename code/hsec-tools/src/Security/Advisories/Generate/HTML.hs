@@ -35,6 +35,7 @@ import Validation (Validation (..))
 import qualified Security.Advisories as Advisories
 import Security.Advisories.Filesystem (listAdvisories)
 import Security.Advisories.Generate.TH (readDirFilesTH)
+import Security.Advisories.Core.Advisory (Ecosystem (..), ghcComponentToText)
 
 -- * Actions
 
@@ -87,7 +88,7 @@ data AdvisoryR = AdvisoryR
   deriving stock (Show)
 
 data AffectedPackageR = AffectedPackageR
-  { packageName :: Text,
+  { ecosystem :: Ecosystem,
     introduced :: Text,
     fixed :: Maybe Text
   }
@@ -117,6 +118,11 @@ listByDates advisories =
               td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink (advisoryId advisory)] $ toHtml (Advisories.printHsecId (advisoryId advisory))
               td_ [class_ "advisory-packages"] $ toHtml $ T.intercalate "," $ packageName <$> advisoryAffected advisory
               td_ [class_ "advisory-summary"] $ toHtml $ advisorySummary advisory
+
+packageName :: AffectedPackageR -> Text
+packageName af = case ecosystem af of
+  Hackage n -> n
+  GHC c -> "ghc:" <> ghcComponentToText c
 
 listByPackages :: [AdvisoryR] -> Html ()
 listByPackages advisories =
@@ -231,7 +237,7 @@ toAdvisoryR x =
     toAffectedPackageR p =
       flip map (Advisories.affectedVersions p) $ \versionRange ->
         AffectedPackageR
-          { packageName = Advisories.affectedPackage p,
+          { ecosystem = Advisories.affectedEcosystem p,
             introduced = T.pack $ prettyShow $ Advisories.affectedVersionRangeIntroduced versionRange,
             fixed = T.pack . prettyShow <$> Advisories.affectedVersionRangeFixed versionRange
           }

@@ -115,7 +115,7 @@ mkAdvisory versionRange =
      , advisoryRelated = [ "CVE-2022-YYYY" , "CVE-2022-ZZZZ" ]
      , advisoryAffected =
          [ Affected
-             { affectedPackage = packageName
+             { affectedEcosystem = Hackage packageName
              , affectedCVSS = cvss
              , affectedVersions = mkAffectedVersions versionRange
              , affectedArchitectures = Nothing

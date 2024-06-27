@@ -24,6 +24,10 @@ import Data.Bifunctor (first)
 import Data.Foldable (toList)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First(..))
+
+import Data.Tuple (swap)
+import Control.Applicative ((<|>))
+
 import GHC.Generics (Generic)
 
 import Data.Sequence (Seq((:<|)))
@@ -56,14 +60,10 @@ type OOB = Either OOBError OutOfBandAttributes
 -- | A source of attributes supplied out of band from the advisory
 -- content.  Values provided out of band are treated according to
 -- the 'AttributeOverridePolicy'.
---
--- The convenient way to construct a value of this type is to start
--- with 'emptyOutOfBandAttributes', then use the record accessors to
--- set particular fields.
---
 data OutOfBandAttributes = OutOfBandAttributes
   { oobModified :: UTCTime
   , oobPublished :: UTCTime
+  , oobEcosystem :: Maybe Ecosystem
   }
   deriving (Show)
 
@@ -81,8 +81,8 @@ data ParseAdvisoryError
     deriving stock (Eq, Show, Generic)
 
 -- | @since 0.2.0.0
-instance Exception ParseAdvisoryError where 
-  displayException = T.unpack . \case 
+instance Exception ParseAdvisoryError where
+  displayException = T.unpack . \case
     MarkdownError _ explanation -> "Markdown parsing error:\n" <> explanation
     MarkdownFormatError explanation -> "Markdown structure error:\n" <> explanation
     TomlError _ explanation -> "Couldn't parse front matter as TOML:\n" <> explanation
@@ -91,14 +91,16 @@ instance Exception ParseAdvisoryError where
 -- | errors that may occur while ingesting oob data
 --
 -- @since 0.2.0.0
-data OOBError 
+data OOBError
   = StdInHasNoOOB -- ^ we obtain the advisory via stdin and can hence not parse git history
+  | PathHasNoEcosystem -- ^ the path is missing 'hackage' or 'ghc' directory
   | GitHasNoOOB GitError -- ^ processing oob info via git failed
   deriving stock (Eq, Show, Generic)
 
-displayOOBError :: OOBError -> String 
-displayOOBError = \case 
+displayOOBError :: OOBError -> String
+displayOOBError = \case
   StdInHasNoOOB -> "stdin doesn't provide out of band information"
+  PathHasNoEcosystem -> "the path is missing 'hackage' or 'ghc' directory"
   GitHasNoOOB gitErr -> "no out of band information obtained with git error:\n"
     <> explainGitError gitErr
 
@@ -186,6 +188,10 @@ parseAdvisoryTable oob policy doc summary details html tab =
             (oobPublished <$> oob)
             "advisory.modified"
             (amdModified (frontMatterAdvisory fm))
+      let affected = frontMatterAffected fm
+      case oob of
+        Right (OutOfBandAttributes _ _ (Just ecosystem)) -> validateEcosystem ecosystem affected
+        _ -> pure ()
       pure Advisory
         { advisoryId = amdId (frontMatterAdvisory fm)
         , advisoryPublished = published
@@ -195,7 +201,7 @@ parseAdvisoryTable oob policy doc summary details html tab =
         , advisoryKeywords = amdKeywords (frontMatterAdvisory fm)
         , advisoryAliases = amdAliases (frontMatterAdvisory fm)
         , advisoryRelated = amdRelated (frontMatterAdvisory fm)
-        , advisoryAffected = frontMatterAffected fm
+        , advisoryAffected = affected
         , advisoryReferences = frontMatterReferences fm
         , advisoryPandoc = doc
         , advisoryHtml = html
@@ -274,10 +280,10 @@ mergeOobMandatory
   -> m a
 mergeOobMandatory policy eoob doob k ib =
   mergeOob policy eoob k ib everythingFailed pure
-    where 
-      everythingFailed e = fail $ unlines 
-        [ "while trying to lookup mandatory key " <> show k <> ":" 
-        , doob e 
+    where
+      everythingFailed e = fail $ unlines
+        [ "while trying to lookup mandatory key " <> show k <> ":"
+        , doob e
         ]
 
 {- | A solution to an awkward problem: how to delete the TOML
