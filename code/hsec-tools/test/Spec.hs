@@ -9,23 +9,25 @@ import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Lazy.Encoding as LText
 import Data.Time (UTCTime(UTCTime))
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
+import qualified Security.Advisories.Convert.OSV as OSV
+import Security.Advisories.Parse
+import qualified Spec.FormatSpec as FormatSpec
+import qualified Spec.QueriesSpec as QueriesSpec
 import System.Directory (listDirectory)
 import Test.Tasty (defaultMain, testGroup, TestTree)
 import Test.Tasty.Golden (goldenVsString)
 import Text.Pretty.Simple (pShowNoColor)
 
-import qualified Security.Advisories.Convert.OSV as OSV
-import Security.Advisories.Parse
-import qualified Spec.QueriesSpec as QueriesSpec
-
 main :: IO ()
 main = do
     goldenFiles <- listGoldenFiles
     defaultMain $
-      testGroup "Tests"
-        [ goldenTestsSpec goldenFiles
-        , QueriesSpec.spec
-        ]
+        testGroup
+            "Tests"
+            [ goldenTestsSpec goldenFiles
+            , QueriesSpec.spec
+            , FormatSpec.spec
+            ]
 
 listGoldenFiles :: IO [FilePath]
 listGoldenFiles = map (mappend dpath) . filter (not . isSuffixOf ".golden") <$> listDirectory dpath

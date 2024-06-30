@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -7,6 +6,7 @@ import Control.Monad (join)
 import Options.Applicative
 import Security.Advisories.Sync
 import System.Exit (die)
+import System.IO (hPutStrLn, stderr)
 
 main :: IO ()
 main =
@@ -21,60 +21,83 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser :: Parser (IO ())
     commandsParser =
       hsubparser
-        ( command "sync" (info commandSync (progDesc "Synchronize a local Haskell Security Advisory repository"))
-        <>  command "status" (info commandStatus (progDesc "Check the status of a local Haskell Security Advisory repository"))
+        ( command "sync" (info commandSync (progDesc "Synchronize a local Haskell Security Advisory repository snapshot"))
+            <> command "status" (info commandStatus (progDesc "Check the status of a local Haskell Security Advisory repository snapshot"))
         )
 
 commandSync :: Parser (IO ())
 commandSync = go <$> repositoryParser
   where
-    go repo = do
-      result <- sync repo
+    go snapshot = do
+      result <- sync snapshot
       case result of
         Left e ->
           die e
         Right s -> do
           putStrLn $
-            "Repository at "
-              <> show (repositoryRoot repo)
+            "Snapshot at "
+              <> show (snapshotRoot snapshot)
               <> " from "
-              <> show (repositoryUrl repo <> "@" <> repositoryBranch repo)
+              <> show (getSnapshotUrl $ snapshotUrl snapshot)
           putStrLn $
             case s of
-              Created -> "Repository just created"
-              Updated -> "Repository updated"
-              AlreadyUpToDate -> "Repository already up-to-date"
+              Created -> "Snapshot just created"
+              Updated -> "Snapshot updated"
+              AlreadyUpToDate -> "Snapshot already up-to-date"
 
 commandStatus :: Parser (IO ())
 commandStatus = go <$> repositoryParser
   where
-    go repo = do
-      result <- status repo
-      putStrLn $
+    go snapshot = do
+      result <- status snapshot
+      hPutStrLn stderr $
         case result of
           DirectoryMissing -> "Directory is missing"
-          DirectoryEmpty -> "Directory is empty"
+          DirectoryIncoherent -> "Directory is incoherent"
           DirectoryUpToDate -> "Repository is up-to-date"
           DirectoryOutDated -> "Repository is out-dated"
 
-repositoryParser :: Parser Repository
+repositoryParser :: Parser Snapshot
 repositoryParser =
-  Repository
+  mkSnapshotSnapshot
     <$> strOption
-      ( long "repository-root"
+      ( long "snapshot-root"
           <> short 'd'
-          <> metavar "REPOSITORY-ROOT"
-          <> value (repositoryRoot defaultRepository)
+          <> metavar "SNAPSHOT-ROOT"
+          <> value (snapshotRoot defaultSnapshot)
       )
-    <*> strOption
+    <*> (fmap Left repositoryGithubParser <|> fmap Right repositoryUrlParser)
+  where mkSnapshotSnapshot root params =
+          case params of
+            Left (repoUrl, repoBranch) ->
+              githubSnapshot root repoUrl repoBranch
+            Right snapshotUrl' ->
+              Snapshot
+                { snapshotRoot = root,
+                  snapshotUrl = SnapshotUrl snapshotUrl'
+                }
+
+
+repositoryGithubParser :: Parser (String, String)
+repositoryGithubParser =
+  (,)
+    <$> strOption
       ( long "repository-url"
           <> short 'r'
           <> metavar "REPOSITORY-URL"
-          <> value (repositoryUrl defaultRepository)
+          <> value "https://github.com/haskell/security-advisories"
       )
     <*> strOption
       ( long "repository-branch"
           <> short 'b'
           <> metavar "REPOSITORY-BRANCH"
-          <> value (repositoryBranch defaultRepository)
+          <> value "generated/snapshot-export"
       )
+
+repositoryUrlParser :: Parser String
+repositoryUrlParser =
+  strOption
+    ( long "archive-url"
+        <> short 'u'
+        <> metavar "ARCHIVE-URL"
+    )

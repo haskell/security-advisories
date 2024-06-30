@@ -23,7 +23,7 @@ import Data.Time.Format.ISO8601
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
 import System.FilePath ((</>), takeDirectory)
-import System.IO (hPrint, stderr)
+import System.IO (hPrint, hPutStrLn, stderr)
 
 import Distribution.Pretty (prettyShow)
 import Lucid
@@ -51,7 +51,7 @@ renderAdvisoriesIndex src dst = do
         return advisories
 
   let renderHTMLToFile path content = do
-        putStrLn $ "Rendering " <> path
+        hPutStrLn stderr $ "Rendering " <> path
         renderToFile path content
 
   createDirectoryIfMissing False dst
@@ -66,7 +66,7 @@ renderAdvisoriesIndex src dst = do
       inPage PageAdvisory $
         toHtmlRaw (Advisories.advisoryHtml advisory)
 
-  putStrLn $ "Rendering " <> (dst </> "atom.xml")
+  hPutStrLn stderr $ "Rendering " <> (dst </> "atom.xml")
   writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed advisories
 
   putStrLn "Copying assets"
