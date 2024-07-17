@@ -122,9 +122,9 @@ overwriteSnapshot root url =
               HttpExceptionRequest _ content ->
                 case content of
                   StatusCodeException response body ->
-                    "Request failed with " <> show (response ^. responseStatus) <> ": " <> show body
+                    "Request (GET " <> getSnapshotUrl url <> ") failed with " <> show (response ^. responseStatus) <> ": " <> show body
                   _ ->
-                    "Request failed: " <> show content
+                    "Request (GET " <> getSnapshotUrl url <> ") failed: " <> show content
       Right result -> do
         performed <-
           liftIO $
@@ -205,9 +205,9 @@ latestUpdate url =
               HttpExceptionRequest _ content ->
                 case content of
                   StatusCodeException response body ->
-                    "Request failed with " <> show (response ^. responseStatus) <> ": " <> show body
+                    "Request (HEAD " <> getSnapshotUrl url <> ") failed with " <> show (response ^. responseStatus) <> ": " <> show body
                   _ ->
-                    "Request failed: " <> show content
+                    "Request (HEAD " <> getSnapshotUrl url <> ") failed: " <> show content
       Right result ->
         case result ^? responseHeader "etag" of
           Nothing -> throwE $ FetchSnapshotArchive "Missing ETag header"
