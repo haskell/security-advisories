@@ -110,6 +110,7 @@ parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
   | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents True validateCvss31
   | "CVSS:3.0/" `Text.isPrefixOf` txt = CVSS CVSS30 <$> validateComponents True validateCvss30
+  | "CVSS:" `Text.isPrefixOf` txt = Left UnknownVersion
   | otherwise = CVSS CVSS20 <$> validateComponents False validateCvss20
   where
     validateComponents withPrefix validator = do
