@@ -57,7 +57,7 @@ library
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2      && <0.3
     , containers            >=0.6      && <0.7
-    , cvss                  >= 0.1     && < 0.2
+    , cvss                  >= 0.2     && < 0.3
     , data-default          >=0.7      && <0.8
     , directory             <2
     , extra                 ^>=1.7.5
