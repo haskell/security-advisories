@@ -30,8 +30,8 @@ library
     Security.Advisories.Core.HsecId
 
   build-depends:
-    , base          >=4.14    && <4.20
-    , Cabal-syntax  >=3.8.1.0 && <3.11
+    , base          >=4.14    && <4.21
+    , Cabal-syntax  >=3.8.1.0 && <3.13
     , cvss >= 0.1 && < 0.2
     , osv >= 0.1 && < 0.2
     , pandoc-types  >=1.22    && <2
