@@ -91,9 +91,9 @@ genCVSS =
         "CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
         "CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H",
         "CVSS:3.0/AV:L/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:L",
-        "CVSS:2.0/AV:N/AC:L/Au:N/C:N/I:N/A:C",
-        "CVSS:2.0/AV:N/AC:L/Au:N/C:C/I:C/A:C",
-        "CVSS:2.0/AV:L/AC:H/Au:N/C:C/I:C/A:C"
+        "AV:N/AC:L/Au:N/C:N/I:N/A:C",
+        "AV:N/AC:L/Au:N/C:C/I:C/A:C",
+        "AV:L/AC:H/Au:N/C:C/I:C/A:C"
       ]
 
 genCAPEC :: Gen.Gen CAPEC
