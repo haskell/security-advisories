@@ -70,12 +70,21 @@ genAdvisoryMetadata =
 genAffected :: Gen.Gen Affected
 genAffected =
   Affected
-    <$> genText
+    <$> genEcosystem
     <*> genCVSS
     <*> Gen.list (Range.linear 0 5) genAffectedVersionRange
     <*> Gen.maybe (Gen.list (Range.linear 0 5) genArchitecture)
     <*> Gen.maybe (Gen.list (Range.linear 0 5) genOS)
     <*> (Map.toList . Map.fromList <$> Gen.list (Range.linear 0 5) ((,) <$> genText <*> genVersionRange))
+
+genEcosystem :: Gen.Gen Ecosystem
+genEcosystem = Gen.choice $
+  [ Hackage <$> genText
+  , GHC <$> genGHCComponent
+  ]
+
+genGHCComponent :: Gen.Gen GHCComponent
+genGHCComponent = Gen.choice $ map pure [minBound..maxBound]
 
 genCVSS :: Gen.Gen CVSS
 genCVSS =

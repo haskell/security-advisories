@@ -16,6 +16,7 @@
  , displayOOBError
  , AttributeOverridePolicy(..)
  , ParseAdvisoryError(..)
+ , validateEcosystem
  )
 where
 
@@ -208,6 +209,12 @@ parseAdvisoryTable oob policy doc summary details html tab =
         , advisorySummary = summary
         , advisoryDetails = details
         }
+
+-- | Make sure one of the affected match the ecosystem
+validateEcosystem :: MonadFail m => Ecosystem -> [Affected] -> m ()
+validateEcosystem ecosystem xs
+  | any (\affected -> affectedEcosystem affected == ecosystem) xs = pure ()
+  | otherwise = fail $ "Expected an affected to match the ecosystem: " <> show ecosystem
 
 advisoryDoc :: Blocks -> Either Text (Text, [Block])
 advisoryDoc (Many blocks) = case blocks of

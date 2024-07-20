@@ -15,6 +15,7 @@ module Security.Advisories.Format
   )
 where
 
+import Control.Applicative ((<|>))
 import Commonmark.Types (HasAttributes (..), IsBlock (..), IsInline (..), Rangeable (..), SourceRange (..))
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -135,16 +136,25 @@ instance Toml.ToTable AdvisoryMetadata where
     ["aliases"   Toml..= amdAliases x | not (null (amdAliases x))] ++
     ["related"   Toml..= amdRelated x | not (null (amdRelated x))]
 
+instance Toml.FromValue GHCComponent where
+  fromValue v = case v of
+    Toml.Text' _ n
+      | Just c <- ghcComponentFromText n -> pure c
+    _ -> Toml.failAt (Toml.valueAnn v) "Invalid component, expected compiler|ghci|rts"
+
+instance Toml.ToValue GHCComponent where
+  toValue = Toml.Text' () . ghcComponentToText
+
 instance Toml.FromValue Affected where
   fromValue = Toml.parseTableFromValue $
-   do package   <- Toml.reqKey "package"
+   do ecosystem   <- (Hackage <$> Toml.reqKey "package") <|> (GHC <$> Toml.reqKey "ghc-component")
       cvss      <- Toml.reqKey "cvss" -- TODO validate CVSS format
       os        <- Toml.optKey "os"
       arch      <- Toml.optKey "arch"
       decls     <- maybe [] Map.toList <$> Toml.optKey "declarations"
       versions  <- Toml.reqKey "versions"
       pure $ Affected
-        { affectedPackage = package
+        { affectedEcosystem = ecosystem
         , affectedCVSS = cvss
         , affectedVersions = versions
         , affectedArchitectures = arch
@@ -157,14 +167,17 @@ instance Toml.ToValue Affected where
 
 instance Toml.ToTable Affected where
   toTable x = Toml.table $
-    [ "package" Toml..= affectedPackage x
-    , "cvss"    Toml..= affectedCVSS x
+    ecosystem ++
+    [ "cvss"    Toml..= affectedCVSS x
     , "versions" Toml..= affectedVersions x
     ] ++
     [ "os"   Toml..= y | Just y <- [affectedOS x]] ++
     [ "arch" Toml..= y | Just y <- [affectedArchitectures x]] ++
     [ "declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
     where
+      ecosystem = case affectedEcosystem x of
+        Hackage pkg -> ["package" Toml..= pkg]
+        GHC c -> ["ghc-component" Toml..= c]
       asTable kvs = Map.fromList [(T.unpack k, v) | (k,v) <- kvs]
 
 instance Toml.FromValue AffectedVersionRange where
