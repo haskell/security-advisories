@@ -154,7 +154,7 @@ instance Toml.FromValue Affected where
       decls     <- maybe [] Map.toList <$> Toml.optKey "declarations"
       versions  <- Toml.reqKey "versions"
       pure $ Affected
-        { affectedEcosystem = ecosystem
+        { affectedComponentIdentifier = ecosystem
         , affectedCVSS = cvss
         , affectedVersions = versions
         , affectedArchitectures = arch
@@ -175,7 +175,7 @@ instance Toml.ToTable Affected where
     [ "arch" Toml..= y | Just y <- [affectedArchitectures x]] ++
     [ "declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
     where
-      ecosystem = case affectedEcosystem x of
+      ecosystem = case affectedComponentIdentifier x of
         Hackage pkg -> ["package" Toml..= pkg]
         GHC c -> ["ghc-component" Toml..= c]
       asTable kvs = Map.fromList [(T.unpack k, v) | (k,v) <- kvs]

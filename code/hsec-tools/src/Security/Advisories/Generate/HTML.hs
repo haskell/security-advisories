@@ -35,7 +35,7 @@ import Validation (Validation (..))
 import qualified Security.Advisories as Advisories
 import Security.Advisories.Filesystem (listAdvisories)
 import Security.Advisories.Generate.TH (readDirFilesTH)
-import Security.Advisories.Core.Advisory (Ecosystem (..), ghcComponentToText)
+import Security.Advisories.Core.Advisory (ComponentIdentifier (..), ghcComponentToText)
 
 -- * Actions
 
@@ -88,7 +88,7 @@ data AdvisoryR = AdvisoryR
   deriving stock (Show)
 
 data AffectedPackageR = AffectedPackageR
-  { ecosystem :: Ecosystem,
+  { ecosystem :: ComponentIdentifier,
     introduced :: Text,
     fixed :: Maybe Text
   }
@@ -237,7 +237,7 @@ toAdvisoryR x =
     toAffectedPackageR p =
       flip map (Advisories.affectedVersions p) $ \versionRange ->
         AffectedPackageR
-          { ecosystem = Advisories.affectedEcosystem p,
+          { ecosystem = Advisories.affectedComponentIdentifier p,
             introduced = T.pack $ prettyShow $ Advisories.affectedVersionRangeIntroduced versionRange,
             fixed = T.pack . prettyShow <$> Advisories.affectedVersionRangeFixed versionRange
           }
