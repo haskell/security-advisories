@@ -52,7 +52,7 @@ data ComponentIdentifier = Hackage Text | GHC GHCComponent
   deriving stock (Show, Eq)
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
-data GHCComponent = GHCCompiler | GHCi | GHCRTS
+data GHCComponent = GHCCompiler | GHCi | GHCRTS | GHCPkg | RunGHC | IServ | HP2PS | HPC | HSC2HS | Haddock
   deriving stock (Show, Eq, Enum, Bounded)
 
 ghcComponentToText :: GHCComponent -> Text
@@ -60,12 +60,26 @@ ghcComponentToText c = case c of
   GHCCompiler -> "compiler"
   GHCi -> "ghci"
   GHCRTS -> "rts"
+  GHCPkg -> "ghc-pkg"
+  RunGHC -> "runghc"
+  IServ -> "iserv"
+  HP2PS -> "hp2ps"
+  HPC -> "hpc"
+  HSC2HS -> "hsc2hs"
+  Haddock -> "haddock"
 
 ghcComponentFromText :: Text -> Maybe GHCComponent
 ghcComponentFromText c = case c of
   "compiler" -> Just GHCCompiler
   "ghci" -> Just GHCi
   "rts" -> Just GHCRTS
+  "ghc-pkg" -> Just GHCPkg
+  "runghc" -> Just RunGHC
+  "iserv" -> Just IServ
+  "hp2ps" -> Just HP2PS
+  "hpc" -> Just HPC
+  "hsc2hs" -> Just HSC2HS
+  "haddock" -> Just Haddock
   _ -> Nothing
 
 -- | An affected package (or package component).  An 'Advisory' must
