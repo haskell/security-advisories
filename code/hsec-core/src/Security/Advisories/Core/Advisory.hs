@@ -57,12 +57,12 @@ data GHCComponent = GHCCompiler | GHCi | GHCRTS | GHCPkg | RunGHC | IServ | HP2P
 
 ghcComponentToText :: GHCComponent -> Text
 ghcComponentToText c = case c of
-  GHCCompiler -> "compiler"
+  GHCCompiler -> "ghc"
   GHCi -> "ghci"
   GHCRTS -> "rts"
   GHCPkg -> "ghc-pkg"
   RunGHC -> "runghc"
-  IServ -> "iserv"
+  IServ -> "ghc-iserv"
   HP2PS -> "hp2ps"
   HPC -> "hpc"
   HSC2HS -> "hsc2hs"
@@ -70,12 +70,12 @@ ghcComponentToText c = case c of
 
 ghcComponentFromText :: Text -> Maybe GHCComponent
 ghcComponentFromText c = case c of
-  "compiler" -> Just GHCCompiler
+  "ghc" -> Just GHCCompiler
   "ghci" -> Just GHCi
   "rts" -> Just GHCRTS
   "ghc-pkg" -> Just GHCPkg
   "runghc" -> Just RunGHC
-  "iserv" -> Just IServ
+  "ghc-iserv" -> Just IServ
   "hp2ps" -> Just HP2PS
   "hpc" -> Just HPC
   "hsc2hs" -> Just HSC2HS
