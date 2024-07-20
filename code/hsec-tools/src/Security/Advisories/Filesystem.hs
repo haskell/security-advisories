@@ -21,7 +21,7 @@ module Security.Advisories.Filesystem
   , forAdvisory
   , listAdvisories
   , advisoryFromFile
-  , parseEcosystem
+  , parseComponentIdentifier
   ) where
 
 import Control.Applicative (liftA2)
@@ -39,11 +39,11 @@ import System.Directory (doesDirectoryExist, pathIsSymbolicLink)
 import System.Directory.PathWalk
 import Validation (Validation (..))
 
-import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory, Ecosystem(..))
+import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory, ComponentIdentifier(..))
 import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
 import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
 import Control.Monad.Except (runExceptT, ExceptT (ExceptT), withExceptT)
-import Security.Advisories.Parse (OOBError(GitHasNoOOB, PathHasNoEcosystem))
+import Security.Advisories.Parse (OOBError(GitHasNoOOB, PathHasNoComponentIdentifier))
 import Security.Advisories.Core.Advisory (ghcComponentFromText)
 
 
@@ -140,13 +140,13 @@ advisoryFromFile
   => FilePath -> m (Validation ParseAdvisoryError Advisory)
 advisoryFromFile advisoryPath = do
   oob <- runExceptT $ do
-   ecosystem <- parseEcosystem advisoryPath
+   ecosystem <- parseComponentIdentifier advisoryPath
    withExceptT GitHasNoOOB $ do
     gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
     pure OutOfBandAttributes
       { oobPublished = firstAppearanceCommitDate gitInfo
       , oobModified = lastModificationCommitDate gitInfo
-      , oobEcosystem = ecosystem
+      , oobComponentIdentifier = ecosystem
       }
   fileContent <- liftIO $ T.readFile advisoryPath
   pure
@@ -176,9 +176,9 @@ _forFiles root go =
         Nothing -> pure mempty
         Just hsid -> go (dir </> file) hsid
 
-parseEcosystem :: Monad m => FilePath -> ExceptT OOBError m (Maybe Ecosystem)
-parseEcosystem fp = ExceptT . pure $ case drop 1 $ reverse $ splitDirectories fp of
+parseComponentIdentifier :: Monad m => FilePath -> ExceptT OOBError m (Maybe ComponentIdentifier)
+parseComponentIdentifier fp = ExceptT . pure $ case drop 1 $ reverse $ splitDirectories fp of
   package : "hackage" : _ -> pure (Just $ Hackage $ T.pack package)
   component : "ghc" : _ | Just ghc <- ghcComponentFromText (T.pack component) -> pure (Just $ GHC ghc)
-  _ : _ : "advisories" : _ -> Left PathHasNoEcosystem
+  _ : _ : "advisories" : _ -> Left PathHasNoComponentIdentifier
   _ -> pure Nothing

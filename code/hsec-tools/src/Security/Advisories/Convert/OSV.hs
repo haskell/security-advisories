@@ -30,14 +30,14 @@ convert adv =
 mkAffected :: Affected -> OSV.Affected Void Void Void
 mkAffected aff =
   OSV.Affected
-    { OSV.affectedPackage = mkPackage (affectedEcosystem aff)
+    { OSV.affectedPackage = mkPackage (affectedComponentIdentifier aff)
     , OSV.affectedRanges = pure $ mkRange (affectedVersions aff)
     , OSV.affectedSeverity = [OSV.Severity (affectedCVSS aff)]
     , OSV.affectedEcosystemSpecific = Nothing
     , OSV.affectedDatabaseSpecific = Nothing
     }
 
-mkPackage :: Ecosystem -> OSV.Package
+mkPackage :: ComponentIdentifier -> OSV.Package
 mkPackage ecosystem = OSV.Package
   { OSV.packageName = packageName
   , OSV.packageEcosystem = ecosystemName

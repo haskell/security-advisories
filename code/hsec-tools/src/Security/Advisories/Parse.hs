@@ -16,7 +16,7 @@
  , displayOOBError
  , AttributeOverridePolicy(..)
  , ParseAdvisoryError(..)
- , validateEcosystem
+ , validateComponentIdentifier
  )
 where
 
@@ -64,7 +64,7 @@ type OOB = Either OOBError OutOfBandAttributes
 data OutOfBandAttributes = OutOfBandAttributes
   { oobModified :: UTCTime
   , oobPublished :: UTCTime
-  , oobEcosystem :: Maybe Ecosystem
+  , oobComponentIdentifier :: Maybe ComponentIdentifier
   }
   deriving (Show)
 
@@ -94,14 +94,14 @@ instance Exception ParseAdvisoryError where
 -- @since 0.2.0.0
 data OOBError
   = StdInHasNoOOB -- ^ we obtain the advisory via stdin and can hence not parse git history
-  | PathHasNoEcosystem -- ^ the path is missing 'hackage' or 'ghc' directory
+  | PathHasNoComponentIdentifier -- ^ the path is missing 'hackage' or 'ghc' directory
   | GitHasNoOOB GitError -- ^ processing oob info via git failed
   deriving stock (Eq, Show, Generic)
 
 displayOOBError :: OOBError -> String
 displayOOBError = \case
   StdInHasNoOOB -> "stdin doesn't provide out of band information"
-  PathHasNoEcosystem -> "the path is missing 'hackage' or 'ghc' directory"
+  PathHasNoComponentIdentifier -> "the path is missing 'hackage' or 'ghc' directory"
   GitHasNoOOB gitErr -> "no out of band information obtained with git error:\n"
     <> explainGitError gitErr
 
@@ -191,7 +191,7 @@ parseAdvisoryTable oob policy doc summary details html tab =
             (amdModified (frontMatterAdvisory fm))
       let affected = frontMatterAffected fm
       case oob of
-        Right (OutOfBandAttributes _ _ (Just ecosystem)) -> validateEcosystem ecosystem affected
+        Right (OutOfBandAttributes _ _ (Just ecosystem)) -> validateComponentIdentifier ecosystem affected
         _ -> pure ()
       pure Advisory
         { advisoryId = amdId (frontMatterAdvisory fm)
@@ -211,9 +211,9 @@ parseAdvisoryTable oob policy doc summary details html tab =
         }
 
 -- | Make sure one of the affected match the ecosystem
-validateEcosystem :: MonadFail m => Ecosystem -> [Affected] -> m ()
-validateEcosystem ecosystem xs
-  | any (\affected -> affectedEcosystem affected == ecosystem) xs = pure ()
+validateComponentIdentifier :: MonadFail m => ComponentIdentifier -> [Affected] -> m ()
+validateComponentIdentifier ecosystem xs
+  | any (\affected -> affectedComponentIdentifier affected == ecosystem) xs = pure ()
   | otherwise = fail $ "Expected an affected to match the ecosystem: " <> show ecosystem
 
 advisoryDoc :: Blocks -> Either Text (Text, [Block])

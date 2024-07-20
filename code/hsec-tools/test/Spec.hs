@@ -47,7 +47,7 @@ doGoldenTest fp = goldenVsString fp (fp <> ".golden") (LText.encodeUtf8 <$> doCh
             attr = OutOfBandAttributes
               { oobPublished = fakeDate
               , oobModified = fakeDate
-              , oobEcosystem = Nothing
+              , oobComponentIdentifier = Nothing
               }
             res = parseAdvisory NoOverrides (Right attr) input
             osvExport = case res of

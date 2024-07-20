@@ -10,7 +10,7 @@ module Security.Advisories.Core.Advisory
   , AffectedVersionRange(..)
   , OS(..)
   , Keyword(..)
-  , Ecosystem(..)
+  , ComponentIdentifier(..)
   , GHCComponent(..)
   , ghcComponentToText
   , ghcComponentFromText
@@ -48,7 +48,7 @@ data Advisory = Advisory
   }
   deriving stock (Show)
 
-data Ecosystem = Hackage Text | GHC GHCComponent
+data ComponentIdentifier = Hackage Text | GHC GHCComponent
   deriving stock (Show, Eq)
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
@@ -71,7 +71,7 @@ ghcComponentFromText c = case c of
 -- | An affected package (or package component).  An 'Advisory' must
 -- mention one or more packages.
 data Affected = Affected
-  { affectedEcosystem :: Ecosystem
+  { affectedComponentIdentifier :: ComponentIdentifier
   , affectedCVSS :: CVSS.CVSS
   , affectedVersions :: [AffectedVersionRange]
   , affectedArchitectures :: Maybe [Architecture]
