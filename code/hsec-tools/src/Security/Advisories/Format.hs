@@ -140,7 +140,9 @@ instance Toml.FromValue GHCComponent where
   fromValue v = case v of
     Toml.Text' _ n
       | Just c <- ghcComponentFromText n -> pure c
-    _ -> Toml.failAt (Toml.valueAnn v) "Invalid component, expected compiler|ghci|rts"
+    _ -> Toml.failAt (Toml.valueAnn v) $ T.unpack $ "Invalid component, expected " <> T.intercalate "|" componentNames
+   where
+     componentNames = map ghcComponentToText [minBound..maxBound]
 
 instance Toml.ToValue GHCComponent where
   toValue = Toml.Text' () . ghcComponentToText
