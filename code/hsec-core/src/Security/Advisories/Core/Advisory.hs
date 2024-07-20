@@ -53,7 +53,7 @@ data Ecosystem = Hackage Text | GHC GHCComponent
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
 data GHCComponent = GHCCompiler | GHCi | GHCRTS
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Enum, Bounded)
 
 ghcComponentToText :: GHCComponent -> Text
 ghcComponentToText c = case c of

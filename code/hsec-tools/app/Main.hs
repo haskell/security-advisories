@@ -23,17 +23,11 @@ import Security.Advisories.Generate.HTML
 import Security.Advisories.Generate.Snapshot
 import Security.Advisories.Git
 import Security.Advisories.Queries (listVersionRangeAffectedBy)
-
+import Security.Advisories.Filesystem (parseEcosystem)
 import System.Exit (die, exitFailure, exitSuccess)
 import System.FilePath (takeBaseName)
 import System.IO (hPrint, hPutStrLn, stderr)
 import Validation (Validation (..))
-
-import Security.Advisories.Generate.HTML
-import Security.Advisories.Filesystem (parseEcosystem)
-
-import qualified Command.Reserve
-
 
 main :: IO ()
 main =
