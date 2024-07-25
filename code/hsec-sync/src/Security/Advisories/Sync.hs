@@ -1,8 +1,11 @@
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Security.Advisories.Sync
-  ( Repository (..),
-    defaultRepository,
+  ( Snapshot (..),
+    SnapshotUrl (..),
+    defaultSnapshot,
+    githubSnapshot,
     SyncStatus (..),
     sync,
     RepositoryStatus (..),
@@ -10,9 +13,29 @@ module Security.Advisories.Sync
   )
 where
 
-import Data.Time (zonedTimeToUTC)
-import Security.Advisories.Sync.Atom
-import Security.Advisories.Sync.Git
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Except (runExceptT, withExceptT)
+import Security.Advisories.Sync.Snapshot
+import Security.Advisories.Sync.Url
+
+data Snapshot = Snapshot
+  { snapshotRoot :: FilePath,
+    snapshotUrl :: SnapshotUrl
+  }
+
+defaultSnapshot :: Snapshot
+defaultSnapshot =
+  githubSnapshot
+    "security-advisories"
+    "https://github.com/haskell/security-advisories"
+    "generated/snapshot-export"
+
+githubSnapshot :: FilePath -> String -> String -> Snapshot
+githubSnapshot root repoUrl repoBranch =
+  Snapshot
+    { snapshotRoot = root,
+      snapshotUrl = SnapshotUrl $ ensureFile (mkUrl [repoUrl, "archive/refs/heads", repoBranch]) <> ".tar.gz"
+    }
 
 data SyncStatus
   = Created
@@ -20,57 +43,51 @@ data SyncStatus
   | AlreadyUpToDate
   deriving stock (Eq, Show)
 
-sync :: Repository -> IO (Either String SyncStatus)
-sync repo = do
-  gitStatus <- gitRepositoryStatus repo
-  ensured <- ensureGitRepositoryWithRemote repo gitStatus
-  let mkGitError = Left . explainGitError
-  case ensured of
-    Left e -> return $ mkGitError e
-    Right s ->
-      case s of
-        GitRepositoryCreated ->
-          return $ Right Created
-        GitRepositoryExisting -> do
-          repoStatus <- status' repo gitStatus
-          if repoStatus == DirectoryOutDated
-            then either mkGitError (const $ Right Updated) <$> updateGitRepository repo
-            else return $ Right AlreadyUpToDate
+sync :: Snapshot -> IO (Either String SyncStatus)
+sync s =
+  runExceptT $ do
+    snapshotStatus <- liftIO $ snapshotRepositoryStatus $ snapshotRoot s
+    ensuredStatus <- withExceptT explainSnapshotError $ ensureSnapshot (snapshotRoot s) (snapshotUrl s) snapshotStatus
+    case ensuredStatus of
+      SnapshotRepositoryCreated ->
+        return Created
+      SnapshotRepositoryExisting -> do
+        repoStatus <- liftIO $ status' s snapshotStatus
+        if repoStatus == DirectoryOutDated
+          then do
+            withExceptT explainSnapshotError $ overwriteSnapshot (snapshotRoot s) (snapshotUrl s)
+            return Updated
+          else return AlreadyUpToDate
 
 data RepositoryStatus
   = DirectoryMissing
-  | DirectoryEmpty
+  | -- | Used when expected files/directories are missing or not readable
+    DirectoryIncoherent
   | DirectoryUpToDate
   | DirectoryOutDated
   deriving stock (Eq, Show)
 
-status :: Repository -> IO RepositoryStatus
-status repo =
-  status' repo =<< gitRepositoryStatus repo
+status :: Snapshot -> IO RepositoryStatus
+status s =
+  status' s =<< snapshotRepositoryStatus (snapshotRoot s)
 
-status' :: Repository -> GitRepositoryStatus -> IO RepositoryStatus
-status' repo gitStatus = do
-  case gitStatus of
-    GitDirectoryMissing ->
+status' :: Snapshot -> SnapshotRepositoryStatus -> IO RepositoryStatus
+status' s =
+  \case
+    SnapshotDirectoryMissing ->
       return DirectoryMissing
-    GitDirectoryEmpty ->
-      return DirectoryEmpty
-    GitDirectoryInitialized -> do
-      gitInfo <- getDirectoryGitInfo $ repositoryRoot repo
-      case gitInfo of
+    SnapshotDirectoryIncoherent ->
+      return DirectoryIncoherent
+    SnapshotDirectoryInitialized -> do
+      snapshotInfo <- getDirectorySnapshotInfo $ snapshotRoot s
+      case snapshotInfo of
         Left _ ->
           return DirectoryOutDated
         Right info -> do
-          update <- latestUpdate (repositoryUrl repo) (repositoryBranch repo)
+          update <- runExceptT $ latestUpdate $ snapshotUrl s
           return $
-            if update == Right (zonedTimeToUTC $ lastModificationCommitDate info)
-              then DirectoryUpToDate
-              else DirectoryOutDated
-
-defaultRepository :: Repository
-defaultRepository =
-  Repository
-    { repositoryUrl = "https://github.com/haskell/security-advisories",
-      repositoryRoot = "security-advisories",
-      repositoryBranch = "main"
-    }
+            case update of
+              Right latestETag | latestETag == etag info ->
+                DirectoryUpToDate
+              _ ->
+                DirectoryOutDated

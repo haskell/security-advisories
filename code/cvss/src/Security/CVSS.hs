@@ -56,6 +56,7 @@ data CVSS = CVSS
     -- | The metrics are stored as provided by the user
     cvssMetrics :: [Metric]
   }
+  deriving stock (Eq)
 
 data CVSSScore = Zero | One | Two deriving (Show)
 
@@ -211,24 +212,24 @@ data Metric = Metric
   { mName :: MetricShortName,
     mChar :: MetricValueChar
   }
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- example CVSS string: CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N
 
 -- | Parse a CVSS string.
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
-  | "CVSS:4.0/" `Text.isPrefixOf` txt = CVSS CVSS40 <$> validateComponents validateCvss40
-  | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents validateCvss31
-  | "CVSS:3.0/" `Text.isPrefixOf` txt = CVSS CVSS30 <$> validateComponents validateCvss30
-  | "CVSS:2.0/" `Text.isPrefixOf` txt = CVSS CVSS20 <$> validateComponents validateCvss20
-  | otherwise = Left UnknownVersion
+  | "CVSS:4.0/" `Text.isPrefixOf` txt = CVSS CVSS40 <$> validateComponents True validateCvss40
+  | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents True validateCvss31
+  | "CVSS:3.0/" `Text.isPrefixOf` txt = CVSS CVSS30 <$> validateComponents True validateCvss30
+  | "CVSS:" `Text.isPrefixOf` txt = Left UnknownVersion
+  | otherwise = CVSS CVSS20 <$> validateComponents False validateCvss20
   where
-    validateComponents validator = do
-      metrics <- traverse splitComponent components
+    validateComponents withPrefix validator = do
+      metrics <- traverse splitComponent $ components withPrefix
       validator metrics
 
-    components = drop 1 $ Text.split (== '/') txt
+    components withPrefix = (if withPrefix then drop 1 else id) $ Text.split (== '/') txt
     splitComponent :: Text -> Either CVSSError Metric
     splitComponent componentTxt = case Text.unsnoc componentTxt of
       Nothing -> Left EmptyComponent
@@ -261,7 +262,7 @@ cvssShow ordered cvss = case cvssVersion cvss of
   CVSS40 -> Text.intercalate "/" ("CVSS:4.0" : components)
   CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : components)
   CVSS30 -> Text.intercalate "/" ("CVSS:3.0" : components)
-  CVSS20 -> Text.intercalate "/" ("CVSS:2.0" : components)
+  CVSS20 -> Text.intercalate "/" components
   where
     components = map toComponent (cvssOrder (cvssMetrics cvss))
     toComponent :: Metric -> Text

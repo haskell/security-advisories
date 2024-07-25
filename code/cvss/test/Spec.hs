@@ -49,6 +49,9 @@ testCases20 =
     [("CVSS:2.0/AV:N/AC:L/Au:N/C:N/I:N/A:C",           7.8, CVSS.High)
     , ("CVSS:2.0/AV:N/AC:L/Au:N/C:C/I:C/A:C",          10,  CVSS.Critical)
     , ("CVSS:2.0/AV:L/AC:H/Au:N/C:C/I:C/A:C",          6.2, CVSS.Medium)
+    , ("AV:N/AC:L/Au:N/C:N/I:N/A:C", 7.8, CVSS.High)
+    , ("AV:N/AC:L/Au:N/C:C/I:C/A:C", 10, CVSS.Critical)
+    , ("AV:L/AC:H/Au:N/C:C/I:C/A:C", 6.2, CVSS.Medium)
     ]
 
 testCases40 :: [(Text, Float, CVSS.Rating)]

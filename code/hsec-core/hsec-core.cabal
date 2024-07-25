@@ -32,7 +32,7 @@ library
   build-depends:
     , base          >=4.14    && <4.20
     , Cabal-syntax  >=3.8.1.0 && <3.11
-    , cvss >= 0.1 && < 0.2
+    , cvss >= 0.2 && < 0.3
     , osv >= 0.1 && < 0.2
     , pandoc-types  >=1.22    && <2
     , safe          >=0.3     && <0.4

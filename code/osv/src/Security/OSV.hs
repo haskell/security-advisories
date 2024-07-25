@@ -246,7 +246,7 @@ data ReferenceType
   -- @app.any.run@ replaying the exploitation of the vulnerability.
   | ReferenceTypeWeb
   -- ^ A web page of some unspecified kind.
-  deriving (Show, Eq)
+  deriving (Show, Eq, Enum, Bounded)
 
 -- | Bijection of reference types and their string representations
 referenceTypes :: [(ReferenceType, Text)]

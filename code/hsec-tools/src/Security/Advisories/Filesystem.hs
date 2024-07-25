@@ -20,9 +20,11 @@ module Security.Advisories.Filesystem
   , forReserved
   , forAdvisory
   , listAdvisories
+  , advisoryFromFile
   ) where
 
 import Control.Applicative (liftA2)
+import Data.Bifunctor (bimap)
 import Data.Foldable (fold)
 import Data.Semigroup (Max(Max, getMax))
 import Data.Traversable (for)
@@ -125,17 +127,23 @@ listAdvisories root =
     isSym <- liftIO $ pathIsSymbolicLink advisoryPath
     if isSym
       then return $ pure []
-      else do
-        oob <- runExceptT $ withExceptT GitHasNoOOB $ do
-          gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
-          pure OutOfBandAttributes
-            { oobPublished = firstAppearanceCommitDate gitInfo
-            , oobModified = lastModificationCommitDate gitInfo
-            }
-        fileContent <- liftIO $ T.readFile advisoryPath
-        pure 
-          $ either (Failure . (: [])) (Success . (: [])) 
-          $ parseAdvisory NoOverrides oob fileContent
+      else bimap return return <$> advisoryFromFile advisoryPath
+
+-- | Parse an advisory from a file system path
+advisoryFromFile
+  :: (MonadIO m)
+  => FilePath -> m (Validation ParseAdvisoryError Advisory)
+advisoryFromFile advisoryPath = do
+  oob <- runExceptT $ withExceptT GitHasNoOOB $ do
+    gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
+    pure OutOfBandAttributes
+      { oobPublished = firstAppearanceCommitDate gitInfo
+      , oobModified = lastModificationCommitDate gitInfo
+      }
+  fileContent <- liftIO $ T.readFile advisoryPath
+  pure 
+    $ either Failure Success
+    $ parseAdvisory NoOverrides oob fileContent
 
 -- | Get names (not paths) of subdirectories of the given directory
 -- (one level).  There's no monoidal, interruptible variant of
