@@ -25,6 +25,7 @@ module Security.CVSS
   )
 where
 
+import Control.Applicative ( Alternative((<|>)) ) 
 import Data.Coerce (coerce)
 import Data.Foldable (traverse_)
 import Data.List (find, group, sort)
@@ -63,7 +64,7 @@ data CVSSScore = Zero | One | Two deriving (Show)
 toText :: MetricShortName -> Text
 toText (MetricShortName t) = t
 
-defaultMetricValue :: MetricShortName -> Maybe MetricValueChar
+defaultMetricValue :: MetricShortName -> Maybe MetricValueKey
 defaultMetricValue metricValue =
   let isXValue = elem metricValue ["MAV", "MAC", "MAT", "MPR", "MUI", "MVC", "MVI", "MSC", "MSA", "MSI", "S", "AU", "R", "V", "RE", "U"]
       isAValue = elem metricValue ["E"]
@@ -76,25 +77,19 @@ defaultMetricValue metricValue =
 getCvssMetric :: [Metric] -> MetricShortName -> Maybe Metric
 getCvssMetric metrics shortName = find (\c -> mName c == shortName) metrics
 
-getCvssMetricChar :: [Metric] -> MetricShortName -> Maybe MetricValueChar
+getCvssMetricChar :: [Metric] -> MetricShortName -> Maybe MetricValueKey
 getCvssMetricChar metrics shortName = case getCvssMetric metrics shortName of
                 Just c -> Just $ mChar c
                 Nothing -> Nothing
 
-getCvssMetricCharOverriden :: [Metric] -> MetricShortName -> Maybe MetricValueChar
+getCvssMetricCharOverriden :: [Metric] -> MetricShortName -> Maybe MetricValueKey
 getCvssMetricCharOverriden metrics shortName =
   let
     overridingName = MetricShortName (Text.pack $ "M" <> Text.unpack (toText shortName))
     overridingMetricChar = getCvssMetricChar metrics overridingName
     metricChar = getCvssMetricChar metrics shortName
     defaultMetricChar = defaultMetricValue shortName in
-      case overridingMetricChar of
-        Just _ -> overridingMetricChar
-        Nothing -> case metricChar of
-          Just _ -> metricChar
-          Nothing -> case defaultMetricChar of
-            Just _ -> defaultMetricChar
-            Nothing -> Nothing
+      overridingMetricChar <|> metricChar <|> defaultMetricChar
 
 getCvssMetricV :: CVSSDB -> [Metric] -> MetricShortName -> Float
 getCvssMetricV db metrics shortName =
@@ -107,7 +102,7 @@ getCvssMetricV db metrics shortName =
           Nothing -> 0.0
 
 
-hasCvssMetricWithValueR :: [Metric] -> MetricShortName -> MetricValueChar -> Bool
+hasCvssMetricWithValueR :: [Metric] -> MetricShortName -> MetricValueKey -> Bool
 hasCvssMetricWithValueR metrics shortName mchar =
     case getCvssMetricCharOverriden metrics shortName of
       Just c -> c == mchar
@@ -187,7 +182,7 @@ data CVSSError
   | DuplicateMetric Text
   | MissingRequiredMetric Text
   | UnknownMetric Text
-  | UnknownValue Text Char
+  | UnknownValue Text MetricValueKey
 
 instance Show CVSSError where
   show = Text.unpack . showCVSSError
@@ -205,12 +200,12 @@ showCVSSError e = case e of
 newtype MetricShortName = MetricShortName Text
   deriving newtype (Eq, IsString, Ord, Show)
 
-newtype MetricValueChar = MetricValueChar Char
-  deriving newtype (Eq, Ord, Show)
+data MetricValueKey = MetricValueKey Char String
+  deriving stock (Eq, Ord, Show)
 
 data Metric = Metric
   { mName :: MetricShortName,
-    mChar :: MetricValueChar
+    mChar :: MetricValueKey
   }
   deriving (Eq, Show)
 
@@ -234,7 +229,7 @@ parseCVSS txt
     splitComponent componentTxt = case Text.unsnoc componentTxt of
       Nothing -> Left EmptyComponent
       Just (rest, c) -> case Text.unsnoc rest of
-        Just (name, ':') -> Right (Metric (MetricShortName name) (MetricValueChar c))
+        Just (name, ':') -> Right (Metric (MetricShortName name) (C c))
         _ -> Left (MissingValue componentTxt)
 
 -- | Compute the base score.
@@ -266,7 +261,7 @@ cvssShow ordered cvss = case cvssVersion cvss of
   where
     components = map toComponent (cvssOrder (cvssMetrics cvss))
     toComponent :: Metric -> Text
-    toComponent (Metric (MetricShortName name) (MetricValueChar value)) = Text.snoc (name <> ":") value
+    toComponent (Metric (MetricShortName name) (MetricValueKey c value)) = (name <> ":") <> Text.cons c (Text.pack value)
     cvssOrder metrics
       | ordered = mapMaybe getMetric (allMetrics (cvssDB (cvssVersion cvss)))
       | otherwise = metrics
@@ -299,7 +294,7 @@ data MetricInfo = MetricInfo
 -- | Description of a single metric value
 data MetricValue = MetricValue
   { mvName :: Text,
-    mvChar :: MetricValueChar,
+    mvChar :: MetricValueKey,
     mvNum :: Float,
     mvNumChangedScope :: Maybe Float,
     mvDesc :: Text
@@ -556,12 +551,11 @@ cvss40 =
         "Provider Urgency"
         "U"
         False
-        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."]
-          -- TODO andrii
-          -- ,MetricValue "Clear" (C 'Clear') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having no urgency (Informational)."
-          -- ,MetricValue "Green" (C 'Green') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having a reduced urgency."
-          -- ,MetricValue "Amber" (C 'Amber') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having a moderate urgency."
-          -- ,MetricValue "Red" (C 'Red') 0.0 Nothing "Provider has assessed the impact of this vulnerability as having the highest urgency."]
+        [MetricValue "Not Defined" (C 'X') 0.0 Nothing "The metric has not been evaluated."
+          ,MetricValue "Clear" (S 'C' "lear") 0.0 Nothing "Provider has assessed the impact of this vulnerability as having no urgency (Informational)."
+          ,MetricValue "Green" (S 'G' "reen") 0.0 Nothing "Provider has assessed the impact of this vulnerability as having a reduced urgency."
+          ,MetricValue "Amber" (S 'A' "mber") 0.0 Nothing "Provider has assessed the impact of this vulnerability as having a moderate urgency."
+          ,MetricValue "Red" (S 'R' "ed") 0.0 Nothing "Provider has assessed the impact of this vulnerability as having the highest urgency." ]
       ]
 
 validateCvss40 :: [Metric] -> Either CVSSError [Metric]
@@ -615,7 +609,7 @@ parseMaxVectors txt = CVSS CVSS40 <$> parseMetrics
     splitComponent componentTxt = case Text.unsnoc componentTxt of
       Nothing -> Left EmptyComponent
       Just (rest, c) -> case Text.unsnoc rest of
-        Just (name, ':') -> Right (Metric (MetricShortName name) (MetricValueChar c))
+        Just (name, ':') -> Right (Metric (MetricShortName name) (C c))
         _ -> Left (MissingValue componentTxt)
 
 calcSeverities :: [Metric] -> [Text] -> [Float]
@@ -804,8 +798,12 @@ cvss31 =
     temporalMetrics = []
     environmentalMetrics = []
 
-pattern C :: Char -> MetricValueChar
-pattern C c = MetricValueChar c
+pattern C :: Char -> MetricValueKey
+pattern C c = MetricValueKey c ""
+
+
+pattern S :: Char -> String -> MetricValueKey
+pattern S c s = MetricValueKey c s
 
 pattern Unchanged :: Float
 pattern Unchanged = 6.42
@@ -1079,7 +1077,7 @@ validateKnown db = traverse_ checkKnown
         Nothing -> Left (UnknownMetric (coerce name))
         Just m -> pure m
       case find (\mv -> mvChar mv == char) (miValues mi) of
-        Nothing -> Left (UnknownValue (coerce name) (coerce char))
+        Nothing -> Left (UnknownValue (coerce name) char)
         Just _ -> pure ()
 
 -- | Check for required metric

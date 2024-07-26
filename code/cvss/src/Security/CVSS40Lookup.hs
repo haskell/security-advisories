@@ -320,6 +320,6 @@ maxSeverity :: [[Float]]
 maxSeverity = [
         [ 1, 4, 5 ],
         [ 1, 2 ],
-        [],-- stub for 3
+        [],
         [ 6, 5, 4 ],
         [ 1, 1, 1 ]]
