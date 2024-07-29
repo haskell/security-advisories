@@ -15,7 +15,7 @@ tested-with:
 
 library
   exposed-modules:  Security.CVSS
-  other-modules:    Security.CVSS40Lookup
+  other-modules:    Security.V4_0.CVSS40Lookup
   build-depends:
     , base        >=4.14 && <5
     , containers

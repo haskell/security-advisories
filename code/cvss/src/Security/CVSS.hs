@@ -34,7 +34,7 @@ import Data.String (IsString)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import GHC.Float (powerFloat)
-import Security.CVSS40Lookup (lookupScore, maxComposed, maxComposedEQ3, maxSeverity, maxSeverityeq3eq6)
+import Security.V4_0.CVSS40Lookup (lookupScore, maxComposed, maxComposedEQ3, maxSeverity, maxSeverityeq3eq6)
 import qualified Data.Map as Map
 import Data.Either (rights)
 
@@ -226,11 +226,14 @@ parseCVSS txt
 
     components withPrefix = (if withPrefix then drop 1 else id) $ Text.split (== '/') txt
     splitComponent :: Text -> Either CVSSError Metric
-    splitComponent componentTxt = case Text.unsnoc componentTxt of
-      Nothing -> Left EmptyComponent
-      Just (rest, c) -> case Text.unsnoc rest of
-        Just (name, ':') -> Right (Metric (MetricShortName name) (C c))
-        _ -> Left (MissingValue componentTxt)
+    splitComponent componentTxt
+      | Text.null componentTxt = Left EmptyComponent
+      | otherwise = 
+          let (name, valueWithColon) = Text.breakOn ":" componentTxt
+              value = Text.drop 1 valueWithColon
+          in if Text.null value
+            then Left (MissingValue componentTxt)
+            else Right (Metric (MetricShortName name) (S (Text.head value) (Text.unpack $ Text.tail value)))
 
 -- | Compute the base score.
 cvssScore :: CVSS -> (Rating, Float)
@@ -614,61 +617,47 @@ parseMaxVectors txt = CVSS CVSS40 <$> parseMetrics
 
 calcSeverities :: [Metric] -> [Text] -> [Float]
 calcSeverities metrics maxVectors =
-  case find isValidMaxVector parsedMaxVectors of
-    Just maxVector ->
-      let
-        severityDistanceAV = gm metrics "AV" - gm (cvssMetrics maxVector) "AV"
-        severityDistancePR = gm metrics "PR" - gm (cvssMetrics maxVector) "PR"
-        severityDistanceUI = gm metrics "UI" - gm (cvssMetrics maxVector) "UI"
-        severityDistanceAC = gm metrics "AC" - gm (cvssMetrics maxVector) "AC"
-        severityDistanceAT = gm metrics "AT" - gm (cvssMetrics maxVector) "AT"
-        severityDistanceVC = gm metrics "VC" - gm (cvssMetrics maxVector) "VC"
-        severityDistanceVI = gm metrics "VI" - gm (cvssMetrics maxVector) "VI"
-        severityDistanceVA = gm metrics "VA" - gm (cvssMetrics maxVector) "VA"
-        severityDistanceSC = gm metrics "SC" - gm (cvssMetrics maxVector) "SC"
-        severityDistanceSI = gm metrics "SI" - gm (cvssMetrics maxVector) "SI"
-        severityDistanceSA = gm metrics "SA" - gm (cvssMetrics maxVector) "SA"
-        severityDistanceCR = gm metrics "CR" - gm (cvssMetrics maxVector) "CR"
-        severityDistanceIR = gm metrics "IR" - gm (cvssMetrics maxVector) "IR"
-        severityDistanceAR = gm metrics "AR" - gm (cvssMetrics maxVector) "AR"
-      in
-       [ severityDistanceAV + severityDistancePR + severityDistanceUI
-        , severityDistanceAC + severityDistanceAT
-        , severityDistanceVC + severityDistanceVI + severityDistanceVA + severityDistanceCR + severityDistanceIR + severityDistanceAR
-        , severityDistanceSC + severityDistanceSI + severityDistanceSA
-        , 0
-        ]
-    Nothing -> [0, 0, 0, 0, 0]
-  where
-    gm :: [Metric] -> MetricShortName -> Float
-    gm = getCvssMetricV cvss40
-    pMaxVectors = map parseMaxVectors maxVectors
-    parsedMaxVectors = rights pMaxVectors
-    isValidMaxVector maxVector =
-      let
-        severityDistanceAV = gm metrics "AV" - gm (cvssMetrics maxVector) "AV"
-        severityDistancePR = gm metrics "PR" - gm (cvssMetrics maxVector) "PR"
-        severityDistanceUI = gm metrics "UI" - gm (cvssMetrics maxVector) "UI"
-        severityDistanceAC = gm metrics "AC" - gm (cvssMetrics maxVector) "AC"
-        severityDistanceAT = gm metrics "AT" - gm (cvssMetrics maxVector) "AT"
-        severityDistanceVC = gm metrics "VC" - gm (cvssMetrics maxVector) "VC"
-        severityDistanceVI = gm metrics "VI" - gm (cvssMetrics maxVector) "VI"
-        severityDistanceVA = gm metrics "VA" - gm (cvssMetrics maxVector) "VA"
-        severityDistanceSC = gm metrics "SC" - gm (cvssMetrics maxVector) "SC"
-        severityDistanceSI = gm metrics "SI" - gm (cvssMetrics maxVector) "SI"
-        severityDistanceSA = gm metrics "SA" - gm (cvssMetrics maxVector) "SA"
-        severityDistanceCR = gm metrics "CR" - gm (cvssMetrics maxVector) "CR"
-        severityDistanceIR = gm metrics "IR" - gm (cvssMetrics maxVector) "IR"
-        severityDistanceAR = gm metrics "AR" - gm (cvssMetrics maxVector) "AR"
-      in
-          all (>= 0.0) [ severityDistanceAV, severityDistancePR, severityDistanceUI, severityDistanceAC, severityDistanceAT
-                    , severityDistanceVC, severityDistanceVI, severityDistanceVA, severityDistanceSC, severityDistanceSI
-                    , severityDistanceSA, severityDistanceCR, severityDistanceIR, severityDistanceAR ]
+  let calculatedSeverities = map calcMaxVectorSeverities parsedMaxVectors in
+    case find (all (>= 0.0)) calculatedSeverities of
+      Just [ severityDistanceAV, severityDistancePR, severityDistanceUI, severityDistanceAC, severityDistanceAT
+             , severityDistanceVC, severityDistanceVI, severityDistanceVA, severityDistanceSC, severityDistanceSI
+             , severityDistanceSA, severityDistanceCR, severityDistanceIR, severityDistanceAR ] ->
+        [ severityDistanceAV + severityDistancePR + severityDistanceUI
+          , severityDistanceAC + severityDistanceAT
+          , severityDistanceVC + severityDistanceVI + severityDistanceVA + severityDistanceCR + severityDistanceIR + severityDistanceAR
+          , severityDistanceSC + severityDistanceSI + severityDistanceSA
+          , 0
+          ]
+      Nothing -> [0, 0, 0, 0, 0]
+    where
+      gm :: [Metric] -> MetricShortName -> Float
+      gm = getCvssMetricV cvss40
+      pMaxVectors = map parseMaxVectors maxVectors
+      parsedMaxVectors = rights pMaxVectors
+      calcMaxVectorSeverities maxVector =
+        let
+          severityDistanceAV = gm metrics "AV" - gm (cvssMetrics maxVector) "AV"
+          severityDistancePR = gm metrics "PR" - gm (cvssMetrics maxVector) "PR"
+          severityDistanceUI = gm metrics "UI" - gm (cvssMetrics maxVector) "UI"
+          severityDistanceAC = gm metrics "AC" - gm (cvssMetrics maxVector) "AC"
+          severityDistanceAT = gm metrics "AT" - gm (cvssMetrics maxVector) "AT"
+          severityDistanceVC = gm metrics "VC" - gm (cvssMetrics maxVector) "VC"
+          severityDistanceVI = gm metrics "VI" - gm (cvssMetrics maxVector) "VI"
+          severityDistanceVA = gm metrics "VA" - gm (cvssMetrics maxVector) "VA"
+          severityDistanceSC = gm metrics "SC" - gm (cvssMetrics maxVector) "SC"
+          severityDistanceSI = gm metrics "SI" - gm (cvssMetrics maxVector) "SI"
+          severityDistanceSA = gm metrics "SA" - gm (cvssMetrics maxVector) "SA"
+          severityDistanceCR = gm metrics "CR" - gm (cvssMetrics maxVector) "CR"
+          severityDistanceIR = gm metrics "IR" - gm (cvssMetrics maxVector) "IR"
+          severityDistanceAR = gm metrics "AR" - gm (cvssMetrics maxVector) "AR"
+        in [ severityDistanceAV, severityDistancePR, severityDistanceUI, severityDistanceAC, severityDistanceAT
+              , severityDistanceVC, severityDistanceVI, severityDistanceVA, severityDistanceSC, severityDistanceSI
+              , severityDistanceSA, severityDistanceCR, severityDistanceIR, severityDistanceAR ]
 
 calcMeanDistance :: Maybe Float -> [Maybe Float] -> [Int] -> [Float] -> Int -> Float
 calcMeanDistance Nothing _ _ _ _ = 0
 calcMeanDistance (Just value) nextLowerMacro macroVector currentSeverities eq6 =
-  if nExistingLower == 0.0 then 0.0 else (sum normalizedSeverities) / nExistingLower where
+  if nExistingLower == 0.0 then 0.0 else sum normalizedSeverities / nExistingLower where
     normalizedSeverities = zipWith calcNormalizedSeverity [0..] [0, 0, 0, 0, 0]
     nExistingLower :: Float
     nExistingLower = sum (zipWith (\i _ -> case nextLowerMacro !! i of

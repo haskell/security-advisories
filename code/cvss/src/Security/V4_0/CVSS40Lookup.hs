@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Security.CVSS40Lookup (lookupScore, maxComposed, maxComposedEQ3, maxSeverityeq3eq6, maxSeverity) where
+module Security.V4_0.CVSS40Lookup (lookupScore, maxComposed, maxComposedEQ3, maxSeverityeq3eq6, maxSeverity) where
 
 import qualified Data.Map as Map
 import Data.Text (Text)
