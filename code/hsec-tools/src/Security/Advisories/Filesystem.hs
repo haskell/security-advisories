@@ -121,13 +121,15 @@ forAdvisory root go = do
 -- | List deduplicated parsed Advisories
 listAdvisories
   :: (MonadIO m)
-  => FilePath -> m (Validation [ParseAdvisoryError] [Advisory])
+  => FilePath -> m (Validation [(FilePath, ParseAdvisoryError)] [Advisory])
 listAdvisories root =
   forAdvisory root $ \advisoryPath _advisoryId -> do
     isSym <- liftIO $ pathIsSymbolicLink advisoryPath
     if isSym
       then return $ pure []
-      else bimap return return <$> advisoryFromFile advisoryPath
+      else
+        bimap (\err -> [(advisoryPath, err)]) pure
+        <$> advisoryFromFile advisoryPath
 
 -- | Parse an advisory from a file system path
 advisoryFromFile
