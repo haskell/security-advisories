@@ -50,16 +50,24 @@ isAffectedByHelper checkWithRange queryPackageName queryVersionish =
         (orLaterVersion (affectedVersionRangeIntroduced avr))
         (maybe anyVersion earlierVersion (affectedVersionRangeFixed avr))
 
+type QueryResult = Validation [(FilePath, ParseAdvisoryError)] [Advisory]
+
 -- | List the advisories matching a package name and a version
-listVersionAffectedBy :: MonadIO m => FilePath -> Text -> Version -> m (Validation [ParseAdvisoryError] [Advisory])
+listVersionAffectedBy
+  :: MonadIO m
+  => FilePath -> Text -> Version -> m QueryResult
 listVersionAffectedBy = listAffectedByHelper isVersionAffectedBy
 
 -- | List the advisories matching a package name and a version range
-listVersionRangeAffectedBy :: MonadIO m => FilePath -> Text -> VersionRange -> m (Validation [ParseAdvisoryError] [Advisory])
+listVersionRangeAffectedBy
+  :: (MonadIO m)
+  => FilePath -> Text -> VersionRange -> m QueryResult
 listVersionRangeAffectedBy = listAffectedByHelper isVersionRangeAffectedBy
 
 -- | Helper function for 'listVersionAffectedBy' and 'listVersionRangeAffectedBy'
-listAffectedByHelper :: MonadIO m => (Text -> a -> Advisory -> Bool) -> FilePath -> Text -> a -> m (Validation [ParseAdvisoryError] [Advisory])
+listAffectedByHelper
+  :: (MonadIO m)
+  => (Text -> a -> Advisory -> Bool) -> FilePath -> Text -> a -> m QueryResult
 listAffectedByHelper checkAffectedBy root queryPackageName queryVersionish =
   fmap (filter (checkAffectedBy queryPackageName queryVersionish)) <$>
     listAdvisories root
