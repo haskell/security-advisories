@@ -147,10 +147,13 @@ listByPackages advisories =
             let sortedAdvisories =
                     sortOn (Down . advisoryId . fst) perPackageAdvisory
             forM_ sortedAdvisories $ \(advisory, package) -> do
-              td_ [class_ "advisory-id"] $ a_ [href_ $ advisoryLink $ advisoryId advisory] $ toHtml (Advisories.printHsecId $ advisoryId advisory)
-              td_ [class_ "advisory-introduced"] $ toHtml $ introduced package
-              td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml $ fixed package
-              td_ [class_ "advisory-summary"] $ toHtml $ advisorySummary advisory
+              tr_ $ do
+                td_ [class_ "advisory-id"] $
+                  a_ [href_ $ advisoryLink $ advisoryId advisory] $
+                    toHtml (Advisories.printHsecId $ advisoryId advisory)
+                td_ [class_ "advisory-introduced"] $ toHtml $ introduced package
+                td_ [class_ "advisory-fixed"] $ maybe (return ()) toHtml $ fixed package
+                td_ [class_ "advisory-summary"] $ toHtml $ advisorySummary advisory
 
 indexDescription :: Html ()
 indexDescription =
