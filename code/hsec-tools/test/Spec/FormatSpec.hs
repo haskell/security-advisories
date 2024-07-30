@@ -80,11 +80,8 @@ genAffected =
 genComponentIdentifier :: Gen.Gen ComponentIdentifier
 genComponentIdentifier = Gen.choice $
   [ Hackage <$> genText
-  , GHC <$> genGHCComponent
+  , GHC <$> Gen.enumBounded
   ]
-
-genGHCComponent :: Gen.Gen GHCComponent
-genGHCComponent = Gen.choice $ map pure [minBound..maxBound]
 
 genCVSS :: Gen.Gen CVSS
 genCVSS =
