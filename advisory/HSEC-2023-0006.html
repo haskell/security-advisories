@@ -1,0 +1,24 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>Advisories list</h1><div class="content"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0006&quot;
+cwe = [295]
+keywords = [&quot;x509&quot;, &quot;pki&quot;, &quot;historical&quot;]
+
+[[affected]]
+package = &quot;x509-validation&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:H/PR:H/UI:R/S:U/C:H/I:H/A:N&quot;
+
+[[affected.versions]]
+introduced = &quot;1.4.0&quot;
+fixed = &quot;1.4.8&quot;
+
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/haskell-tls/hs-certificate/commit/06d15dbbc53739314760d8504ca764000770e46e&quot;
+</code></pre>
+<h1>x509-validation does not enforce pathLenConstraint</h1>
+<p><em>x509-validation</em> prior to version 1.4.8 did not enforce the
+pathLenConstraint value.  Constrained CAs could accidentally (or
+deliberately) issue CAs below the maximum depth and
+<em>x509-validation</em> would accept certificates issued by the
+unauthorised intermediate CAs.</p>
+</div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
