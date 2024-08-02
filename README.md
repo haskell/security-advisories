@@ -49,8 +49,13 @@ capec = [123]
 # particular class of vulnerabilities?"
 keywords = ["ssl", "mitm"]
 
-# Vulnerability aliases, e.g. CVE IDs (optional but recommended)
-# Request a CVE for your HSec vulns: https://iwantacve.org/
+# Vulnerability aliases, e.g. CVE or GHSA IDs.  This field is
+# optional, but it is strongly recommended to reference any known
+# aliases.
+#
+# A corresponding CVE is not required, but you can request one if
+# you want: https://iwantacve.org/
+#
 #aliases = ["CVE-2018-XXXX"]
 
 # Related vulnerabilities (optional)
@@ -72,8 +77,13 @@ url = "https://github.com/username/package/pull/139"
 # and the `versions` table.
 [[affected]]
 
-# Mandatory: name of the affected package on Hackage
+# Mandatory package component identifier; ONE of the following:
+#
+# OPTION 1: name of the affected package on Hackage
 package = "acme-broken"
+#
+# OPTION 2: component of GHC compiler suite
+# ghc-component = {ghc,ghci,rts,ghc-pkg,runghc,ghc-iserv,hp2ps,hpc,hsc2hs,haddock}
 
 # Mandatory: a Common Vulnerability Scoring System score. More information
 # can be found on the CVSS website, https://www.first.org/cvss/.

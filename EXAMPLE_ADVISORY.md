@@ -23,8 +23,19 @@ related = ["CVE-2022-YYYY", "CVE-2022-ZZZZ"]
 
 # You can declare multiple affected packages
 [[affected]]
+
+# Declare the affected package/component via ONE of the
+# following options
+#
+# OPTION 1: package = hackage-package-name
 package = "package-name"
+#
+# OPTION 2: ghc-component = {ghc,ghci,rts,ghc-pkg,runghc,ghc-iserv,hp2ps,hpc,hsc2hs,haddock}
+# ghc-component = "ghci"
+
+# CVSS vector.  Accepted versions: 2.0, 3.0, 3.1
 cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+
 # arch = ["x86", "x86_64"]
 # os = ["mingw32"]
 # declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
