@@ -2,7 +2,6 @@
 
 module Main where
 
-import qualified Command.Reserve
 import Control.Monad (forM_, join, void, when)
 import Control.Monad.Trans.Except (runExceptT, ExceptT (ExceptT), withExceptT, throwE)
 import Control.Monad.IO.Class (liftIO)
@@ -29,6 +28,9 @@ import System.FilePath (takeBaseName)
 import System.IO (hPrint, hPutStrLn, stderr)
 import Validation (Validation (..))
 
+import qualified Command.Reserve
+import qualified Command.NextID
+
 main :: IO ()
 main =
   join $
@@ -43,6 +45,7 @@ cliOpts = info (commandsParser <**> helper) (fullDesc <> header "Haskell Advisor
     commandsParser =
       hsubparser
         ( command "check" (info commandCheck (progDesc "Syntax check a single advisory"))
+            <> command "next-id" (info commandNextID (progDesc "Print the next available HSEC ID"))
             <> command "reserve" (info commandReserve (progDesc "Reserve an HSEC ID"))
             <> command "osv" (info commandOsv (progDesc "Convert a single advisory to OSV"))
             <> command "render" (info commandRender (progDesc "Render a single advisory as HTML"))
@@ -75,6 +78,11 @@ commandReserve =
       ( long "commit"
           <> help "Commit the reservation file"
       )
+
+commandNextID :: Parser (IO ())
+commandNextID =
+  Command.NextID.runNextIDCommand
+    <$> optional (argument str (metavar "REPO"))
 
 commandCheck :: Parser (IO ())
 commandCheck =

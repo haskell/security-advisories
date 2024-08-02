@@ -1,6 +1,8 @@
 ```toml
 
 [advisory]
+# Submit PRs with HSEC-0000-0000, or run `hsec-tools next-id` to
+# print the next available ID.
 id = "HSEC-0000-0000"
 cwe = []
 

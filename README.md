@@ -26,6 +26,7 @@ to remove the explanatory comments for each field.
 [advisory]
 # Identifier for the advisory (mandatory). Will be assigned a "HSEC-YYYY-NNNN"
 # identifier e.g. HSEC-2022-0001. Please use "HSEC-0000-0000" in PRs.
+# Or run `hsec-tools next-id` to print the next available ID.
 id = "HSEC-0000-0000"
 
 # Publication date of the advisory as an RFC 3339 date.
