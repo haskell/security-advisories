@@ -2,8 +2,7 @@
 
 module Command.Reserve where
 
-import Control.Monad (unless, when)
-import Data.Maybe (fromMaybe)
+import Control.Monad (when)
 import System.Exit (die)
 import System.FilePath ((</>), (<.>))
 
@@ -11,7 +10,6 @@ import Security.Advisories.Git
   ( add
   , commit
   , explainGitError
-  , getRepoRoot
   )
 import Security.Advisories.Core.HsecId
   ( placeholder
@@ -21,9 +19,10 @@ import Security.Advisories.Core.HsecId
 import Security.Advisories.Filesystem
   ( dirNameAdvisories
   , dirNameReserved
-  , isSecurityAdvisoriesRepo
   , getGreatestId
   )
+
+import Util (ensureRepo)
 
 -- | How to choose IDs when creating advisories or
 -- reservations.
@@ -40,14 +39,7 @@ data CommitFlag = Commit | DoNotCommit
 
 runReserveCommand :: Maybe FilePath -> IdMode -> CommitFlag -> IO ()
 runReserveCommand mPath idMode commitFlag = do
-  let
-    path = fromMaybe "." mPath
-  repoPath <- getRepoRoot path >>= \case
-    Left _ -> die "Not a git repo"
-    Right a -> pure a
-  isRepo <- isSecurityAdvisoriesRepo repoPath
-  unless isRepo $
-    die "Not a security-advisories repo"
+  repoPath <- ensureRepo mPath
 
   hsid <- case idMode of
     IdModePlaceholder -> pure placeholder
