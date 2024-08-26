@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hsec-tools
-version:            0.2.0.0
+version:            0.2.0.1
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -53,7 +53,7 @@ library
     , aeson                 >=2.0.1.0  && <3
     , base                  >=4.14     && <4.20
     , bytestring            >=0.10    && <0.13
-    , Cabal-syntax          >=3.8.1.0  && <3.11
+    , Cabal-syntax          >=3.8.1.0  && <3.13
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2      && <0.3
     , containers            >=0.6      && <0.7

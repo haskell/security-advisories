@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               hsec-core
-version:            0.2.0.0
+version:            0.2.0.1
 
 -- A short (one-line) description of the package.
 synopsis:           Core package representing Haskell advisories
@@ -31,7 +31,7 @@ library
 
   build-depends:
     , base          >=4.14    && <4.20
-    , Cabal-syntax  >=3.8.1.0 && <3.11
+    , Cabal-syntax  >=3.8.1.0 && <3.13
     , cvss >= 0.2 && < 0.3
     , osv >= 0.1 && < 0.2
     , pandoc-types  >=1.22    && <2
