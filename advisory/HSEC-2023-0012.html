@@ -1,0 +1,29 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>Advisories list</h1><div class="content"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0012&quot;
+cwe = [200]
+keywords = [&quot;historical&quot;]
+
+[[affected]]
+package = &quot;git-annex&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N&quot;
+[[affected.versions]]
+introduced = &quot;0.20110417&quot;
+fixed = &quot;6.20160419&quot;
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://git-annex.branchable.com/security/checksum_exposure_to_encrypted_special_remotes/&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;http://source.git-annex.branchable.com/?p=source.git;a=commitdiff;h=b890f3a53d936b5e40aa9acc5876cb98f18b9657&quot;
+</code></pre>
+<h1><em>git-annex</em> checksum exposure to encrypted special remotes</h1>
+<p>A bug exposed the checksum of annexed files to encrypted special
+remotes, which are not supposed to have access to the checksum of
+the un-encrypted file.  This only occurred when resuming uploads to
+the encrypted special remote, so it is considered a low-severity
+security hole.</p>
+<p>For details, see commit <code>b890f3a53d936b5e40aa9acc5876cb98f18b9657</code>.</p>
+<p>No CVE was assigned for this issue.</p>
+<p>Fixed in <em>git-annex-6.20160419</em>.</p>
+</div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
