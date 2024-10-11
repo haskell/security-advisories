@@ -51,8 +51,8 @@ library
 
   build-depends:
     , aeson                 >=2.0.1.0  && <3
-    , base                  >=4.14     && <4.20
-    , bytestring            >=0.10    && <0.13
+    , base                  >=4.14     && <4.21
+    , bytestring            >=0.10     && <0.14
     , Cabal-syntax          >=3.8.1.0  && <3.13
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2      && <0.3
@@ -71,11 +71,11 @@ library
     , pandoc                >=2.0      && <3.2
     , pandoc-types          >=1.22     && <2
     , parsec                >=3        && <4
-    , pathwalk              >=0.3      && < 0.4
+    , pathwalk              >=0.3      && <0.4
     , pretty                >=1.0      && <1.2
     , prettyprinter         >=1.7      && <1.8
     , process               >=1.6      && <1.7
-    , safe                  >=0.3      && < 0.4
+    , safe                  >=0.3      && <0.4
     , text                  >=1.2      && <3
     , template-haskell      >=2.16.0.0 && <2.23
     , time                  >=1.9      && <1.14
