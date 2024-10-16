@@ -1,0 +1,24 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>Advisories list</h1><div class="content"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2023-0014&quot;
+keywords = [&quot;file write&quot;]
+aliases = [&quot;CVE-2023-35936&quot;, &quot;GHSA-xj5q-fv23-575g&quot;]
+cwe = [20]
+
+[[references]]
+type = &quot;REPORT&quot;
+url = &quot;https://github.com/jgm/pandoc/security/advisories/GHSA-xj5q-fv23-575g&quot;
+
+[[affected]]
+package = &quot;pandoc&quot;
+cvss = &quot;CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:C/C:N/I:H/A:L&quot;
+
+[[affected.versions]]
+introduced = &quot;1.13&quot;
+fixed = &quot;3.1.4&quot;
+
+</code></pre>
+<h1>Arbitrary file write is possible when using PDF output or --extract-media with untrusted input</h1>
+<p>Pandoc is susceptible to an arbitrary file write vulnerability, which can be triggered by providing a specially crafted image element in the input when generating files using the --extract-media option or outputting to PDF format. This vulnerability allows an attacker to create or overwrite arbitrary files on the system (depending on the privileges of the process running pandoc).</p>
+<p>This vulnerability only affects systems that (a) pass untrusted user input to pandoc and (b) allow pandoc to be used to produce a PDF or with the --extract-media option.</p>
+<p>The vulnerability is patched in pandoc 3.1.4.</p>
+</div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

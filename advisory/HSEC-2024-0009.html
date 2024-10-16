@@ -1,0 +1,30 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>Advisories list</h1><div class="content"><pre><code class="language-toml">[advisory]
+id = &quot;HSEC-2024-0009&quot;
+keywords = [&quot;biscuit&quot;]
+aliases = [&quot;CVE-2024-41949&quot;, &quot;GHSA-rgqv-mwc3-c78m&quot;, &quot;GHSA-47cq-pc2v-3rmp&quot;]
+
+[[references]]
+type = &quot;ADVISORY&quot;
+url = &quot;https://github.com/biscuit-auth/biscuit-haskell/security/advisories/GHSA-47cq-pc2v-3rmp&quot;
+[[references]]
+type = &quot;FIX&quot;
+url = &quot;https://github.com/biscuit-auth/biscuit-haskell/pull/93&quot;
+
+[[affected]]
+package = &quot;biscuit-haskell&quot;
+cvss = &quot;CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:N/I:L/A:N&quot;
+
+[[affected.versions]]
+introduced = &quot;0.3.0.0&quot;
+fixed = &quot;0.4.0.0&quot;
+</code></pre>
+<h1>Public key confusion in third-party blocks</h1>
+<p>Third-party blocks can be generated without transferring the whole token to the third-party authority. Instead, a <code>ThirdPartyBlock</code> request can be sent, providing only the necessary info to generate a third-party block and to sign it:</p>
+<ul>
+<li>the public key of the previous block (used in the signature);
+</li>
+<li>the public keys part of the token symbol table (for public key interning in datalog expressions).
+</li>
+</ul>
+<p>A third-party block request forged by a malicious user can trick the third-party authority into generating datalog trusting the wrong keypair.</p>
+</div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
