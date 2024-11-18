@@ -131,12 +131,7 @@ The above [TOML] "front matter" is followed by the long description in [Markdown
 
 ## Current Members
 
-- [Tristan de Cacqueray](mailto:tristan.cacqueray@gmail.com)
-- [Gautier Di Folco](mailto:gautier.difolco@gmail.com)
-- [Mihai Maruseac](mailto:mihai.maruseac@gmail.com)
-- [Casey Mattingly](mailto:case@capsulecorp.org)
-- [David Thrane Christiansen](mailto:david@haskell.foundation)
-- [Fraser Tweedale](mailto:frase@frase.id.au)
+Please see [Current members](./docs/membership.md).
 
 ## Processes
 
