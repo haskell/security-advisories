@@ -106,5 +106,6 @@
 
         # Used by `nix develop` (dev shell)
         devShell = hsec-tools true;
+        devShells.json-schema = pkgs.mkShell { buildInputs = [ pkgs.check-jsonschema ]; };
       });
 }
