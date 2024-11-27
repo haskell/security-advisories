@@ -59,6 +59,10 @@ jobs:
             mkdir -p $DATA_DIR/$YEAR
             docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
           done < <(find advisories -type f -name "*.md" | grep -v '^advisories/reserved/')
+      - name: Validate OSV data
+        run: |
+          curl -OL https://raw.githubusercontent.com/ossf/osv-schema/refs/heads/main/validation/schema.json
+          nix develop nixpkgs#json-schema --command check-jsonschema --schemafile ./schema.json ./osv/*/*.json
       - name: Publish OSV data
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         env:
