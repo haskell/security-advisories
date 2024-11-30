@@ -13,29 +13,36 @@ import qualified Data.ByteString.Char8 as BS8
 import Data.List (sortOn)
 import Data.List.Extra (groupSort)
 import qualified Data.Map.Strict as Map
+import Data.Maybe (fromMaybe)
 import Data.Ord (Down (..))
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
-import Data.Time (UTCTime)
+import Data.Time (UTCTime, formatTime, defaultTimeLocale)
 import Data.Time.Format.ISO8601
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
 import System.FilePath ((</>), takeDirectory)
 import System.IO (hPrint, hPutStrLn, stderr)
+import System.IO.Unsafe (unsafePerformIO)
 
+import Data.Default (def)
 import Distribution.Pretty (prettyShow)
+import Distribution.Types.VersionRange (earlierVersion, intersectVersionRanges, orLaterVersion)
 import Lucid
 import Safe (maximumMay)
 import qualified Text.Atom.Feed as Feed
 import qualified Text.Atom.Feed.Export as FeedExport
+import Text.Pandoc (runIOorExplode)
+import Text.Pandoc.Writers (writeHtml5String)
 import Validation (Validation (..))
 
 import qualified Security.Advisories as Advisories
 import Security.Advisories.Filesystem (listAdvisories)
 import Security.Advisories.Generate.TH (readDirFilesTH)
 import Security.Advisories.Core.Advisory (ComponentIdentifier (..), ghcComponentToText)
+import qualified Security.OSV as OSV
 
 -- * Actions
 
@@ -62,10 +69,12 @@ renderAdvisoriesIndex src dst = do
 
   let advisoriesDir = dst </> "advisory"
   createDirectoryIfMissing False advisoriesDir
-  forM_ advisories $ \advisory ->
-    renderHTMLToFile (advisoriesDir </> advisoryHtmlFilename (Advisories.advisoryId advisory)) $
-      inPage PageAdvisory $
-        toHtmlRaw (Advisories.advisoryHtml advisory)
+  forM_ advisories $ \advisory -> do
+    let advisoryPath = advisoriesDir </> advisoryHtmlFilename (Advisories.advisoryId advisory)
+    hPutStrLn stderr $ "Rendering " <> advisoryPath
+    renderHTMLToFile advisoryPath $
+      inPage (T.pack $ Advisories.printHsecId $ Advisories.advisoryId advisory) PageAdvisory $
+        renderAdvisory advisory
 
   hPutStrLn stderr $ "Rendering " <> (dst </> "atom.xml")
   writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed advisories
@@ -98,7 +107,7 @@ data AffectedPackageR = AffectedPackageR
 
 listByDates :: [AdvisoryR] -> Html ()
 listByDates advisories =
-  inPage PageListByDates $ do
+  inPage "Advisories list" PageListByDates $ do
     indexDescription
     div_ [class_ "advisories"] $ do
       table_ [class_ "pure-table pure-table-horizontal"] $ do
@@ -126,7 +135,7 @@ packageName af = case ecosystem af of
 
 listByPackages :: [AdvisoryR] -> Html ()
 listByPackages advisories =
-  inPage PageListByPackages $ do
+  inPage "Advisories list" PageListByPackages $ do
     indexDescription
 
     let byPackage :: Map.Map Text [(AdvisoryR, AffectedPackageR)]
@@ -173,6 +182,75 @@ indexDescription =
       a_ [href_ "https://github.com/haskell/security-advisories/blob/main/PROCESS.md", target_ "_blank", rel_ "noopener noreferrer"] "report new or historic security issues"
       "."
 
+renderAdvisory :: Advisories.Advisory -> Html ()
+renderAdvisory advisory =
+  div_ [id_ "advisory"] $ do
+    let renderedDescription = unsafePerformIO $ runIOorExplode $ writeHtml5String def $ Advisories.advisoryPandoc advisory
+    toHtmlRaw renderedDescription
+
+    let placeholderWhenEmptyOr :: [a] -> ([a] -> Html ()) -> Html ()
+        placeholderWhenEmptyOr xs f = if null xs then dd_ [] $ i_ "< none >" else f xs
+
+    h3_ [] "Info"
+    dl_ [] $ do
+      dt_ "Published"
+      dd_ [] $ toHtml $ formatTime defaultTimeLocale "%B %d, %Y" $ Advisories.advisoryPublished advisory
+      dt_ "Modified"
+      dd_ [] $ toHtml $ formatTime defaultTimeLocale "%B %d, %Y" $ Advisories.advisoryModified advisory
+      dt_ "CAPECs"
+      placeholderWhenEmptyOr (Advisories.advisoryCAPECs advisory) $ \capecs ->
+        forM_ capecs $ \(Advisories.CAPEC capec) ->
+            dd_ [] $ a_ [href_ $ "https://capec.mitre.org/data/definitions/" <> T.pack (show capec) <> ".html"] $ toHtml $ show capec
+      dt_ "CWEs"
+      placeholderWhenEmptyOr (Advisories.advisoryCWEs advisory) $ \cwes ->
+        forM_ cwes $ \(Advisories.CWE cwe) ->
+          dd_ [] $ a_ [href_ $ "https://cwe.mitre.org/data/definitions/" <> T.pack (show cwe) <> ".html"] $ toHtml $ show cwe
+      dt_ "Keywords"
+      placeholderWhenEmptyOr (Advisories.advisoryKeywords advisory) $ dd_ [] . toHtml . T.intercalate ", " . map Advisories.unKeyword
+      dt_ "Aliases"
+      placeholderWhenEmptyOr (Advisories.advisoryAliases advisory) $ dd_ [] . toHtml . T.intercalate ", "
+      dt_ "Related"
+      placeholderWhenEmptyOr (Advisories.advisoryRelated advisory) $ dd_ [] . toHtml . T.intercalate ", "
+      dt_ "References"
+      placeholderWhenEmptyOr (Advisories.advisoryReferences advisory) $ \references ->
+        forM_ references $ \reference ->
+          dd_ [] $ a_ [href_ $ OSV.referencesUrl reference] $ toHtml $ "[" <> fromMaybe "WEB" (lookup (OSV.referencesType reference) OSV.referenceTypes) <> "] " <> OSV.referencesUrl reference
+
+    h4_ [] "Affected"
+    forM_ (Advisories.advisoryAffected advisory) $ \affected -> do
+      h5_ [] $
+        case Advisories.affectedComponentIdentifier affected of
+          Hackage package -> a_ [href_ $ "https://hackage.haskell.org/package/" <> package] $ code_ [] $ toHtml package
+          GHC component -> code_ [] $ toHtml $ Advisories.ghcComponentToText component
+
+      dl_ [] $ do
+        dt_ "CVSS"
+        dd_ [] $ toHtml $ T.pack $ show $ Advisories.affectedCVSS affected
+        dt_ "Versions"
+        forM_ (Advisories.affectedVersions affected) $ \affectedVersionRange ->
+          dd_ [] $
+            code_ [] $
+              toHtml $
+                T.pack $
+                  prettyShow $
+                    let introducedVersionRange = orLaterVersion $ Advisories.affectedVersionRangeIntroduced affectedVersionRange
+                    in case Advisories.affectedVersionRangeFixed affectedVersionRange of
+                      Nothing -> introducedVersionRange
+                      Just fixedVersion -> introducedVersionRange `intersectVersionRanges` earlierVersion fixedVersion
+        forM_ (Advisories.affectedArchitectures affected) $ \architectures -> do
+          dt_ "Architectures"
+          dd_ [] $ toHtml $ T.intercalate ", " $ T.toLower . T.pack . show <$> architectures
+        forM_ (Advisories.affectedOS affected) $ \oses -> do
+          dt_ "OSes"
+          dd_ [] $ toHtml $ T.intercalate ", " $ T.toLower . T.pack . show <$> oses
+        dt_ "Declarations"
+        placeholderWhenEmptyOr (Advisories.affectedDeclarations affected) $ \declarations ->
+          forM_ declarations $ \(declaration, versionRange) ->
+            dd_ [] $ do
+              code_ [] $ toHtml declaration
+              ": "
+              code_ [] $ toHtml $ T.pack $ prettyShow versionRange
+
 -- * Utils
 
 data NavigationPage
@@ -187,8 +265,8 @@ baseUrlForPage = \case
   PageListByPackages -> "."
   PageAdvisory -> ".."
 
-inPage :: NavigationPage -> Html () -> Html ()
-inPage page content =
+inPage :: Text -> NavigationPage -> Html () -> Html ()
+inPage title page content =
   doctypehtml_ $
     html_ [lang_ "en"] $ do
       head_ $ do
@@ -210,7 +288,7 @@ inPage page content =
               a_ [href_ "by-dates.html"] "by date"
             li_ [class_ $ selectedOn PageListByPackages] $
               a_ [href_ "by-packages.html"] "by package"
-        h1_ [] "Advisories list"
+        h1_ [] $ toHtml title
         div_ [class_ "content"] content
         footer_ [] $ do
           div_ [class_ "HF"] $ do

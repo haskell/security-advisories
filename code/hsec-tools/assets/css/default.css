@@ -150,3 +150,7 @@ footer .HF{
         display:inline
     }
 }
+
+#advisory dt {
+    margin-top: 0.75em;
+}
