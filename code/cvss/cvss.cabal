@@ -10,7 +10,8 @@ author:          Tristan de Cacqueray
 maintainer:      tdecacqu@redhat.com
 category:        Data
 extra-doc-files: CHANGELOG.md
-tested-with:     GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.3 || ==9.8.1
+tested-with:
+  GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.6 || ==9.8.3 || ==9.10.1 || ==9.12.1
 
 library
   exposed-modules:  Security.CVSS
@@ -31,7 +32,7 @@ test-suite spec
   build-depends:
     , base         <5
     , cvss
-    , tasty        <1.5
+    , tasty        <1.6
     , tasty-hunit  <1.0
     , text
 
