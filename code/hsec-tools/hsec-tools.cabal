@@ -52,25 +52,25 @@ library
   build-depends:
     , aeson                 >=2.0.1.0  && <3
     , atom-conduit          >=0.9      && <0.10
-    , base                  >=4.14     && <4.21
+    , base                  >=4.14     && <5
     , bytestring            >=0.10     && <0.14
-    , Cabal-syntax          >=3.8.1.0  && <3.13
+    , Cabal-syntax          >=3.8.1.0  && <3.15
     , commonmark            ^>=0.2.2
     , commonmark-pandoc     >=0.2      && <0.3
     , conduit               >=1.3      && <1.4
     , conduit-extra         >=1.3      && <1.4
-    , containers            >=0.6      && <0.7
+    , containers            >=0.6      && <0.8
     , cvss                  >= 0.2     && < 0.3
     , data-default          >=0.7      && <0.8
     , directory             <2
-    , extra                 ^>=1.7.5
-    , filepath              >=1.4      && <1.5
+    , extra                 >=1.7      && <1.9
+    , filepath              >=1.4      && <1.6
     , hsec-core             ^>= 0.2
     , file-embed            >=0.0.13.0 && <0.0.17
     , lucid                 >=2.9.0    && < 3
     , mtl                   >=2.2      && <2.4
     , osv                   >= 0.1     && < 0.2
-    , pandoc                >=2.0      && <3.6
+    , pandoc                >=2.0      && <3.8
     , pandoc-types          >=1.22     && <2
     , parsec                >=3        && <4
     , pathwalk              >=0.3      && <0.4
@@ -81,8 +81,8 @@ library
     , resourcet             >=1.2      && <1.4
     , safe                  >=0.3      && <0.4
     , text                  >=1.2      && <3
-    , template-haskell      >=2.16.0.0 && <2.23
-    , time                  >=1.9      && <1.14
+    , template-haskell      >=2.16.0.0 && <2.24
+    , time                  >=1.9      && <1.15
     , toml-parser           >=2.0.0.0  && <2.1
     , uri-bytestring        >=0.3      && <0.5
     , xml-conduit           >=1.9      && <1.11
@@ -107,10 +107,10 @@ executable hsec-tools
   -- other-extensions:
   build-depends:
     , aeson                 >=2.0.1.0 && <3
-    , base                  >=4.14    && <4.20
+    , base                  >=4.14    && <5
     , bytestring            >=0.10    && <0.13
-    , Cabal-syntax          >=3.8.1.0 && <3.11
-    , filepath              >=1.4     && <1.5
+    , Cabal-syntax          >=3.8.1.0 && <3.15
+    , filepath              >=1.4     && <1.6
     , hsec-core             ^>= 0.2
     , hsec-tools
     , optparse-applicative  >=0.17    && <0.19

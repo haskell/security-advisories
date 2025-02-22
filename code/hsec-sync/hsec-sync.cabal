@@ -30,19 +30,17 @@ library
     Security.Advisories.Sync.Url
 
   build-depends:
-    , aeson         >=2.0   && <2.3
-    , base          >=4.14  && <4.21
+    , aeson         >=2.0   && <3
+    , base          >=4.14  && <5
     , bytestring    >=0.10  && <0.13
     , directory     >=1.3   && <1.4
     , either        >=5.0   && <5.1
-    , extra         >=1.7   && <1.8
-    , feed          >=1.3   && <1.4
+    , extra         >=1.7   && <1.9
     , filepath      >=1.4   && <1.6
     , hsec-core     ^>=0.2
     , http-client   >=0.7.0 && <0.8
     , lens          >=5.1   && <5.4
     , tar           >=0.5   && <0.7
-    , tar-conduit   >=0.3   && <0.5
     , temporary     >=1     && <2
     , text          >=1.2   && <3
     , time          >=1.9   && <1.15
@@ -66,9 +64,9 @@ executable hsec-sync
   -- other-extensions:
   build-depends:
     , aeson                 >=2.0.1.0 && <3
-    , base                  >=4.14    && <4.20
+    , base                  >=4.14    && <5
     , bytestring            >=0.10    && <0.13
-    , filepath              >=1.4     && <1.5
+    , filepath              >=1.4     && <1.6
     , hsec-sync
     , optparse-applicative  >=0.17    && <0.19
     , text                  >=1.2     && <3
