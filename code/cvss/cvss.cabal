@@ -31,7 +31,7 @@ test-suite spec
   build-depends:
     , base         <5
     , cvss
-    , tasty        <1.5
+    , tasty        <1.6
     , tasty-hunit  <1.0
     , text
 
