@@ -17,25 +17,29 @@ import Data.Maybe (fromMaybe)
 import Data.Ord (Down (..))
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as BSE
 import qualified Data.Text.IO as T
-import qualified Data.Text.Lazy as TL
 import Data.Time (UTCTime, formatTime, defaultTimeLocale)
-import Data.Time.Format.ISO8601
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (exitFailure)
 import System.FilePath ((</>), takeDirectory)
 import System.IO (hPrint, hPutStrLn, stderr)
 import System.IO.Unsafe (unsafePerformIO)
 
+import Control.Monad.Trans.Resource (ResourceT)
+import qualified Data.Conduit as Conduit
+import qualified Data.Conduit.Binary as ConduitBinary
 import Data.Default (def)
 import Distribution.Pretty (prettyShow)
 import Distribution.Types.VersionRange (earlierVersion, intersectVersionRanges, orLaterVersion)
 import Lucid
-import Safe (maximumMay)
-import qualified Text.Atom.Feed as Feed
-import qualified Text.Atom.Feed.Export as FeedExport
+import Refined (refineTH)
+import qualified Text.Atom.Types as Feed
+import qualified Text.Atom.Conduit.Render as FeedExport
 import Text.Pandoc (runIOorExplode)
 import Text.Pandoc.Writers (writeHtml5String)
+import qualified Text.XML.Stream.Render as ConduitXML
+import qualified URI.ByteString as URI
 import Validation (Validation (..))
 
 import qualified Security.Advisories as Advisories
@@ -77,7 +81,7 @@ renderAdvisoriesIndex src dst = do
         renderAdvisory advisory
 
   hPutStrLn stderr $ "Rendering " <> (dst </> "atom.xml")
-  writeFile (dst </> "atom.xml") $ T.unpack $ renderFeed advisories
+  Conduit.runConduitRes $ renderFeed advisories Conduit..| ConduitBinary.sinkFile (dst </> "atom.xml")
 
   putStrLn "Copying assets"
   let assetsDir = dst </> "assets"
@@ -322,39 +326,82 @@ toAdvisoryR x =
 
 -- * Atom/RSS feed
 
-feed :: [Advisories.Advisory] -> Feed.Feed
+feed :: [Advisories.Advisory] -> Feed.AtomFeed
 feed advisories =
-  ( Feed.nullFeed
-      atomFeedUrl
-      (Feed.TextString "Haskell Security Advisory DB") -- Title
-      (maybe "" (T.pack . iso8601Show) . maximumMay . fmap Advisories.advisoryModified $ advisories)
-  )
-    { Feed.feedEntries = fmap toEntry advisories
-    , Feed.feedLinks = [(Feed.nullLink atomFeedUrl) { Feed.linkRel = Just (Left "self") }]
-    , Feed.feedAuthors = [Feed.nullPerson { Feed.personName = "Haskell Security Response Team" }]
+  Feed.AtomFeed
+    { Feed.feedAuthors      = [ hsrt ]
+    , Feed.feedCategories   = []
+    , Feed.feedContributors = []
+    , Feed.feedEntries      = toEntry <$> advisories
+    , Feed.feedGenerator    = Nothing
+    , Feed.feedIcon         = Nothing
+    , Feed.feedId           = "73b10e73-16bc-4bf2-a56c-ad7d09213e45"
+    , Feed.feedLinks        = [
+          Feed.AtomLink
+            { Feed.linkHref   = toAtomURI atomFeedUrl
+            , Feed.linkRel    = "self"
+            , Feed.linkType   = ""
+            , Feed.linkLang   = ""
+            , Feed.linkTitle  = ""
+            , Feed.linkLength = ""
+            }
+    ]
+    , Feed.feedLogo         = Nothing
+    , Feed.feedRights       = Nothing
+    , Feed.feedSubtitle     = Nothing
+    , Feed.feedTitle        = Feed.AtomPlainText Feed.TypeText "Haskell Security Advisory DB"
+    , Feed.feedUpdated      = maximum $ Advisories.advisoryModified <$> advisories
     }
   where
     toEntry advisory =
-      ( Feed.nullEntry
-        (toUrl advisory)
-        (mkSummary advisory)
-        (T.pack . iso8601Show $ Advisories.advisoryModified advisory)
-      )
-        { Feed.entryLinks = [(Feed.nullLink (toUrl advisory)) { Feed.linkRel = Just (Left "alternate") }]
-        , Feed.entryContent = Just (Feed.HTMLContent (Advisories.advisoryHtml advisory))
+      Feed.AtomEntry
+        { Feed.entryAuthors      = [hsrt]
+        , Feed.entryCategories   = []
+        , Feed.entryContent      = Just $ Feed.AtomContentInlineText Feed.TypeHTML $ Advisories.advisoryHtml advisory
+        , Feed.entryContributors = []
+        , Feed.entryId           = T.pack $ Advisories.printHsecId $ Advisories.advisoryId advisory
+        , Feed.entryLinks        = [
+            Feed.AtomLink
+              { Feed.linkHref   = toAtomURI $ toUrl advisory
+              , Feed.linkRel    = "alternate"
+              , Feed.linkType   = ""
+              , Feed.linkLang   = ""
+              , Feed.linkTitle  = ""
+              , Feed.linkLength = ""
+              }
+          ]
+        , Feed.entryPublished    = Just $ Advisories.advisoryPublished advisory
+        , Feed.entryRights       = Nothing
+        , Feed.entrySource       = Nothing
+        , Feed.entrySummary      = Nothing
+        , Feed.entryTitle        = Feed.AtomPlainText Feed.TypeText $ mkTitle advisory
+        , Feed.entryUpdated      = Advisories.advisoryModified advisory
         }
 
-    mkSummary advisory =
-      Feed.TextString $
-        T.pack (Advisories.printHsecId (Advisories.advisoryId advisory))
+    mkTitle advisory =
+      T.pack (Advisories.printHsecId (Advisories.advisoryId advisory))
         <> " - "
         <> Advisories.advisorySummary advisory
+
     toUrl advisory = advisoriesRootUrl <> "/" <> advisoryLink (Advisories.advisoryId advisory)
 
-renderFeed :: [Advisories.Advisory] -> Text
+    toAtomURI =
+      Feed.AtomURI
+        . either (error . show) id
+        . URI.parseURI URI.strictURIParserOptions
+        . BSE.encodeUtf8
+
+    hsrt =
+        Feed.AtomPerson
+          { Feed.personName = $$(refineTH "Haskell Security Response Team")
+          , Feed.personEmail = "security-advisories@haskell.org"
+          , Feed.personUri = Nothing
+          }
+
+renderFeed :: [Advisories.Advisory] -> Conduit.ConduitT () BS8.ByteString (ResourceT IO) ()
 renderFeed =
-  maybe (error "Cannot render atom feed") TL.toStrict
-    . FeedExport.textFeed
+  (Conduit..| ConduitXML.renderBytes def)
+    . FeedExport.renderAtomFeed
     . feed
 
 advisoriesRootUrl :: T.Text
