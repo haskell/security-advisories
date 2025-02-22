@@ -19,7 +19,6 @@
         osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv { inherit cvss; };
         hsec-core = pkgs.haskellPackages.callCabal2nix "hsec-core" ./code/hsec-core {
           inherit cvss osv;
-          Cabal-syntax = pkgs.haskellPackages.Cabal-syntax_3_8_1_0;
         };
         hsec-tools = returnShellEnv:
           pkgs.haskellPackages.developPackage {
@@ -29,8 +28,18 @@
             withHoogle = false;
             overrides = self: super: {
               inherit cvss hsec-core osv;
-              Cabal-syntax = super.Cabal-syntax_3_8_1_0;
-              toml-parser = jailbreakUnbreak (super.callHackageDirect {pkg = "toml-parser"; ver = "2.0.1.0"; sha256 = "sha256-+2d8tflkqT3g7QJVjw/FTdluBASiHP3lDr7w5eNr4bY=";} {});
+              toml-parser = super.toml-parser_2_0_1_0;
+              typst = super.typst_0_6_1;
+              typst-symbols = super.typst-symbols_0_1_7;
+              texmath = super.texmath_0_12_8_12;
+              pandoc = super.pandoc_3_6;
+              commonmark-pandoc = super.commonmark-pandoc_0_2_2_3;
+              commonmark-extensions = super.commonmark-extensions_0_2_5_6;
+              doclayout = super.doclayout_0_5;
+              skylighting = super.skylighting_0_14_5;
+              skylighting-core = super.skylighting-core_0_14_5;
+              tls = super.tls_2_1_5;
+              crypton-connection = super.crypton-connection_0_4_3;
             };
 
             modifier = drv:
