@@ -49,7 +49,7 @@ test-suite spec
   hs-source-dirs:   test
   main-is:          Spec.hs
   build-depends:
-    , base         <5
+    , base
     , cvss
     , hsec-core
     , tasty        <1.5
