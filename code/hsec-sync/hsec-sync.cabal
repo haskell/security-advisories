@@ -83,7 +83,7 @@ test-suite spec
   main-is:          Spec.hs
   other-modules:    Spec.SyncSpec
   build-depends:
-    , base         <5
+    , base
     , directory
     , filepath
     , hsec-sync
