@@ -9,6 +9,7 @@ import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Lazy.Encoding as LText
 import Data.Time (UTCTime(UTCTime))
 import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
+import Paths_hsec_tools (getDataFileName)
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Parse
 import qualified Spec.FormatSpec as FormatSpec
@@ -30,7 +31,7 @@ main = do
             ]
 
 listGoldenFiles :: IO [FilePath]
-listGoldenFiles = map (mappend dpath) . filter (not . isSuffixOf ".golden") <$> listDirectory dpath
+listGoldenFiles = map (mappend dpath) . filter (not . isSuffixOf ".golden") <$> (getDataFileName dpath >>= listDirectory)
   where
     dpath = "test/golden/"
 
@@ -42,7 +43,7 @@ doGoldenTest fp = goldenVsString fp (fp <> ".golden") (LText.encodeUtf8 <$> doCh
   where
     doCheck :: IO LText.Text
     doCheck = do
-        input <- T.readFile fp
+        input <- getDataFileName fp >>= T.readFile
         let fakeDate = UTCTime (fromOrdinalDate 1970 0) 0
             attr = OutOfBandAttributes
               { oobPublished = fakeDate
