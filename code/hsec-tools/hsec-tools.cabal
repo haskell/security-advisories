@@ -128,7 +128,10 @@ test-suite spec
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Spec.hs
+  autogen-modules:
+    Paths_hsec_tools
   other-modules:
+    Paths_hsec_tools
     Spec.FormatSpec
     Spec.QueriesSpec
   build-depends:
