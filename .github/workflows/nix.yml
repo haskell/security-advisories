@@ -17,7 +17,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@main
         with:
           extra-conf: system-features = nixos-test benchmark big-parallel kvm
-      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - uses: DeterminateSystems/flakehub-cache-action@main
       - name: Check Nix flake inputs
         uses: DeterminateSystems/flake-checker-action@v4
       - name: Build executable (hsec-tools)
