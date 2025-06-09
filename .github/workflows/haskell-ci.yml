@@ -198,6 +198,7 @@ jobs:
           echo "packages: $GITHUB_WORKSPACE/source/code/hsec-sync" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/code/hsec-core" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/code/cvss" >> cabal.project
+          echo "packages: $GITHUB_WORKSPACE/source/code/purl" >> cabal.project
           cat cabal.project
       - name: sdist
         run: |
@@ -219,6 +220,8 @@ jobs:
           echo "PKGDIR_hsec_core=${PKGDIR_hsec_core}" >> "$GITHUB_ENV"
           PKGDIR_cvss="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/cvss-[0-9.]*')"
           echo "PKGDIR_cvss=${PKGDIR_cvss}" >> "$GITHUB_ENV"
+          PKGDIR_purl="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/purl-[0-9.]*')"
+          echo "PKGDIR_purl=${PKGDIR_purl}" >> "$GITHUB_ENV"
           rm -f cabal.project cabal.project.local
           touch cabal.project
           touch cabal.project.local
@@ -227,6 +230,7 @@ jobs:
           echo "packages: ${PKGDIR_hsec_sync}" >> cabal.project
           echo "packages: ${PKGDIR_hsec_core}" >> cabal.project
           echo "packages: ${PKGDIR_cvss}" >> cabal.project
+          echo "packages: ${PKGDIR_purl}" >> cabal.project
           echo "package osv" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods" >> cabal.project
           echo "package hsec-tools" >> cabal.project
@@ -237,9 +241,11 @@ jobs:
           echo "    ghc-options: -Werror=missing-methods" >> cabal.project
           echo "package cvss" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods" >> cabal.project
+          echo "package purl" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods" >> cabal.project
           cat >> cabal.project <<EOF
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(cvss|hsec-core|hsec-sync|hsec-tools|osv)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(cvss|hsec-core|hsec-sync|hsec-tools|purl|osv)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan
@@ -276,6 +282,8 @@ jobs:
           cd ${PKGDIR_hsec_core} || false
           ${CABAL} -vnormal check
           cd ${PKGDIR_cvss} || false
+          ${CABAL} -vnormal check
+          cd ${PKGDIR_purl} || false
           ${CABAL} -vnormal check
       - name: haddock
         run: |

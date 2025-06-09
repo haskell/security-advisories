@@ -15,8 +15,9 @@
         jailbreakUnbreak = pkg:
           pkgs.haskell.lib.doJailbreak (pkgs.haskell.lib.dontCheck (pkgs.haskell.lib.unmarkBroken pkg));
 
+        purl = pkgs.haskellPackages.callCabal2nix "purl" ./code/purl { };
         cvss = pkgs.haskellPackages.callCabal2nix "cvss" ./code/cvss { };
-        osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv { inherit cvss; };
+        osv = pkgs.haskellPackages.callCabal2nix "osv" ./code/osv { inherit cvss purl; };
         hsec-core = pkgs.haskellPackages.callCabal2nix "hsec-core" ./code/hsec-core {
           inherit cvss osv;
         };
@@ -76,6 +77,7 @@
       {
         packages.cvss = cvss;
         packages.osv = osv;
+        packages.purl = purl;
         packages.hsec-core = hsec-core;
         packages.hsec-tools = pkgs.haskell.lib.justStaticExecutables (hsec-tools false);
         packages.hsec-sync = hsec-sync;
