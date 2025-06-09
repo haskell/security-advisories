@@ -44,6 +44,7 @@ import Data.Time (UTCTime)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import Data.Tuple (swap)
 
+import Data.Purl (Purl)
 import qualified Security.CVSS as CVSS
 
 data Affected dbSpecific ecosystemSpecific rangeDbSpecific = Affected
@@ -182,8 +183,8 @@ instance ToJSON Severity where
 data Package = Package
   { packageName :: Text
   , packageEcosystem :: Text
-  , packagePurl :: Maybe Text  -- TODO refine type
-  } deriving (Show, Eq, Ord)
+  , packagePurl :: Maybe Purl
+  } deriving (Show, Eq)
 
 data Range dbSpecific
   = RangeSemVer [Event Text {- TODO refine -}] (Maybe dbSpecific)
