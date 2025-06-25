@@ -2,6 +2,7 @@ packages: code/*/*.cabal
 
 package hsec-core
 package hsec-tools
+package hsec-sync
 package cvss
 package osv
 
