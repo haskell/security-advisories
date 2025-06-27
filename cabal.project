@@ -5,5 +5,6 @@ package hsec-tools
 package hsec-sync
 package cvss
 package osv
+package purl
 
 test-show-details: direct
