@@ -31,10 +31,13 @@ These are:
 
 - Update the member list at https://www.haskell.org/security/.
   By pull request against
-  [https://github.com/haskell-infra/www.haskell.org/](haskell-infra/www.haskell.org).
+  [haskell-infra/www.haskell.org](https://github.com/haskell-infra/www.haskell.org/).
 
 - Announce the membership change(s) on [Discourse].  Usually this
   could be included in the quarterly report.
+
+- Add (or remove) the member as a maintainer of SRT-owned [Hackage
+  packages](./packages.md), if appropriate.
 
 [haskell-infra]: https://github.com/haskell-infra/haskell-admins
 [Discourse]: https://discourse.haskell.org/
