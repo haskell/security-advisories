@@ -18,7 +18,7 @@ The canonical version of each report is committed to this repo under
 Each report should also be republished on [Discourse], and added to
 the list of reports at https://www.haskell.org/security/ (file a
 pull request against
-[https://github.com/haskell-infra/www.haskell.org/](haskell-infra/www.haskell.org)).
+[haskell-infra/www.haskell.org](https://github.com/haskell-infra/www.haskell.org/)).
 
 Reports for the previous quarter should generally be published in
 the first few weeks following that quarter.  In some cases we have
