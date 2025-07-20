@@ -1,6 +1,7 @@
 # 0.2.0.0
 
 * Rely on `purl` for `Security.OSV.Package.packageUrl`
+* Update `tasty` dependency bounds
 
 # 0.1.0.2
 

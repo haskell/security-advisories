@@ -51,7 +51,7 @@ test-suite spec
   build-depends:
     , base
     , osv
-    , tasty          <1.5
+    , tasty          <2
     , tasty-hunit    <0.11
 
   default-language: Haskell2010
