@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hsec-tools
-version:            0.2.0.1
+version:            0.2.0.2
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -69,7 +69,7 @@ library
     , file-embed            >=0.0.13.0 && <0.0.17
     , lucid                 >=2.9.0    && < 3
     , mtl                   >=2.2      && <2.4
-    , osv                   >= 0.1     && < 0.2
+    , osv                   >=0.1      && <0.3
     , pandoc                >=2.0      && <3.8
     , pandoc-types          >=1.22     && <2
     , parsec                >=3        && <4
@@ -147,7 +147,7 @@ test-suite spec
     , osv
     , pretty-simple  <5
     , prettyprinter
-    , tasty          <1.5
+    , tasty          <2
     , tasty-golden   <2.4
     , tasty-hedgehog <2
     , tasty-hunit    <0.11
