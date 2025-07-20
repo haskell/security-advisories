@@ -38,7 +38,7 @@ test-suite spec
     , base         <5
     , containers
     , purl
-    , tasty        <1.6
+    , tasty        <2
     , tasty-hunit  <1.0
     , text
 
