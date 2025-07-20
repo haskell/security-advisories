@@ -1,6 +1,6 @@
 cabal-version:   2.4
 name:            hsec-sync
-version:         0.2.0.1
+version:         0.2.0.2
 
 -- A short (one-line) description of the package.
 synopsis:        Synchronize with the Haskell security advisory database
@@ -87,7 +87,7 @@ test-suite spec
     , directory
     , filepath
     , hsec-sync
-    , tasty        <1.5
+    , tasty        <2
     , tasty-hunit  <0.11
     , temporary    >=1   && <2
     , text
