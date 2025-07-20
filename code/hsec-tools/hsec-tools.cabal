@@ -21,7 +21,7 @@ maintainer:         security-advisories@haskell.org
 -- A copyright notice.
 -- copyright:
 category:           Data
-extra-doc-files:    CHANGELOG.md
+extra-doc-files:    CHANGELOG.md, README.md
 extra-source-files:
   assets/css/*.css
   assets/images/*.png

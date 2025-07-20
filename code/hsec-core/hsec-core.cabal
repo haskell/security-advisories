@@ -19,7 +19,7 @@ maintainer:         security-advisories@haskell.org
 -- A copyright notice.
 -- copyright:
 category:           Data
-extra-doc-files:    CHANGELOG.md
+extra-doc-files:    CHANGELOG.md, README.md
 
 tested-with:
   GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.6 || ==9.8.3 || ==9.10.1 || ==9.12.1
