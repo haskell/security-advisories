@@ -29,18 +29,6 @@
             withHoogle = false;
             overrides = self: super: {
               inherit cvss hsec-core osv;
-              toml-parser = super.toml-parser_2_0_1_0;
-              typst = super.typst_0_6_1;
-              typst-symbols = super.typst-symbols_0_1_7;
-              texmath = super.texmath_0_12_8_12;
-              pandoc = super.pandoc_3_6;
-              commonmark-pandoc = super.commonmark-pandoc_0_2_2_3;
-              commonmark-extensions = super.commonmark-extensions_0_2_5_6;
-              doclayout = super.doclayout_0_5;
-              skylighting = super.skylighting_0_14_5;
-              skylighting-core = super.skylighting-core_0_14_5;
-              tls = super.tls_2_1_5;
-              crypton-connection = super.crypton-connection_0_4_3;
             };
 
             modifier = drv:
