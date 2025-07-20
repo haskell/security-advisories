@@ -1,6 +1,6 @@
 cabal-version:   2.4
 name:            cvss
-version:         0.2
+version:         0.2.0.1
 synopsis:        Common Vulnerability Scoring System.
 description:
   Use this library to parse CVSS string and compute its score.
@@ -32,7 +32,7 @@ test-suite spec
   build-depends:
     , base         <5
     , cvss
-    , tasty        <1.6
+    , tasty        <2
     , tasty-hunit  <1.0
     , text
 

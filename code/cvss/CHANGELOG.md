@@ -1,7 +1,11 @@
-# 0.2
+## 0.2.0.1
 
-Changed the CVSS v2 parser and printer to omit the "CVSS:2.0/" version prefix according to the spec.
+* Update `tasty` dependency bounds
 
-# 0.1
+## 0.2
 
-Introduction
+* Changed the CVSS v2 parser and printer to omit the "CVSS:2.0/" version prefix according to the spec.
+
+## 0.1
+
+* Introduction
