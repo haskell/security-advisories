@@ -1,3 +1,8 @@
+## 0.3.0.0
+
+* Move `isVersionAffectedBy` and `isVersionRangeAffectedBy` to `Security.Advisories.Core` (`hsec-core`)
+* Add support for GHC component in `query is-affected`
+
 ## 0.2.0.2
 
 * Update `tasty` dependency bounds
