@@ -26,9 +26,6 @@ import Data.Foldable (toList)
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First(..))
 
-import Data.Tuple (swap)
-import Control.Applicative ((<|>))
-
 import GHC.Generics (Generic)
 
 import Data.Sequence (Seq((:<|)))
