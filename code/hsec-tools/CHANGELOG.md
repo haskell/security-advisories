@@ -2,6 +2,7 @@
 
 * Move `isVersionAffectedBy` and `isVersionRangeAffectedBy` to `Security.Advisories.Core` (`hsec-core`)
 * Add support for GHC component in `query is-affected`
+* Add `model.database_specific.{repository,osvs,home}` and `model.affected.database_specific.{osv,human_link}` in OSV exports
 
 ## 0.2.0.2
 

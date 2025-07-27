@@ -99,11 +99,27 @@ commandCheck =
 
 commandOsv :: Parser (IO ())
 commandOsv =
-  withAdvisory go
-    <$> optional (argument str (metavar "FILE"))
+  withAdvisory . go
+    <$> dbLinksParser
+    <*> optional (argument str (metavar "FILE"))
   where
-    go _ adv = do
-      L.putStr (Data.Aeson.encode (OSV.convert adv))
+    dbLinksParser :: Parser OSV.DbLinks
+    dbLinksParser =
+      OSV.DbLinks
+        <$> url "repository" (OSV.dbLinksRepository OSV.haskellLinks) "Repository URL"
+        <*> url "osvs" (OSV.dbLinksOSVs OSV.haskellLinks) "OSVs link"
+        <*> url "home" (OSV.dbLinksHome OSV.haskellLinks) "Home page URL"
+      where
+        url :: String -> T.Text -> String -> Parser T.Text
+        url name def desc =
+          T.pack <$> strOption
+            ( long name <> metavar "URL"
+           <> help desc
+           <> value (T.unpack def)
+           <> showDefault
+            )
+    go links _ adv = do
+      L.putStr (Data.Aeson.encode (OSV.convertWithLinks links adv))
       putChar '\n'
 
 commandRender :: Parser (IO ())
