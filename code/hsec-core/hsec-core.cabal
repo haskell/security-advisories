@@ -48,8 +48,11 @@ test-suite spec
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Spec.hs
+  other-modules:
+    Spec.QueriesSpec
   build-depends:
     , base
+    , Cabal-syntax
     , cvss
     , hsec-core
     , tasty        <2

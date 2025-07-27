@@ -133,7 +133,6 @@ test-suite spec
   other-modules:
     Paths_hsec_tools
     Spec.FormatSpec
-    Spec.QueriesSpec
   build-depends:
     , aeson-pretty   <2
     , base

@@ -14,13 +14,17 @@ module Security.Advisories.Core.Advisory
   , GHCComponent(..)
   , ghcComponentToText
   , ghcComponentFromText
+    -- * Queries
+  , isVersionAffectedBy
+  , isVersionRangeAffectedBy
   )
   where
 
 import Data.Text (Text)
 import Data.Time (UTCTime)
 import Distribution.Types.Version (Version)
-import Distribution.Types.VersionRange (VersionRange)
+import Distribution.Types.VersionInterval (asVersionIntervals)
+import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
 
 import Text.Pandoc.Definition (Pandoc)
 
@@ -147,3 +151,42 @@ data AffectedVersionRange = AffectedVersionRange
     affectedVersionRangeFixed :: Maybe Version
   }
   deriving stock (Eq, Show)
+
+-- * Queries
+
+-- | Check whether a component and a version is concerned by an advisory
+--
+-- Since @0.2.1.0@
+isVersionAffectedBy :: ComponentIdentifier -> Version -> Advisory -> Bool
+isVersionAffectedBy = isAffectedByHelper withinRange
+
+-- | Check whether a component and a version range is concerned by an advisory
+--
+-- Since @0.2.1.0@
+isVersionRangeAffectedBy :: ComponentIdentifier -> VersionRange -> Advisory -> Bool
+isVersionRangeAffectedBy = isAffectedByHelper $
+  \queryVersionRange affectedVersionRange ->
+    isSomeVersion (affectedVersionRange `intersectVersionRanges` queryVersionRange)
+  where
+    isSomeVersion :: VersionRange -> Bool
+    isSomeVersion range
+      | [] <- asVersionIntervals range = False
+      | otherwise = True
+
+-- | Helper function for 'isVersionAffectedBy' and 'isVersionRangeAffectedBy'
+isAffectedByHelper :: (a -> VersionRange -> Bool) -> ComponentIdentifier -> a -> Advisory -> Bool
+isAffectedByHelper checkWithRange queryComponent queryVersionish =
+    any checkAffected . advisoryAffected
+    where
+      checkAffected :: Affected -> Bool
+      checkAffected affected =
+        affectedComponentIdentifier affected == queryComponent && checkWithRange queryVersionish (fromAffected affected)
+
+      fromAffected :: Affected -> VersionRange
+      fromAffected = foldr (unionVersionRanges . fromAffectedVersionRange) noVersion . affectedVersions
+
+      fromAffectedVersionRange :: AffectedVersionRange -> VersionRange
+      fromAffectedVersionRange avr = intersectVersionRanges
+        (orLaterVersion (affectedVersionRangeIntroduced avr))
+        (maybe anyVersion earlierVersion (affectedVersionRangeFixed avr))
+
