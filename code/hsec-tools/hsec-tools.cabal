@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hsec-tools
-version:            0.2.0.2
+version:            0.3.0.0
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -65,7 +65,7 @@ library
     , directory             <2
     , extra                 >=1.7      && <1.9
     , filepath              >=1.4      && <1.6
-    , hsec-core             ^>= 0.2
+    , hsec-core             >= 0.2.1.0 && <0.3
     , file-embed            >=0.0.13.0 && <0.0.17
     , lucid                 >=2.9.0    && < 3
     , mtl                   >=2.2      && <2.4
@@ -106,17 +106,17 @@ executable hsec-tools
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
   build-depends:
-    , aeson                 >=2.0.1.0 && <3
-    , base                  >=4.14    && <5
-    , bytestring            >=0.10    && <0.13
-    , Cabal-syntax          >=3.8.1.0 && <3.15
-    , filepath              >=1.4     && <1.6
-    , hsec-core             ^>= 0.2
+    , aeson                 >=2.0.1.0  && <3
+    , base                  >=4.14     && <5
+    , bytestring            >=0.10     && <0.13
+    , Cabal-syntax          >=3.8.1.0  && <3.15
+    , filepath              >=1.4      && <1.6
+    , hsec-core             >= 0.2.1.0 && <0.3
     , hsec-tools
-    , optparse-applicative  >=0.17    && <0.19
-    , text                  >=1.2     && <3
+    , optparse-applicative  >=0.17     && <0.19
+    , text                  >=1.2      && <3
     , transformers
-    , validation-selective  >=0.1     && <1
+    , validation-selective  >=0.1      && <1
 
   hs-source-dirs:   app
   default-language: Haskell2010
