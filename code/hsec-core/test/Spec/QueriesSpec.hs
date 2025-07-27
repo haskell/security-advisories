@@ -17,7 +17,6 @@ import Test.Tasty.HUnit
 import Security.CVSS (parseCVSS)
 import Security.Advisories.Core.Advisory
 import Security.Advisories.Core.HsecId
-import Security.Advisories.Queries
 
 spec :: TestTree
 spec =
@@ -37,7 +36,7 @@ spec =
          in testCase (title actual query) $
               let query' = versionRange query
                   affectedVersion' = versionRange actual
-              in isVersionRangeAffectedBy packageName query' (mkAdvisory affectedVersion')
+              in isVersionRangeAffectedBy component query' (mkAdvisory affectedVersion')
                     @?= expected
   ]
 
@@ -115,7 +114,7 @@ mkAdvisory versionRange =
      , advisoryRelated = [ "CVE-2022-YYYY" , "CVE-2022-ZZZZ" ]
      , advisoryAffected =
          [ Affected
-             { affectedComponentIdentifier = Hackage packageName
+             { affectedComponentIdentifier = component
              , affectedCVSS = cvss
              , affectedVersions = mkAffectedVersions versionRange
              , affectedArchitectures = Nothing
@@ -186,8 +185,8 @@ mkAffectedVersions vr =
       , high <- mkAffectedVersions y
       ]
 
-packageName :: Text
-packageName = "package-name"
+component :: ComponentIdentifier
+component = Hackage "package-name"
 
 -- | Parse 'VersionRange' as given to the CLI
 parseVersionRange :: Maybe Text -> Either Text VersionRange

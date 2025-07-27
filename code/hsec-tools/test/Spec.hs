@@ -13,7 +13,6 @@ import Paths_hsec_tools (getDataFileName)
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Parse
 import qualified Spec.FormatSpec as FormatSpec
-import qualified Spec.QueriesSpec as QueriesSpec
 import System.Directory (listDirectory)
 import Test.Tasty (defaultMain, testGroup, TestTree)
 import Test.Tasty.Golden (goldenVsString)
@@ -26,7 +25,6 @@ main = do
         testGroup
             "Tests"
             [ goldenTestsSpec goldenFiles
-            , QueriesSpec.spec
             , FormatSpec.spec
             ]
 
