@@ -113,21 +113,25 @@ commandRender =
 
 commandQuery :: Parser (IO ())
 commandQuery =
-  subparser
+  hsubparser
     ( command "is-affected" (info isAffected (progDesc "Check if a package/version range is marked vulnerable"))
     )
   where
     isAffected :: Parser (IO ())
     isAffected =
       go
-        <$> argument str (metavar "PACKAGE")
+        <$> argument (parseComponent <$> str) (metavar "PACKAGE|GHC:COMPONENT")
         <*> optional (option versionRangeReader (metavar "VERSION-RANGE" <> short 'v' <> long "version-range"))
         <*> optional (option str (metavar "ADVISORIES-PATH" <> short 'p' <> long "advisories-path"))
       where
-        go :: T.Text -> Maybe VersionRange -> Maybe FilePath -> IO ()
-        go packageName versionRange advisoriesPath = do
+        parseComponent raw =
+          fromMaybe (Hackage raw) $ do
+            ghcComponentRaw <- T.stripPrefix "ghc:" $ T.toLower raw
+            GHC <$> ghcComponentFromText ghcComponentRaw
+        go :: ComponentIdentifier -> Maybe VersionRange -> Maybe FilePath -> IO ()
+        go component versionRange advisoriesPath = do
           let versionRange' = fromMaybe anyVersion versionRange
-          maybeAffectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) packageName versionRange'
+          maybeAffectedAdvisories <- listVersionRangeAffectedBy (fromMaybe "." advisoriesPath) component versionRange'
           case maybeAffectedAdvisories of
             Validation.Failure errors -> do
               T.hPutStrLn stderr "Cannot parse some advisories"
