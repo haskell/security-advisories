@@ -19,6 +19,7 @@ module Security.Advisories.Git
 
 import Data.Char (isSpace)
 import Data.List (dropWhileEnd)
+import qualified Data.List.NonEmpty as NE
 import Data.Time (UTCTime, zonedTimeToUTC)
 import Data.Time.Format.ISO8601 (iso8601ParseM)
 import System.Exit (ExitCode(ExitSuccess))
@@ -110,10 +111,10 @@ getAdvisoryGitInfo path = do
     "" -- standard input
   let timestamps = filter (not . null) $ lines stdout
   case status of
-    ExitSuccess | not (null timestamps) ->
+    ExitSuccess | Just timestamps' <- NE.nonEmpty timestamps ->
       pure $ AdvisoryGitInfo
-        <$> parseTime (last timestamps)  -- first commit is last line
-        <*> parseTime (head timestamps)  -- most recent commit is first line
+        <$> parseTime (NE.last timestamps')  -- first commit is last line
+        <*> parseTime (NE.head timestamps')  -- most recent commit is first line
     _ ->
       -- `null lines` should not happen, but if it does we treat it
       -- the same as `ExitFailure`

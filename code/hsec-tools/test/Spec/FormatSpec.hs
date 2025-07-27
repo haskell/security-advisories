@@ -4,7 +4,6 @@
 
 module Spec.FormatSpec (spec) where
 
-import Data.Fixed (Fixed (MkFixed))
 import Data.Function (on)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)

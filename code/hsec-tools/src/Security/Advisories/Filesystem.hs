@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 
 Helpers for the /security-advisories/ file system.
@@ -24,7 +26,10 @@ module Security.Advisories.Filesystem
   , parseComponentIdentifier
   ) where
 
+#if MIN_VERSION_base(4,18,0)
+#else
 import Control.Applicative (liftA2)
+#endif
 import Data.Bifunctor (bimap)
 import Data.Foldable (fold)
 import Data.Semigroup (Max(Max, getMax))
