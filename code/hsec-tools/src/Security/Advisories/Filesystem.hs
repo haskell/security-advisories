@@ -24,7 +24,6 @@ module Security.Advisories.Filesystem
   , forAdvisory
   , listAdvisories
   , advisoryFromFile
-  , parseComponentIdentifier
   ) where
 
 #if MIN_VERSION_base(4,18,0)
@@ -37,18 +36,16 @@ import Data.Semigroup (Max(Max, getMax))
 import Data.Traversable (for)
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import System.FilePath ((</>), dropExtension, splitDirectories)
+import System.FilePath ((</>), dropExtension)
 import System.Directory (doesDirectoryExist, listDirectory)
 import Validation (Validation (..))
 
-import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory, ComponentIdentifier(..))
+import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory)
 import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
 import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
 import Control.Monad.Except (runExceptT, ExceptT (ExceptT), withExceptT)
-import Security.Advisories.Parse (OOBError(GitHasNoOOB, PathHasNoComponentIdentifier))
-import Security.Advisories.Core.Advisory (ghcComponentFromText)
+import Security.Advisories.Parse (OOBError(GitHasNoOOB))
 
 dirNameAdvisories :: FilePath
 dirNameAdvisories = "advisories"
@@ -139,14 +136,12 @@ advisoryFromFile
   :: (MonadIO m)
   => FilePath -> m (Validation ParseAdvisoryError Advisory)
 advisoryFromFile advisoryPath = do
-  oob <- runExceptT $ do
-   ecosystem <- parseComponentIdentifier advisoryPath
+  oob <- runExceptT $
    withExceptT GitHasNoOOB $ do
     gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
     pure OutOfBandAttributes
       { oobPublished = firstAppearanceCommitDate gitInfo
       , oobModified = lastModificationCommitDate gitInfo
-      , oobComponentIdentifier = ecosystem
       }
   fileContent <- liftIO $ T.readFile advisoryPath
   pure
@@ -172,10 +167,3 @@ _forFilesByYear root go = do
               Nothing -> pure mempty
               Just hsid -> go (yearDir </> file) hsid
         else pure mempty
-
-parseComponentIdentifier :: Monad m => FilePath -> ExceptT OOBError m (Maybe ComponentIdentifier)
-parseComponentIdentifier fp = ExceptT . pure $ case drop 1 $ reverse $ splitDirectories fp of
-  package : "hackage" : _ -> pure (Just $ Hackage $ T.pack package)
-  component : "ghc" : _ | Just ghc <- ghcComponentFromText (T.pack component) -> pure (Just $ GHC ghc)
-  _ : _ : "advisories" : _ -> Left PathHasNoComponentIdentifier
-  _ -> pure Nothing

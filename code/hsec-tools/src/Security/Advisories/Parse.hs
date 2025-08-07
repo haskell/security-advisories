@@ -61,7 +61,6 @@ type OOB = Either OOBError OutOfBandAttributes
 data OutOfBandAttributes = OutOfBandAttributes
   { oobModified :: UTCTime
   , oobPublished :: UTCTime
-  , oobComponentIdentifier :: Maybe ComponentIdentifier
   }
   deriving (Show)
 
@@ -91,14 +90,12 @@ instance Exception ParseAdvisoryError where
 -- @since 0.2.0.0
 data OOBError
   = StdInHasNoOOB -- ^ we obtain the advisory via stdin and can hence not parse git history
-  | PathHasNoComponentIdentifier -- ^ the path is missing 'hackage' or 'ghc' directory
   | GitHasNoOOB GitError -- ^ processing oob info via git failed
   deriving stock (Eq, Show, Generic)
 
 displayOOBError :: OOBError -> String
 displayOOBError = \case
   StdInHasNoOOB -> "stdin doesn't provide out of band information"
-  PathHasNoComponentIdentifier -> "the path is missing 'hackage' or 'ghc' directory"
   GitHasNoOOB gitErr -> "no out of band information obtained with git error:\n"
     <> explainGitError gitErr
 
@@ -187,9 +184,6 @@ parseAdvisoryTable oob policy doc summary details html tab =
             "advisory.modified"
             (amdModified (frontMatterAdvisory fm))
       let affected = frontMatterAffected fm
-      case oob of
-        Right (OutOfBandAttributes _ _ (Just ecosystem)) -> validateComponentIdentifier ecosystem affected
-        _ -> pure ()
       pure Advisory
         { advisoryId = amdId (frontMatterAdvisory fm)
         , advisoryPublished = published
