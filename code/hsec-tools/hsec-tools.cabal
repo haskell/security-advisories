@@ -73,7 +73,6 @@ library
     , pandoc                >=2.0      && <3.8
     , pandoc-types          >=1.22     && <2
     , parsec                >=3        && <4
-    , pathwalk              >=0.3      && <0.4
     , pretty                >=1.0      && <1.2
     , prettyprinter         >=1.7      && <1.8
     , process               >=1.6      && <1.7
