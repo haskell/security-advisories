@@ -13,6 +13,7 @@ module Security.Advisories.Filesystem
   (
     dirNameAdvisories
   , dirNameReserved
+  , dirNamePublished
   , isSecurityAdvisoriesRepo
   , getReservedIds
   , getAdvisoryIds
@@ -23,7 +24,6 @@ module Security.Advisories.Filesystem
   , forAdvisory
   , listAdvisories
   , advisoryFromFile
-  , parseComponentIdentifier
   ) where
 
 #if MIN_VERSION_base(4,18,0)
@@ -36,27 +36,25 @@ import Data.Semigroup (Max(Max, getMax))
 import Data.Traversable (for)
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Writer.Strict (execWriterT, tell)
-import qualified Data.Text as T
 import qualified Data.Text.IO as T
-import System.FilePath ((</>), takeBaseName, splitDirectories)
-import System.Directory (doesDirectoryExist, pathIsSymbolicLink)
-import System.Directory.PathWalk
+import System.FilePath ((</>), dropExtension)
+import System.Directory (doesDirectoryExist, listDirectory)
 import Validation (Validation (..))
 
-import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory, ComponentIdentifier(..))
+import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory)
 import Security.Advisories.Core.HsecId (HsecId, parseHsecId, placeholder)
 import Security.Advisories.Git(firstAppearanceCommitDate, getAdvisoryGitInfo, lastModificationCommitDate)
 import Control.Monad.Except (runExceptT, ExceptT (ExceptT), withExceptT)
-import Security.Advisories.Parse (OOBError(GitHasNoOOB, PathHasNoComponentIdentifier))
-import Security.Advisories.Core.Advisory (ghcComponentFromText)
-
+import Security.Advisories.Parse (OOBError(GitHasNoOOB))
 
 dirNameAdvisories :: FilePath
 dirNameAdvisories = "advisories"
 
 dirNameReserved :: FilePath
 dirNameReserved = "reserved"
+
+dirNamePublished :: FilePath
+dirNamePublished = "published"
 
 -- | Check whether the directory appears to be the root of a
 -- /security-advisories/ filesystem.  Only checks that the
@@ -109,7 +107,7 @@ forReserved
   :: (MonadIO m, Monoid r)
   => FilePath -> (FilePath -> HsecId -> m r) -> m r
 forReserved root =
-  _forFiles (root </> dirNameAdvisories </> dirNameReserved)
+  _forFilesByYear (root </> dirNameAdvisories </> dirNameReserved)
 
 -- | Invoke a callback for each HSEC ID under each of the advisory
 -- subdirectories, excluding the @reserved@ directory.  The results
@@ -121,69 +119,51 @@ forReserved root =
 forAdvisory
   :: (MonadIO m, Monoid r)
   => FilePath -> (FilePath -> HsecId -> m r) -> m r
-forAdvisory root go = do
-  let dir = root </> dirNameAdvisories
-  subdirs <- filter (/= dirNameReserved) <$> _getSubdirs dir
-  fmap fold $ for subdirs $ \subdir -> _forFiles (dir </> subdir) go
+forAdvisory root =
+  _forFilesByYear (root </> dirNameAdvisories </> dirNamePublished)
 
--- | List deduplicated parsed Advisories
+-- | List parsed Advisories
 listAdvisories
   :: (MonadIO m)
   => FilePath -> m (Validation [(FilePath, ParseAdvisoryError)] [Advisory])
 listAdvisories root =
-  forAdvisory root $ \advisoryPath _advisoryId -> do
-    isSym <- liftIO $ pathIsSymbolicLink advisoryPath
-    if isSym
-      then return $ pure []
-      else
-        bimap (\err -> [(advisoryPath, err)]) pure
-        <$> advisoryFromFile advisoryPath
+  forAdvisory root $ \advisoryPath _advisoryId ->
+    bimap (\err -> [(advisoryPath, err)]) pure
+    <$> advisoryFromFile advisoryPath
 
 -- | Parse an advisory from a file system path
 advisoryFromFile
   :: (MonadIO m)
   => FilePath -> m (Validation ParseAdvisoryError Advisory)
 advisoryFromFile advisoryPath = do
-  oob <- runExceptT $ do
-   ecosystem <- parseComponentIdentifier advisoryPath
+  oob <- runExceptT $
    withExceptT GitHasNoOOB $ do
     gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
     pure OutOfBandAttributes
       { oobPublished = firstAppearanceCommitDate gitInfo
       , oobModified = lastModificationCommitDate gitInfo
-      , oobComponentIdentifier = ecosystem
       }
   fileContent <- liftIO $ T.readFile advisoryPath
   pure
     $ either Failure Success
     $ parseAdvisory NoOverrides oob fileContent
 
--- | Get names (not paths) of subdirectories of the given directory
--- (one level).  There's no monoidal, interruptible variant of
--- @pathWalk@ so we use @WriterT@ to smuggle the result out.
---
-_getSubdirs :: (MonadIO m) => FilePath -> m [FilePath]
-_getSubdirs root =
-  execWriterT $
-    pathWalkInterruptible root $ \_ subdirs _ -> do
-      tell subdirs
-      pure Stop
-
-_forFiles
+_forFilesByYear
   :: (MonadIO m, Monoid r)
   => FilePath  -- ^ (sub)directory name
   -> (FilePath -> HsecId -> m r)
   -> m r
-_forFiles root go =
-  pathWalkAccumulate root $ \dir _ files ->
-    fmap fold $ for files $ \file ->
-      case parseHsecId (takeBaseName file) of
-        Nothing -> pure mempty
-        Just hsid -> go (dir </> file) hsid
-
-parseComponentIdentifier :: Monad m => FilePath -> ExceptT OOBError m (Maybe ComponentIdentifier)
-parseComponentIdentifier fp = ExceptT . pure $ case drop 1 $ reverse $ splitDirectories fp of
-  package : "hackage" : _ -> pure (Just $ Hackage $ T.pack package)
-  component : "ghc" : _ | Just ghc <- ghcComponentFromText (T.pack component) -> pure (Just $ GHC ghc)
-  _ : _ : "advisories" : _ -> Left PathHasNoComponentIdentifier
-  _ -> pure Nothing
+_forFilesByYear root go = do
+  yearsFile <- liftIO $ listDirectory root
+  fmap (foldMap fold) $
+    for yearsFile $ \year -> do
+      let yearDir = root </> year
+      isYear <- liftIO $ doesDirectoryExist yearDir
+      if isYear
+        then do
+          files <- liftIO $ listDirectory yearDir
+          for files $ \file ->
+            case parseHsecId ("HSEC-" <> year <> "-" <> dropExtension file) of
+              Nothing -> pure mempty
+              Just hsid -> go (yearDir </> file) hsid
+        else pure mempty

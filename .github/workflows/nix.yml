@@ -39,15 +39,15 @@ jobs:
           # Remove the begining of the README to extract the example.
           (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
           while read FILE ; do
-            [ "$(dirname "$FILE")" != advisories/reserved ] || continue
             echo -n "$FILE: "
             docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check "$FILE" || RESULT=1
-          done < <(find advisories EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
+          done < <(find advisories/published EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
           exit $RESULT
       - name: Run advisory uniqueness checks
         run: |
-          ! find advisories -type f -name '*.md' -print0 \
-            | xargs -0n1 basename | sort | uniq -c | grep -E -v '[[:space:]]*1 '
+          ! find advisories/published -type f -name '*.md' \
+            | sed -E 's|.*/([0-9]+)/([0-9]+)\.md|\1/\2.md|' \
+            | sort | uniq -c | grep -E -v '[[:space:]]*1 '
       - name: Generate OSV data
         run: |
           DATA_DIR=$PWD/osv
@@ -58,7 +58,7 @@ jobs:
             YEAR=$(echo "$ID" | cut -d - -f 2)
             mkdir -p $DATA_DIR/$YEAR
             docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
-          done < <(find advisories -type f -name "*.md" | grep -v '^advisories/reserved/')
+          done < <(find advisories/published -type f -name "*.md")
       - name: Validate OSV data
         run: |
           curl -OL https://raw.githubusercontent.com/ossf/osv-schema/refs/heads/main/validation/schema.json
@@ -84,7 +84,7 @@ jobs:
       - name: Generate snapshot data
         run: |
           docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools generate-snapshot . snapshot
-          diff -r advisories snapshot/advisories | grep -v gitkeep | grep -v 'Only in advisories: reserved' | grep Only && echo 'Some advisories have been created/deleted' && exit 1 || exit 0
+          diff -r advisories/published snapshot/advisories/published | grep -v gitkeep | grep Only && echo 'Some advisories have been created/deleted' && exit 1 || exit 0
       - name: Publish snapshot data
         if: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.repository == 'haskell/security-advisories' }}
         env:
