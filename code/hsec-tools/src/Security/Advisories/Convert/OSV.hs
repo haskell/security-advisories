@@ -93,7 +93,7 @@ haskellLinks =
     DbLinks
         { dbLinksRepository = "https://github.com/haskell/security-advisories"
         , dbLinksOSVs = "https://raw.githubusercontent.com/haskell/security-advisories/refs/heads/generated/osv-export"
-        , dbLinksHome = "https://haskell.github.io/security-advisories"
+        , dbLinksHome = "https://github.com/haskell/security-advisories"
         }
 
 data AffectedLinks = AffectedLinks
@@ -115,7 +115,7 @@ mkAffectedWithLinks links hsecId aff =
             Just
                 AffectedLinks
                     { affectedLinksOSV = stripSlash (dbLinksOSVs links) <> "/" <> T.pack (show $ hsecIdYear hsecId) <> "/" <> T.pack (printHsecId hsecId) <> ".json"
-                    , affectedLinksHumanLink = stripSlash (dbLinksHome links) <> "/advisory/" <> T.pack (printHsecId hsecId) <> ".html"
+                    , affectedLinksHumanLink = stripSlash (dbLinksHome links) <> "/tree/main/advisories/published/" <> T.pack (show $ hsecIdYear hsecId) <> "/" <> T.pack (show $ hsecIdSerial hsecId) <> ".md"
                     }
         , ..
         }
