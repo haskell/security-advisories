@@ -50,9 +50,7 @@ test-suite spec
   main-is:          Spec.hs
   build-depends:
     , base
-    , osv
     , tasty          <2
-    , tasty-hunit    <0.11
 
   default-language: Haskell2010
   ghc-options:
