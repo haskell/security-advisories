@@ -78,7 +78,6 @@ library
     , process               >=1.6      && <1.7
     , refined               >=0.7      && <0.9
     , resourcet             >=1.2      && <1.4
-    , safe                  >=0.3      && <0.4
     , text                  >=1.2      && <3
     , template-haskell      >=2.16.0.0 && <2.24
     , time                  >=1.9      && <1.15
@@ -148,7 +147,6 @@ test-suite spec
     , tasty          <2
     , tasty-golden   <2.4
     , tasty-hedgehog <2
-    , tasty-hunit    <0.11
     , text
     , time
     , toml-parser
