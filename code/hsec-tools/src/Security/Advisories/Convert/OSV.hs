@@ -114,11 +114,20 @@ mkAffectedWithLinks links hsecId aff =
         { OSV.affectedDatabaseSpecific =
             Just
                 AffectedLinks
-                    { affectedLinksOSV = stripSlash (dbLinksOSVs links) <> "/" <> T.pack (show $ hsecIdYear hsecId) <> "/" <> T.pack (printHsecId hsecId) <> ".json"
-                    , affectedLinksHumanLink = stripSlash (dbLinksHome links) <> "/tree/main/advisories/published/" <> T.pack (show $ hsecIdYear hsecId) <> "/" <> T.pack (show $ hsecIdSerial hsecId) <> ".md"
+                    { affectedLinksOSV = osvLink
+                    , affectedLinksHumanLink = humanLink
                     }
         , ..
         }
   where
     OSV.Affected{..} = mkAffected aff
     stripSlash = T.dropWhileEnd (== '/')
+    osvLink =
+      stripSlash (dbLinksOSVs links)
+      <> "/" <> T.pack (show $ hsecIdYear hsecId)
+      <> "/" <> T.pack (printHsecId hsecId) <> ".json"
+    humanLink =
+      stripSlash (dbLinksHome links)
+      <> "/tree/main/advisories/published/"
+      <> T.pack (show $ hsecIdYear hsecId)
+      <> "/" <> T.pack (printHsecId hsecId) <> ".md"
