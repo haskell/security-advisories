@@ -49,7 +49,7 @@ test-suite spec
   hs-source-dirs:   test
   main-is:          Spec.hs
   build-depends:
-    , base
+    , base >= 4.14 && < 5
     , tasty          <2
 
   default-language: Haskell2010
