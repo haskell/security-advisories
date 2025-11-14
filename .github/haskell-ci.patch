@@ -6,7 +6,7 @@ index 96282c2..e40c573 100644
  jobs:
 +  tools_changed:
 +    continue-on-error: true
-+    runs-on: ubuntu-22.04
++    runs-on: ubuntu-24.04
 +    outputs:
 +      should_skip: ${{ steps.skip_check.outputs.should_skip }}
 +    steps:
@@ -19,9 +19,8 @@ index 96282c2..e40c573 100644
 +          do_not_skip: '["push", "workflow_dispatch", "schedule"]'
    linux:
      name: Haskell-CI - Linux - ${{ matrix.compiler }}
--    runs-on: ubuntu-20.04
 +    needs: tools_changed
 +    if: ${{ needs.tools_changed.outputs.should_skip != 'true' }}
-+    runs-on: ubuntu-22.04
+     runs-on: ubuntu-24.04
      timeout-minutes:
        60
