@@ -163,7 +163,7 @@ _forFilesByYear root go = do
         then do
           files <- liftIO $ listDirectory yearDir
           for files $ \file ->
-            case parseHsecId ("HSEC-" <> year <> "-" <> dropExtension file) of
+            case parseHsecId (dropExtension file) of
               Nothing -> pure mempty
               Just hsid -> go (yearDir </> file) hsid
         else pure mempty
