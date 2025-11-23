@@ -9,6 +9,7 @@ module Security.Advisories.Generate.Snapshot
   )
 where
 
+import Control.Monad (forM_)
 import Data.Aeson (ToJSON, encodeFile)
 import Data.Default (def)
 import qualified Data.Text.IO as T
@@ -22,12 +23,13 @@ import Security.Advisories.Core.Advisory
 import Security.Advisories.Filesystem (advisoryFromFile, forAdvisory, forReserved)
 import Security.Advisories.Format (fromAdvisory)
 import System.Directory (copyFileWithMetadata, createDirectoryIfMissing)
-import System.FilePath (takeDirectory, (</>))
+import System.FilePath (takeDirectory, (</>), takeFileName)
 import System.IO (hPrint, hPutStrLn, stderr)
 import Text.Pandoc (Block (CodeBlock), Pandoc (Pandoc), nullMeta, runIOorExplode)
 import Text.Pandoc.Writers (writeCommonMark)
 import qualified Toml
 import Validation (Validation (..))
+import qualified Data.Text as T
 
 -- * Actions
 
@@ -42,8 +44,7 @@ createSnapshot src dst = do
 
   advisoriesLatestUpdates <-
     forAdvisory src $ \p _ -> do
-      createDirectoryIfMissing True $ takeDirectory $ toDstFilePath p
-      hPutStrLn stderr $ "Taking a snapshot of '" <> p <> "' to '" <> toDstFilePath p <> "'"
+      hPutStrLn stderr $ "Taking a snapshot of '" <> p <> "'"
       advisoryFromFile p
         >>= \case
           Failure e -> do
@@ -64,7 +65,22 @@ createSnapshot src dst = do
                     )
                 blocks (Pandoc _ xs) = xs
             rendered <- runIOorExplode $ writeCommonMark def pandoc
-            T.writeFile (toDstFilePath p) rendered
+
+            let targetFiles =
+                  concat
+                    [ [toDstFilePath p],
+                      legacyComponentFile . affectedComponentIdentifier <$> advisoryAffected advisory
+                    ]
+                advisoryFilename = takeFileName p
+                legacyComponentFile =
+                  \case
+                    Hackage pkg -> dst </> "hackage" </> T.unpack pkg </> advisoryFilename
+                    GHC comp -> dst </> "ghc" </> T.unpack (ghcComponentToText comp) </> advisoryFilename
+            forM_ targetFiles $ \targetFile -> do
+              hPutStrLn stderr $ " * Writing it to '" <> targetFile <> "'"
+              createDirectoryIfMissing True $ takeDirectory targetFile
+              T.writeFile targetFile rendered
+
             return [advisoryModified advisory]
 
   let metadataPath = dst </> "snapshot.json"
