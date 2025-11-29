@@ -135,14 +135,18 @@ commandQuery =
     isAffected :: Parser (IO ())
     isAffected =
       go
-        <$> argument (parseComponent <$> str) (metavar "PACKAGE|GHC:COMPONENT")
+        <$> argument (parseComponent <$> str) (metavar "PACKAGE|REPO:PACKAGE|GHC:COMPONENT")
         <*> optional (option versionRangeReader (metavar "VERSION-RANGE" <> short 'v' <> long "version-range"))
         <*> optional (option str (metavar "ADVISORIES-PATH" <> short 'p' <> long "advisories-path"))
       where
         parseComponent raw =
-          fromMaybe (Hackage raw) $ do
-            ghcComponentRaw <- T.stripPrefix "ghc:" $ T.toLower raw
-            GHC <$> ghcComponentFromText ghcComponentRaw
+          case T.breakOn ":" raw of
+            (pkg, "") -> hackage $ mkPackageName $ T.unpack pkg
+            (p, pkg) ->
+              let pkgName = mkPackageName $ T.unpack pkg
+              in if T.toCaseFold p == T.toCaseFold "ghc"
+                  then fromMaybe (hackage pkgName) $ GHC <$> ghcComponentFromText p
+                  else Repository (RepositoryURL "") (RepositoryName p) pkgName
         go :: ComponentIdentifier -> Maybe VersionRange -> Maybe FilePath -> IO ()
         go component versionRange advisoriesPath = do
           let versionRange' = fromMaybe anyVersion versionRange
