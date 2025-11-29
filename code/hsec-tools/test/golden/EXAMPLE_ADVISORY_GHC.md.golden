@@ -1,0 +1,259 @@
+Right
+    ( Advisory
+        { advisoryId = HSEC-0000-0000
+        , advisoryModified = 1970-01-01 00:00:00 UTC
+        , advisoryPublished = 1970-01-01 00:00:00 UTC
+        , advisoryCAPECs = []
+        , advisoryCWEs = []
+        , advisoryKeywords =
+            [ "example"
+            , "freeform"
+            , "keywords"
+            ]
+        , advisoryAliases = [ "CVE-2022-XXXX" ]
+        , advisoryRelated =
+            [ "CVE-2022-YYYY"
+            , "CVE-2022-ZZZZ"
+            ]
+        , advisoryAffected =
+            [ Affected
+                { affectedComponentIdentifier = GHC GHCi
+                , affectedCVSS = CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
+                , affectedVersions =
+                    [ AffectedVersionRange
+                        { affectedVersionRangeIntroduced = mkVersion
+                            [ 1
+                            , 0
+                            , 8
+                            ]
+                        , affectedVersionRangeFixed = Just
+                            ( mkVersion
+                                [ 1
+                                , 1
+                                ]
+                            )
+                        }
+                    , AffectedVersionRange
+                        { affectedVersionRangeIntroduced = mkVersion
+                            [ 1
+                            , 1
+                            , 2
+                            ]
+                        , affectedVersionRangeFixed = Nothing
+                        }
+                    ]
+                , affectedArchitectures = Nothing
+                , affectedOS = Nothing
+                , affectedDeclarations = []
+                }
+            ]
+        , advisoryReferences =
+            [ Reference
+                { referencesType = ReferenceTypeArticle
+                , referencesUrl = "https://example.com"
+                }
+            ]
+        , advisoryPandoc = Pandoc
+            ( Meta
+                { unMeta = fromList [] }
+            )
+            [ Header 1
+                ( ""
+                , []
+                , []
+                )
+                [ Str "Advisory"
+                , Space
+                , Str "Template"
+                , Space
+                , Str "-"
+                , Space
+                , Str "Title"
+                , Space
+                , Str "Goes"
+                , Space
+                , Str "Here"
+                ]
+            , Para
+                [ Str "This"
+                , Space
+                , Str "is"
+                , Space
+                , Str "an"
+                , Space
+                , Str "example"
+                , Space
+                , Str "template."
+                ]
+            , BulletList
+                [
+                    [ Plain
+                        [ Str "Markdown" ]
+                    ]
+                ,
+                    [ Plain
+                        [ Str "TOML"
+                        , Space
+                        , Str ""front"
+                        , Space
+                        , Str "matter"."
+                        ]
+                    ]
+                ]
+            , BlockQuote
+                [ Para
+                    [ Str "Acme"
+                    , Space
+                    , Str "Broken."
+                    ]
+                ]
+            ]
+        , advisoryHtml = "<pre><code class="language-toml">
+          [advisory]
+          id = &quot;HSEC-0000-0000&quot;
+          cwe = []
+          keywords = [&quot;example&quot;, &quot;freeform&quot;, &quot;keywords&quot;]
+          aliases = [&quot;CVE-2022-XXXX&quot;]
+          related = [&quot;CVE-2022-YYYY&quot;, &quot;CVE-2022-ZZZZ&quot;]
+
+          [[affected]]
+          ghc-component = &quot;ghci&quot;
+          cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H&quot;
+
+          [[affected.versions]]
+          introduced = &quot;1.0.8&quot;
+          fixed = &quot;1.1&quot;
+          [[affected.versions]]
+          introduced = &quot;1.1.2&quot;
+
+          [[references]]
+          type = &quot;ARTICLE&quot;
+          url = &quot;https://example.com&quot;
+          </code></pre>
+          <h1>Advisory Template - Title Goes Here</h1>
+          <p>This is an example template.</p>
+          <ul>
+          <li>Markdown
+          </li>
+          <li>TOML &quot;front matter&quot;.
+          </li>
+          </ul>
+          <blockquote>
+          <p>Acme Broken.</p>
+          </blockquote>
+          "
+        , advisorySummary = "Advisory Template - Title Goes Here"
+        , advisoryDetails = "# Advisory Template - Title Goes Here
+
+          This is an example template.
+
+           * Markdown
+           * TOML "front matter".
+
+           > Acme Broken.
+          "
+        }
+    )
+Model
+    { modelSchemaVersion = "1.5.0"
+    , modelId = "HSEC-0000-0000"
+    , modelModified = 1970-01-01 00:00:00 UTC
+    , modelPublished = Just 1970-01-01 00:00:00 UTC
+    , modelWithdrawn = Nothing
+    , modelAliases = [ "CVE-2022-XXXX" ]
+    , modelRelated =
+        [ "CVE-2022-YYYY"
+        , "CVE-2022-ZZZZ"
+        ]
+    , modelSummary = Just "Advisory Template - Title Goes Here"
+    , modelDetails = Just "# Advisory Template - Title Goes Here
+
+      This is an example template.
+
+       * Markdown
+       * TOML "front matter".
+
+       > Acme Broken.
+      "
+    , modelSeverity = []
+    , modelAffected =
+        [ Affected
+            { affectedRanges =
+                [ RangeEcosystem
+                    [ EventIntroduced "1.0.8"
+                    , EventFixed "1.1"
+                    , EventIntroduced "1.1.2"
+                    ] Nothing
+                ]
+            , affectedPackage = Package
+                { packageName = "ghci"
+                , packageEcosystem = "GHC"
+                , packagePurl = Nothing
+                }
+            , affectedSeverity =
+                [ Severity CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H ]
+            , affectedEcosystemSpecific = Nothing
+            , affectedDatabaseSpecific = Nothing
+            }
+        ]
+    , modelReferences =
+        [ Reference
+            { referencesType = ReferenceTypeArticle
+            , referencesUrl = "https://example.com"
+            }
+        ]
+    , modelCredits = []
+    , modelDatabaseSpecific = Nothing
+    }
+{
+    "affected": [
+        {
+            "package": {
+                "ecosystem": "GHC",
+                "name": "ghci"
+            },
+            "ranges": [
+                {
+                    "events": [
+                        {
+                            "introduced": "1.0.8"
+                        },
+                        {
+                            "fixed": "1.1"
+                        },
+                        {
+                            "introduced": "1.1.2"
+                        }
+                    ],
+                    "type": "ECOSYSTEM"
+                }
+            ],
+            "severity": [
+                {
+                    "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+                    "type": "CVSS_V3"
+                }
+            ]
+        }
+    ],
+    "aliases": [
+        "CVE-2022-XXXX"
+    ],
+    "details": "# Advisory Template - Title Goes Here\n\nThis is an example template.\n\n * Markdown\n * TOML \"front matter\".\n\n > Acme Broken.\n",
+    "id": "HSEC-0000-0000",
+    "modified": "1970-01-01T00:00:00Z",
+    "published": "1970-01-01T00:00:00Z",
+    "references": [
+        {
+            "type": "ARTICLE",
+            "url": "https://example.com"
+        }
+    ],
+    "related": [
+        "CVE-2022-YYYY",
+        "CVE-2022-ZZZZ"
+    ],
+    "schema_version": "1.5.0",
+    "summary": "Advisory Template - Title Goes Here"
+}
+
