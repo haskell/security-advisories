@@ -186,7 +186,7 @@ mkAffectedVersions vr =
       ]
 
 component :: ComponentIdentifier
-component = Hackage "package-name"
+component = Hackage $ PackageName "package-name"
 
 -- | Parse 'VersionRange' as given to the CLI
 parseVersionRange :: Maybe Text -> Either Text VersionRange

@@ -52,7 +52,8 @@ mkPackage ecosystem =
         }
   where
     (ecosystemName, packageName) = case ecosystem of
-        Hackage n -> ("Hackage", n)
+        Hackage pkg -> ("Hackage", unPackageName pkg)
+        Repository _ repoName pkg -> (unRepositoryName repoName, unPackageName pkg)
         GHC c -> ("GHC", ghcComponentToText c)
 
 mkRange :: [AffectedVersionRange] -> OSV.Range Void

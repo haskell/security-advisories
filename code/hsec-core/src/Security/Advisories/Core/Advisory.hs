@@ -12,6 +12,9 @@ module Security.Advisories.Core.Advisory
   , Keyword(..)
   , ComponentIdentifier(..)
   , GHCComponent(..)
+  , RepositoryURL(..)
+  , RepositoryName(..)
+  , PackageName(..)
   , ghcComponentToText
   , ghcComponentFromText
     -- * Queries
@@ -52,8 +55,23 @@ data Advisory = Advisory
   }
   deriving stock (Show)
 
-data ComponentIdentifier = Hackage Text | GHC GHCComponent
+data ComponentIdentifier
+  = Hackage PackageName
+  | Repository RepositoryURL RepositoryName PackageName
+  | GHC GHCComponent
   deriving stock (Show, Eq)
+
+newtype PackageName
+  = PackageName { unPackageName :: Text }
+  deriving stock (Eq, Ord, Show)
+
+newtype RepositoryURL
+  = RepositoryURL { unRepositoryURL :: Text }
+  deriving stock (Eq, Ord, Show)
+
+newtype RepositoryName
+  = RepositoryName { unRepositoryName :: Text }
+  deriving stock (Eq, Ord, Show)
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
 data GHCComponent = GHCCompiler | GHCi | GHCRTS | GHCPkg | RunGHC | IServ | HP2PS | HPC | HSC2HS | Haddock
