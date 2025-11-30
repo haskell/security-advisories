@@ -14,9 +14,12 @@ module Security.Advisories.Core.Advisory
   , GHCComponent(..)
   , RepositoryURL(..)
   , RepositoryName(..)
-  , PackageName(..)
+  , PackageName
+  , mkPackageName
+  , unPackageName
   , ghcComponentToText
   , ghcComponentFromText
+  , hackage
     -- * Queries
   , isVersionAffectedBy
   , isVersionRangeAffectedBy
@@ -25,6 +28,7 @@ module Security.Advisories.Core.Advisory
 
 import Data.Text (Text)
 import Data.Time (UTCTime)
+import Distribution.Types.PackageName (PackageName, mkPackageName, unPackageName)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
@@ -56,14 +60,12 @@ data Advisory = Advisory
   deriving stock (Show)
 
 data ComponentIdentifier
-  = Hackage PackageName
-  | Repository RepositoryURL RepositoryName PackageName
+  = Repository RepositoryURL RepositoryName PackageName
   | GHC GHCComponent
   deriving stock (Show, Eq)
 
-newtype PackageName
-  = PackageName { unPackageName :: Text }
-  deriving stock (Eq, Ord, Show)
+hackage :: PackageName -> ComponentIdentifier
+hackage = Repository (RepositoryURL "https://hackage.haskell.org") (RepositoryName "hackage")
 
 newtype RepositoryURL
   = RepositoryURL { unRepositoryURL :: Text }

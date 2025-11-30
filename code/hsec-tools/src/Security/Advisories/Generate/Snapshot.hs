@@ -74,8 +74,7 @@ createSnapshot src dst = do
                 advisoryFilename = takeFileName p
                 legacyComponentFile =
                   \case
-                    Repository _ repoName pkg -> dst </> T.unpack (unRepositoryName repoName) </> T.unpack (unPackageName pkg) </> advisoryFilename
-                    Hackage pkg -> dst </> "hackage" </> T.unpack (unPackageName pkg) </> advisoryFilename
+                    Repository _ repoName pkg -> dst </> T.unpack (unRepositoryName repoName) </> unPackageName pkg </> advisoryFilename
                     GHC comp -> dst </> "ghc" </> T.unpack (ghcComponentToText comp) </> advisoryFilename
             forM_ targetFiles $ \targetFile -> do
               hPutStrLn stderr $ " * Writing it to '" <> targetFile <> "'"

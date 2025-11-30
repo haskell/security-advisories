@@ -24,9 +24,7 @@ Right
                     ( RepositoryName
                         { unRepositoryName = "example" }
                     )
-                    ( PackageName
-                        { unPackageName = "package-name" }
-                    )
+                    ( PackageName "package-name" )
                 , affectedCVSS = CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H
                 , affectedVersions =
                     [ AffectedVersionRange

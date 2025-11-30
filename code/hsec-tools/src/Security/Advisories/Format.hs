@@ -163,7 +163,7 @@ instance Toml.FromValue Affected where
       ecosystem   <-
         asum [
             Repository <$> Toml.reqKey "repository-url" <*> Toml.reqKey "repository-name" <*> Toml.reqKey "package",
-            Hackage <$> Toml.reqKey "package",
+            hackage <$> Toml.reqKey "package",
             GHC <$> Toml.reqKey "ghc-component"
           ]
       cvss      <- Toml.reqKey "cvss"
@@ -194,8 +194,9 @@ instance Toml.ToTable Affected where
     [ "declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
     where
       ecosystem = case affectedComponentIdentifier x of
-        Repository repoUrl repoName pkg -> ["repository-url" Toml..= repoUrl, "repository-name" Toml..= repoName, "package" Toml..= pkg]
-        Hackage pkg -> ["package" Toml..= pkg]
+        Repository repoUrl repoName pkg
+          | affectedComponentIdentifier x == hackage pkg -> ["package" Toml..= pkg]
+          | otherwise -> ["repository-url" Toml..= repoUrl, "repository-name" Toml..= repoName, "package" Toml..= pkg]
         GHC c -> ["ghc-component" Toml..= c]
       asTable kvs = Map.fromList [(T.unpack k, v) | (k,v) <- kvs]
 
@@ -345,9 +346,11 @@ instance Toml.FromValue CVSS.CVSS where
 instance Toml.ToValue CVSS.CVSS where
   toValue = Toml.toValue . CVSS.cvssVectorString
 
-deriving newtype instance Toml.ToValue PackageName
+instance Toml.ToValue PackageName where
+  toValue = Toml.toValue . unPackageName
 
-deriving newtype instance Toml.FromValue PackageName
+instance Toml.FromValue PackageName where
+  fromValue = fmap mkPackageName . Toml.fromValue
 
 deriving newtype instance Toml.ToValue RepositoryURL
 

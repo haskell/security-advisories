@@ -141,7 +141,7 @@ commandQuery =
       where
         parseComponent raw =
           case T.breakOn ":" raw of
-            (pkg, "") -> Hackage $ PackageName pkg
+            (pkg, "") -> hackage $ PackageName pkg
             (p, pkg) ->
               let pkgName = PackageName pkg
               in if T.toCaseFold p == T.toCaseFold "ghc"

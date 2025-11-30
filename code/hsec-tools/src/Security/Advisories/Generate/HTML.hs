@@ -132,8 +132,7 @@ listByDates advisories =
 
 packageName :: AffectedPackageR -> Text
 packageName af = case ecosystem af of
-  Repository _ repoName n -> "@" <> Advisories.unRepositoryName repoName <> "/" <> Advisories.unPackageName n
-  Hackage n -> Advisories.unPackageName n
+  Repository _ repoName n -> "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack (Advisories.unPackageName n)
   GHC c -> "ghc:" <> ghcComponentToText c
 
 listByPackages :: [AdvisoryR] -> Html ()
@@ -225,12 +224,8 @@ renderAdvisory advisory =
         let (url, title) =
               case Advisories.affectedComponentIdentifier affected of
                 Repository repoUrl repoName package ->
-                  ( Advisories.unRepositoryURL repoUrl <> "/" <> Advisories.unPackageName package,
-                    "@" <> Advisories.unRepositoryName repoName <> "/" <> Advisories.unPackageName package
-                  )
-                Hackage package ->
-                  ( "https://hackage.haskell.org/package/" <> Advisories.unPackageName package,
-                    Advisories.unPackageName package
+                  ( Advisories.unRepositoryURL repoUrl <> "/package/" <> T.pack (Advisories.unPackageName package),
+                    "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack (Advisories.unPackageName package)
                   )
                 GHC component ->
                   ( "https://gitlab.haskell.org/ghc/ghc",
