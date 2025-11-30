@@ -141,11 +141,11 @@ commandQuery =
       where
         parseComponent raw =
           case T.breakOn ":" raw of
-            (pkg, "") -> hackage $ PackageName pkg
+            (pkg, "") -> hackage $ mkPackageName $ T.unpack pkg
             (p, pkg) ->
-              let pkgName = PackageName pkg
+              let pkgName = mkPackageName $ T.unpack pkg
               in if T.toCaseFold p == T.toCaseFold "ghc"
-                  then fromMaybe (Hackage pkgName) $ GHC <$> ghcComponentFromText p
+                  then fromMaybe (hackage pkgName) $ GHC <$> ghcComponentFromText p
                   else Repository (RepositoryURL "") (RepositoryName p) pkgName
         go :: ComponentIdentifier -> Maybe VersionRange -> Maybe FilePath -> IO ()
         go component versionRange advisoriesPath = do
