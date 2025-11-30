@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -15,7 +16,7 @@ module Security.Advisories.Format
   )
 where
 
-import Control.Applicative ((<|>))
+import Control.Applicative (asum)
 import Commonmark.Types (HasAttributes (..), IsBlock (..), IsInline (..), Rangeable (..), SourceRange (..))
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -157,9 +158,15 @@ instance Toml.ToValue GHCComponent where
   toValue = Toml.Text' () . ghcComponentToText
 
 instance Toml.FromValue Affected where
-  fromValue = Toml.parseTableFromValue $
-   do ecosystem   <- (Hackage <$> Toml.reqKey "package") <|> (GHC <$> Toml.reqKey "ghc-component")
-      cvss      <- Toml.reqKey "cvss" -- TODO validate CVSS format
+  fromValue =
+   Toml.parseTableFromValue $ do
+      ecosystem   <-
+        asum [
+            Repository <$> Toml.reqKey "repository-url" <*> Toml.reqKey "repository-name" <*> Toml.reqKey "package",
+            hackage <$> Toml.reqKey "package",
+            GHC <$> Toml.reqKey "ghc-component"
+          ]
+      cvss      <- Toml.reqKey "cvss"
       os        <- Toml.optKey "os"
       arch      <- Toml.optKey "arch"
       decls     <- maybe [] Map.toList <$> Toml.optKey "declarations"
@@ -187,7 +194,9 @@ instance Toml.ToTable Affected where
     [ "declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
     where
       ecosystem = case affectedComponentIdentifier x of
-        Hackage pkg -> ["package" Toml..= pkg]
+        Repository repoUrl repoName pkg
+          | affectedComponentIdentifier x == hackage pkg -> ["package" Toml..= pkg]
+          | otherwise -> ["repository-url" Toml..= repoUrl, "repository-name" Toml..= repoName, "package" Toml..= pkg]
         GHC c -> ["ghc-component" Toml..= c]
       asTable kvs = Map.fromList [(T.unpack k, v) | (k,v) <- kvs]
 
@@ -336,6 +345,20 @@ instance Toml.FromValue CVSS.CVSS where
 
 instance Toml.ToValue CVSS.CVSS where
   toValue = Toml.toValue . CVSS.cvssVectorString
+
+instance Toml.ToValue PackageName where
+  toValue = Toml.toValue . unPackageName
+
+instance Toml.FromValue PackageName where
+  fromValue = fmap mkPackageName . Toml.fromValue
+
+deriving newtype instance Toml.ToValue RepositoryURL
+
+deriving newtype instance Toml.FromValue RepositoryURL
+
+deriving newtype instance Toml.ToValue RepositoryName
+
+deriving newtype instance Toml.FromValue RepositoryName
 
 -- | A solution to an awkward problem: how to delete the TOML
 -- block.  We parse into this type to get the source range of

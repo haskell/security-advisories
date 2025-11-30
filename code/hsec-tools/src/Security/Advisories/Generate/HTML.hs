@@ -9,7 +9,11 @@ module Security.Advisories.Generate.HTML
 where
 
 import Control.Monad (forM_)
+import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Conduit as Conduit
+import qualified Data.Conduit.Binary as ConduitBinary
+import Data.Default (def)
 import Data.List (sortOn)
 import Data.List.Extra (groupSort)
 import qualified Data.Map.Strict as Map
@@ -19,34 +23,28 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as BSE
 import qualified Data.Text.IO as T
-import Data.Time (UTCTime, formatTime, defaultTimeLocale)
-import System.Directory (createDirectoryIfMissing)
-import System.Exit (exitFailure)
-import System.FilePath ((</>), takeDirectory)
-import System.IO (hPrint, hPutStrLn, stderr)
-import System.IO.Unsafe (unsafePerformIO)
-
-import Control.Monad.Trans.Resource (ResourceT)
-import qualified Data.Conduit as Conduit
-import qualified Data.Conduit.Binary as ConduitBinary
-import Data.Default (def)
+import Data.Time (UTCTime, defaultTimeLocale, formatTime)
 import Distribution.Pretty (prettyShow)
 import Distribution.Types.VersionRange (earlierVersion, intersectVersionRanges, orLaterVersion)
 import Lucid
 import Refined (refineTH)
-import qualified Text.Atom.Types as Feed
+import qualified Security.Advisories as Advisories
+import Security.Advisories.Core.Advisory (ComponentIdentifier (..), ghcComponentToText)
+import Security.Advisories.Filesystem (listAdvisories)
+import Security.Advisories.Generate.TH (readDirFilesTH)
+import qualified Security.OSV as OSV
+import System.Directory (createDirectoryIfMissing)
+import System.Exit (exitFailure)
+import System.FilePath (takeDirectory, (</>))
+import System.IO (hPrint, hPutStrLn, stderr)
+import System.IO.Unsafe (unsafePerformIO)
 import qualified Text.Atom.Conduit.Render as FeedExport
+import qualified Text.Atom.Types as Feed
 import Text.Pandoc (runIOorExplode)
 import Text.Pandoc.Writers (writeHtml5String)
 import qualified Text.XML.Stream.Render as ConduitXML
 import qualified URI.ByteString as URI
 import Validation (Validation (..))
-
-import qualified Security.Advisories as Advisories
-import Security.Advisories.Filesystem (listAdvisories)
-import Security.Advisories.Generate.TH (readDirFilesTH)
-import Security.Advisories.Core.Advisory (ComponentIdentifier (..), ghcComponentToText)
-import qualified Security.OSV as OSV
 
 -- * Actions
 
@@ -134,7 +132,7 @@ listByDates advisories =
 
 packageName :: AffectedPackageR -> Text
 packageName af = case ecosystem af of
-  Hackage n -> n
+  Repository _ repoName n -> "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack (Advisories.unPackageName n)
   GHC c -> "ghc:" <> ghcComponentToText c
 
 listByPackages :: [AdvisoryR] -> Html ()
@@ -164,7 +162,7 @@ listByPackages advisories =
 
           tbody_ $ do
             let sortedAdvisories =
-                    sortOn (Down . advisoryId . fst) perPackageAdvisory
+                  sortOn (Down . advisoryId . fst) perPackageAdvisory
             forM_ sortedAdvisories $ \(advisory, package) -> do
               tr_ $ do
                 td_ [class_ "advisory-id"] $
@@ -178,7 +176,7 @@ indexDescription :: Html ()
 indexDescription =
   div_ [class_ "description"] $ do
     p_ "The Haskell Security Advisory Database is a repository of security advisories filed against packages published via Hackage."
-    p_  $ do
+    p_ $ do
       "It is generated from "
       a_ [href_ "https://github.com/haskell/security-advisories/", target_ "_blank", rel_ "noopener noreferrer"] "Haskell Security Advisory Database"
       ". "
@@ -204,7 +202,7 @@ renderAdvisory advisory =
       dt_ "CAPECs"
       placeholderWhenEmptyOr (Advisories.advisoryCAPECs advisory) $ \capecs ->
         forM_ capecs $ \(Advisories.CAPEC capec) ->
-            dd_ [] $ a_ [href_ $ "https://capec.mitre.org/data/definitions/" <> T.pack (show capec) <> ".html"] $ toHtml $ show capec
+          dd_ [] $ a_ [href_ $ "https://capec.mitre.org/data/definitions/" <> T.pack (show capec) <> ".html"] $ toHtml $ show capec
       dt_ "CWEs"
       placeholderWhenEmptyOr (Advisories.advisoryCWEs advisory) $ \cwes ->
         forM_ cwes $ \(Advisories.CWE cwe) ->
@@ -223,9 +221,17 @@ renderAdvisory advisory =
     h4_ [] "Affected"
     forM_ (Advisories.advisoryAffected advisory) $ \affected -> do
       h5_ [] $
-        case Advisories.affectedComponentIdentifier affected of
-          Hackage package -> a_ [href_ $ "https://hackage.haskell.org/package/" <> package] $ code_ [] $ toHtml package
-          GHC component -> code_ [] $ toHtml $ Advisories.ghcComponentToText component
+        let (url, title) =
+              case Advisories.affectedComponentIdentifier affected of
+                Repository repoUrl repoName package ->
+                  ( Advisories.unRepositoryURL repoUrl <> "/package/" <> T.pack (Advisories.unPackageName package),
+                    "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack (Advisories.unPackageName package)
+                  )
+                GHC component ->
+                  ( "https://gitlab.haskell.org/ghc/ghc",
+                    Advisories.ghcComponentToText component
+                  )
+         in a_ [href_ url] $ code_ [] $ toHtml title
 
       dl_ [] $ do
         dt_ "CVSS"
@@ -238,9 +244,9 @@ renderAdvisory advisory =
                 T.pack $
                   prettyShow $
                     let introducedVersionRange = orLaterVersion $ Advisories.affectedVersionRangeIntroduced affectedVersionRange
-                    in case Advisories.affectedVersionRangeFixed affectedVersionRange of
-                      Nothing -> introducedVersionRange
-                      Just fixedVersion -> introducedVersionRange `intersectVersionRanges` earlierVersion fixedVersion
+                     in case Advisories.affectedVersionRangeFixed affectedVersionRange of
+                          Nothing -> introducedVersionRange
+                          Just fixedVersion -> introducedVersionRange `intersectVersionRanges` earlierVersion fixedVersion
         forM_ (Advisories.affectedArchitectures affected) $ \architectures -> do
           dt_ "Architectures"
           dd_ [] $ toHtml $ T.intercalate ", " $ T.toLower . T.pack . show <$> architectures
@@ -329,53 +335,53 @@ toAdvisoryR x =
 feed :: [Advisories.Advisory] -> Feed.AtomFeed
 feed advisories =
   Feed.AtomFeed
-    { Feed.feedAuthors      = [ hsrt ]
-    , Feed.feedCategories   = []
-    , Feed.feedContributors = []
-    , Feed.feedEntries      = toEntry <$> advisories
-    , Feed.feedGenerator    = Nothing
-    , Feed.feedIcon         = Nothing
-    , Feed.feedId           = "73b10e73-16bc-4bf2-a56c-ad7d09213e45"
-    , Feed.feedLinks        = [
-          Feed.AtomLink
-            { Feed.linkHref   = toAtomURI atomFeedUrl
-            , Feed.linkRel    = "self"
-            , Feed.linkType   = ""
-            , Feed.linkLang   = ""
-            , Feed.linkTitle  = ""
-            , Feed.linkLength = ""
+    { Feed.feedAuthors = [hsrt],
+      Feed.feedCategories = [],
+      Feed.feedContributors = [],
+      Feed.feedEntries = toEntry <$> advisories,
+      Feed.feedGenerator = Nothing,
+      Feed.feedIcon = Nothing,
+      Feed.feedId = "73b10e73-16bc-4bf2-a56c-ad7d09213e45",
+      Feed.feedLinks =
+        [ Feed.AtomLink
+            { Feed.linkHref = toAtomURI atomFeedUrl,
+              Feed.linkRel = "self",
+              Feed.linkType = "",
+              Feed.linkLang = "",
+              Feed.linkTitle = "",
+              Feed.linkLength = ""
             }
-    ]
-    , Feed.feedLogo         = Nothing
-    , Feed.feedRights       = Nothing
-    , Feed.feedSubtitle     = Nothing
-    , Feed.feedTitle        = Feed.AtomPlainText Feed.TypeText "Haskell Security Advisory DB"
-    , Feed.feedUpdated      = maximum $ Advisories.advisoryModified <$> advisories
+        ],
+      Feed.feedLogo = Nothing,
+      Feed.feedRights = Nothing,
+      Feed.feedSubtitle = Nothing,
+      Feed.feedTitle = Feed.AtomPlainText Feed.TypeText "Haskell Security Advisory DB",
+      Feed.feedUpdated = maximum $ Advisories.advisoryModified <$> advisories
     }
   where
     toEntry advisory =
       Feed.AtomEntry
-        { Feed.entryAuthors      = [hsrt]
-        , Feed.entryCategories   = []
-        , Feed.entryContent      = Just $ Feed.AtomContentInlineText Feed.TypeHTML $ Advisories.advisoryHtml advisory
-        , Feed.entryContributors = []
-        , Feed.entryId           = T.pack $ Advisories.printHsecId $ Advisories.advisoryId advisory
-        , Feed.entryLinks        = [
-            Feed.AtomLink
-              { Feed.linkHref   = toAtomURI $ toUrl advisory
-              , Feed.linkRel    = "alternate"
-              , Feed.linkType   = ""
-              , Feed.linkLang   = ""
-              , Feed.linkTitle  = ""
-              , Feed.linkLength = ""
-              }
-          ]
-        , Feed.entryPublished    = Just $ Advisories.advisoryPublished advisory
-        , Feed.entryRights       = Nothing
-        , Feed.entrySource       = Nothing
-        , Feed.entrySummary      = Nothing
-        , Feed.entryTitle        = Feed.AtomPlainText Feed.TypeText $ mkTitle advisory
-        , Feed.entryUpdated      = Advisories.advisoryModified advisory
+        { Feed.entryAuthors = [hsrt],
+          Feed.entryCategories = [],
+          Feed.entryContent = Just $ Feed.AtomContentInlineText Feed.TypeHTML $ Advisories.advisoryHtml advisory,
+          Feed.entryContributors = [],
+          Feed.entryId = T.pack $ Advisories.printHsecId $ Advisories.advisoryId advisory,
+          Feed.entryLinks =
+            [ Feed.AtomLink
+                { Feed.linkHref = toAtomURI $ toUrl advisory,
+                  Feed.linkRel = "alternate",
+                  Feed.linkType = "",
+                  Feed.linkLang = "",
+                  Feed.linkTitle = "",
+                  Feed.linkLength = ""
+                }
+            ],
+          Feed.entryPublished = Just $ Advisories.advisoryPublished advisory,
+          Feed.entryRights = Nothing,
+          Feed.entrySource = Nothing,
+          Feed.entrySummary = Nothing,
+          Feed.entryTitle = Feed.AtomPlainText Feed.TypeText $ mkTitle advisory,
+          Feed.entryUpdated = Advisories.advisoryModified advisory
         }
 
     mkTitle advisory =
@@ -392,11 +398,11 @@ feed advisories =
         . BSE.encodeUtf8
 
     hsrt =
-        Feed.AtomPerson
-          { Feed.personName = $$(refineTH "Haskell Security Response Team")
-          , Feed.personEmail = "security-advisories@haskell.org"
-          , Feed.personUri = Nothing
-          }
+      Feed.AtomPerson
+        { Feed.personName = $$(refineTH "Haskell Security Response Team"),
+          Feed.personEmail = "security-advisories@haskell.org",
+          Feed.personUri = Nothing
+        }
 
 renderFeed :: [Advisories.Advisory] -> Conduit.ConduitT () BS8.ByteString (ResourceT IO) ()
 renderFeed =

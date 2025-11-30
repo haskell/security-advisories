@@ -12,8 +12,14 @@ module Security.Advisories.Core.Advisory
   , Keyword(..)
   , ComponentIdentifier(..)
   , GHCComponent(..)
+  , RepositoryURL(..)
+  , RepositoryName(..)
+  , PackageName
+  , mkPackageName
+  , unPackageName
   , ghcComponentToText
   , ghcComponentFromText
+  , hackage
     -- * Queries
   , isVersionAffectedBy
   , isVersionRangeAffectedBy
@@ -22,6 +28,7 @@ module Security.Advisories.Core.Advisory
 
 import Data.Text (Text)
 import Data.Time (UTCTime)
+import Distribution.Types.PackageName (PackageName, mkPackageName, unPackageName)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
@@ -52,8 +59,21 @@ data Advisory = Advisory
   }
   deriving stock (Show)
 
-data ComponentIdentifier = Hackage Text | GHC GHCComponent
+data ComponentIdentifier
+  = Repository RepositoryURL RepositoryName PackageName
+  | GHC GHCComponent
   deriving stock (Show, Eq)
+
+hackage :: PackageName -> ComponentIdentifier
+hackage = Repository (RepositoryURL "https://hackage.haskell.org") (RepositoryName "hackage")
+
+newtype RepositoryURL
+  = RepositoryURL { unRepositoryURL :: Text }
+  deriving stock (Eq, Ord, Show)
+
+newtype RepositoryName
+  = RepositoryName { unRepositoryName :: Text }
+  deriving stock (Eq, Ord, Show)
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
 data GHCComponent = GHCCompiler | GHCi | GHCRTS | GHCPkg | RunGHC | IServ | HP2PS | HPC | HSC2HS | Haddock
