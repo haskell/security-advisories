@@ -30,7 +30,12 @@ related = ["CVE-2022-YYYY", "CVE-2022-ZZZZ"]
 # OPTION 1: package = hackage-package-name
 package = "package-name"
 #
-# OPTION 2: ghc-component = {ghc,ghci,rts,ghc-pkg,runghc,ghc-iserv,hp2ps,hpc,hsc2hs,haddock}
+# OPTION 2: alternative-hackage-package = hackage-package-name
+# repository-url = "https//hackage.example.org/"
+# repository-name = "example"
+# package = "package-name"
+#
+# OPTION 3: ghc-component = {ghc,ghci,rts,ghc-pkg,runghc,ghc-iserv,hp2ps,hpc,hsc2hs,haddock}
 # ghc-component = "ghci"
 
 # CVSS vector.  Accepted versions: 2.0, 3.0, 3.1

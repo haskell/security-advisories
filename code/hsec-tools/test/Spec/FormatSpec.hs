@@ -78,7 +78,8 @@ genAffected =
 
 genComponentIdentifier :: Gen.Gen ComponentIdentifier
 genComponentIdentifier = Gen.choice $
-  [ Hackage <$> genText
+  [ Repository <$> (RepositoryURL <$> genText) <*> (RepositoryName <$> genText) <*> (mkPackageName . T.unpack <$> genText)
+  , hackage . mkPackageName . T.unpack <$> genText
   , GHC <$> Gen.enumBounded
   ]
 
