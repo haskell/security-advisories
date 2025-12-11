@@ -15,6 +15,7 @@ import qualified Data.Text.IO as T
 import Control.Exception (Exception(displayException))
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange, anyVersion)
+import Network.URI (nullURI)
 import Options.Applicative
 import Security.Advisories
 import qualified Security.Advisories.Convert.OSV as OSV
@@ -146,7 +147,7 @@ commandQuery =
               let pkgName = mkPackageName $ T.unpack pkg
               in if T.toCaseFold p == T.toCaseFold "ghc"
                   then fromMaybe (hackage pkgName) $ GHC <$> ghcComponentFromText p
-                  else Repository (RepositoryURL "") (RepositoryName p) pkgName
+                  else Repository (RepositoryURL nullURI) (RepositoryName p) pkgName
         go :: ComponentIdentifier -> Maybe VersionRange -> Maybe FilePath -> IO ()
         go component versionRange advisoriesPath = do
           let versionRange' = fromMaybe anyVersion versionRange

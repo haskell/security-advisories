@@ -8,6 +8,7 @@ module Security.Advisories.Generate.HTML
   )
 where
 
+import Control.Lens.Combinators (set)
 import Control.Monad (forM_)
 import Control.Monad.Trans.Resource (ResourceT)
 import qualified Data.ByteString.Char8 as BS8
@@ -27,6 +28,8 @@ import Data.Time (UTCTime, defaultTimeLocale, formatTime)
 import Distribution.Pretty (prettyShow)
 import Distribution.Types.VersionRange (earlierVersion, intersectVersionRanges, orLaterVersion)
 import Lucid
+import Network.URI (nullURI, relativeTo)
+import Network.URI.Lens (uriPathLens)
 import Refined (refineTH)
 import qualified Security.Advisories as Advisories
 import Security.Advisories.Core.Advisory (ComponentIdentifier (..), ghcComponentToText)
@@ -224,9 +227,11 @@ renderAdvisory advisory =
         let (url, title) =
               case Advisories.affectedComponentIdentifier affected of
                 Repository repoUrl repoName package ->
-                  ( Advisories.unRepositoryURL repoUrl <> "/package/" <> T.pack (Advisories.unPackageName package),
-                    "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack (Advisories.unPackageName package)
-                  )
+                  let name = Advisories.unPackageName package
+                  in
+                    ( T.pack $ show $ set uriPathLens ("package/" <> name) nullURI `relativeTo` Advisories.unRepositoryURL repoUrl,
+                      "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack name
+                    )
                 GHC component ->
                   ( "https://gitlab.haskell.org/ghc/ghc",
                     Advisories.ghcComponentToText component

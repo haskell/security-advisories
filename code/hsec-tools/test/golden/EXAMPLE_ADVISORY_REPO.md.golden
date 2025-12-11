@@ -18,9 +18,7 @@ Right
         , advisoryAffected =
             [ Affected
                 { affectedComponentIdentifier = Repository
-                    ( RepositoryURL
-                        { unRepositoryURL = "https//hackage.example.org/" }
-                    )
+                    ( RepositoryURL { unRepositoryURL = https://hackage.example.org/ } )
                     ( RepositoryName
                         { unRepositoryName = "example" }
                     )
@@ -124,7 +122,7 @@ Right
           related = [&quot;CVE-2022-YYYY&quot;, &quot;CVE-2022-ZZZZ&quot;]
 
           [[affected]]
-          repository-url = &quot;https//hackage.example.org/&quot;
+          repository-url = &quot;https://hackage.example.org/&quot;
           repository-name = &quot;example&quot;
           package = &quot;package-name&quot;
           cvss = &quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H&quot;

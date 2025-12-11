@@ -16,7 +16,7 @@ module Security.Advisories.Format
   )
 where
 
-import Control.Applicative (asum)
+import Control.Applicative ((<|>))
 import Commonmark.Types (HasAttributes (..), IsBlock (..), IsInline (..), Rangeable (..), SourceRange (..))
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -32,6 +32,7 @@ import Distribution.Parsec (eitherParsec)
 import Distribution.Pretty (pretty)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
+import Network.URI (parseAbsoluteURI)
 import qualified Text.PrettyPrint as Pretty
 import qualified Toml
 import qualified Toml.Schema as Toml
@@ -161,11 +162,9 @@ instance Toml.FromValue Affected where
   fromValue =
    Toml.parseTableFromValue $ do
       ecosystem   <-
-        asum [
-            Repository <$> Toml.reqKey "repository-url" <*> Toml.reqKey "repository-name" <*> Toml.reqKey "package",
-            hackage <$> Toml.reqKey "package",
-            GHC <$> Toml.reqKey "ghc-component"
-          ]
+        (Repository <$> Toml.reqKey "repository-url" <*> Toml.reqKey "repository-name" <*> Toml.reqKey "package" )
+          <|> (hackage <$> Toml.reqKey "package")
+          <|> (GHC <$> Toml.reqKey "ghc-component")
       cvss      <- Toml.reqKey "cvss"
       os        <- Toml.optKey "os"
       arch      <- Toml.optKey "arch"
@@ -352,9 +351,15 @@ instance Toml.ToValue PackageName where
 instance Toml.FromValue PackageName where
   fromValue = fmap mkPackageName . Toml.fromValue
 
-deriving newtype instance Toml.ToValue RepositoryURL
+instance Toml.ToValue RepositoryURL where
+  toValue = Toml.toValue . show . unRepositoryURL
 
-deriving newtype instance Toml.FromValue RepositoryURL
+instance Toml.FromValue RepositoryURL where
+  fromValue got = do
+    lit <- Toml.fromValue got
+    case parseAbsoluteURI lit of
+      Nothing -> Toml.failAt (Toml.valueAnn got) "expected absolute URL"
+      Just url -> pure $ RepositoryURL url
 
 deriving newtype instance Toml.ToValue RepositoryName
 
