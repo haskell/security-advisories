@@ -1,4 +1,4 @@
-{-# LANGUAGE DerivingVia, OverloadedStrings #-}
+{-# LANGUAGE DerivingVia, OverloadedStrings, QuasiQuotes #-}
 
 module Security.Advisories.Core.Advisory
   ( Advisory(..)
@@ -32,6 +32,8 @@ import Distribution.Types.PackageName (PackageName, mkPackageName, unPackageName
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
+import Network.URI (URI)
+import Network.URI.Static (uri)
 
 import Text.Pandoc.Definition (Pandoc)
 
@@ -65,10 +67,13 @@ data ComponentIdentifier
   deriving stock (Show, Eq)
 
 hackage :: PackageName -> ComponentIdentifier
-hackage = Repository (RepositoryURL "https://hackage.haskell.org") (RepositoryName "hackage")
+hackage =
+  Repository
+    (RepositoryURL [uri|https://hackage.haskell.org|])
+    (RepositoryName "hackage")
 
 newtype RepositoryURL
-  = RepositoryURL { unRepositoryURL :: Text }
+  = RepositoryURL { unRepositoryURL :: URI }
   deriving stock (Eq, Ord, Show)
 
 newtype RepositoryName

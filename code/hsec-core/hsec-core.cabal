@@ -32,8 +32,9 @@ library
   build-depends:
     , base          >=4.14    && <5
     , Cabal-syntax  >=3.8.1.0 && <3.15
-    , cvss >= 0.2 && < 0.3
-    , osv >= 0.1 && < 0.3
+    , cvss          >=0.2     && <0.3
+    , network-uri   >=2.6.3.0 && <2.8
+    , osv           >=0.1     && <0.3
     , pandoc-types  >=1.22    && <2
     , safe          >=0.3     && <0.4
     , text          >=1.2     && <3

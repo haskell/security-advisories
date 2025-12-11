@@ -18,9 +18,7 @@ Right
         , advisoryAffected =
             [ Affected
                 { affectedComponentIdentifier = Repository
-                    ( RepositoryURL
-                        { unRepositoryURL = "https://hackage.haskell.org" }
-                    )
+                    ( RepositoryURL { unRepositoryURL = https://hackage.haskell.org } )
                     ( RepositoryName
                         { unRepositoryName = "hackage" }
                     )
