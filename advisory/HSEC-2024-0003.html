@@ -1,0 +1,107 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2024-0003</h1><div class="content"><div id="advisory"><h1>process: command injection via argument list on Windows</h1>
+<p>The <em>process</em> library on Windows is vulnerable to a command
+injection vulnerability, via <code>cmd.exe</code>'s interpretation of
+arguments. Programs that invoke batch files (<code>.bat</code>,
+<code>.cmd</code>) and pass arguments whose values are affected by
+program inputs may be affected.</p>
+<p>This issue was discovered in many programming languages' Windows
+process execution behaviour. It was tracked by CERT/CC as
+<strong>VU#123335</strong> and a coordinated disclosure was made on
+2024-04-09 17:00 UTC.</p>
+<p>A fix was released in <em>process-1.6.19.0</em>.</p>
+<h2>Background</h2>
+<p>Unlike POSIX systems, Windows does not have a mechanism for passing
+multiple arguments.Command line parsing is up to individual
+programs.</p>
+<p>The <em>process</em> library defines the <code>RawCommand</code>
+constructor for specifying an executable and its arguments:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">CmdSpec</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="dt">ShellCommand</span> <span class="dt">String</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">RawCommand</span> <span class="dt">FilePath</span> [<span class="dt">String</span>]</span></code></pre></div>
+<p>On Windows, the <code>RawCommand</code> executable name and arguments
+are serialised into a single <em>command line</em> string, with separate
+arguments quoted separately. <em>process</em> then invokes the Windows
+<a
+href="https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa"><code>CreateProcess</code></a>
+routine with this command line string is given as the
+<code>lpCommandLine</code> argument.</p>
+<h2>Issue</h2>
+<p>When executing <code>.bat</code> or <code>.cmd</code> files, <a
+href="https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa"><code>CreateProcess</code></a>
+implicitly spawns <code>cmd.exe</code>. The <code>System.Process</code>
+command line construction does not escape characters with special
+meaning to <code>cmd.exe</code>. As a consequence, a command injection
+vulnerability arises when the following conditions are satisfied:</p>
+<ul>
+<li>Program running on Windows</li>
+<li>Program executes a <code>.bat</code> or <code>.cmd</code> file</li>
+<li>The argument values include or are influenced by program input</li>
+</ul>
+<h2>Demonstration</h2>
+<p>The following batch file, <code>test.bat</code>, merely prints the
+executable name the first two arguments (as interpreted by
+<code>cmd.exe</code>):</p>
+<pre><code>@ECHO OFF
+ECHO 0: %0
+ECHO 1: %1
+ECHO 2: %2
+PAUSE</code></pre>
+<p>The following Haskell program executes <code>test.bat</code> with
+basic string arguments. The output is as expected:</p>
+<pre><code>λ&gt; readProcess &quot;test.bat&quot; [&quot;a&quot;,&quot;b&quot;] [] &gt;&gt;= putStrLn
+0: &quot;test.bat&quot;
+1: &quot;a&quot;
+2: &quot;b&quot;</code></pre>
+<p>However, we can use a close quote and the <code>&amp;</code>
+character to induce <code>cmd.exe</code> to execute a program named in
+the argument:</p>
+<pre><code>λ&gt; readProcess &quot;test.bat&quot; [&quot;\&quot;&amp;calc.exe&quot;] [] &gt;&gt;= putStrLn
+0: &quot;test.bat&quot;
+1: &quot;\&quot;
+2:</code></pre>
+<p>In addition to producing the above output, <code>calc.exe</code> is
+executed.</p>
+<h2>Mitigation</h2>
+<p>The lack of a general mechanism on Windows for safely conveying
+command line arguments to programs increases the risk of this kind of
+security issue. The fact that <code>cmd.exe</code> command line parsing
+is complex and poorly documented exacerbates this issue, and also
+heightens the risk that the fix is incomplete, or causes other
+issues.</p>
+<p>If possible, avoid executing batch files where arguments include or
+are influenced by untrusted program inputs. If it must be done, reject
+arguments that include special characters including <code>&amp;</code>
+and <code>"</code>.</p>
+<h2>Fix versions</h2>
+<p><em>process</em> was modified to perform additional escaping and
+quoting when executing <code>.bat</code> and <code>.cmd</code> files on
+Windows (ignoring character case). The behaviour is unchanged in all
+other cases.</p>
+<p>The fix was released in <em><strong>process-1.6.19.0</strong></em>.
+The following GHC releases were the first in their series to include a
+fixed version of the <em>process</em> library:</p>
+<ul>
+<li><strong>GHC 9.10.1-alpha3</strong> (released 2024-04-15)</li>
+<li><strong>GHC 9.8.3</strong> (released 2024-10-20)</li>
+<li><strong>GHC 9.6.5</strong> (released 2024-04-16)</li>
+</ul>
+<p>Such a change in semantics should normally result in a major version
+bump. Because we expect very few (if any) users will be impacted by the
+behavioural change, the GHC team made a pragmatic decision to avoid the
+disruption that a major version bump would cause.</p>
+<p>A follow-up fix was released in
+<em><strong>process-1.6.23.0</strong></em> to handle batch scripts with
+paths ending in whitespace and periods and unescaped <code>%</code>
+expansions.</p>
+<h2>Acknowledgements</h2>
+<p>Security researcher <strong>RyotaK</strong> discovered and
+responsibly disclosed this vulnerability, coordinating the response
+across the many affected langauges and ecosystems.</p>
+<p>Ben Gamari commited and released the fix, which was based on a
+proposal by Fraser Tweedale. Fraser also improved the
+<code>System.Process</code> module documentation to better explain the
+Windows semantics.</p>
+<p>Security researcher <strong>Kainan Zhang</strong> (@4xpl0r3r)
+discovered and responsibly disclosing the issue in the first fix and the
+Rust Security Response WG coordinated the response.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/150.html">150</a></dd><dt>Keywords</dt><dd>windows</dd><dt>Aliases</dt><dd>CVE-2024-3566, VU#123335</dd><dt>Related</dt><dd>CVE-2024-1874, CVE-2024-24576, CVE-2024-22423</dd><dt>References</dt><dd><a href="https://flatt.tech/research/posts/batbadbut-you-cant-securely-execute-commands-on-windows/">[ARTICLE] https://flatt.tech/research/posts/batbadbut-you-cant-securely-execute-commands-on-windows/</a></dd><dd><a href="https://kb.cert.org/vuls/id/123335">[ADVISORY] https://kb.cert.org/vuls/id/123335</a></dd><dd><a href="https://github.com/haskell/process/commit/3c419f9eeedac024c9dccce544e5a6fb587179a5">[FIX] https://github.com/haskell/process/commit/3c419f9eeedac024c9dccce544e5a6fb587179a5</a></dd><dd><a href="https://github.com/haskell/process/commit/951b02dd95559b1a26f2456bfb97cf740ea40934">[FIX] https://github.com/haskell/process/commit/951b02dd95559b1a26f2456bfb97cf740ea40934</a></dd><dd><a href="https://github.com/haskell/process/commit/5fc91f5f36ed4479be2b95f04f264bb78ac8089d">[FIX] https://github.com/haskell/process/commit/5fc91f5f36ed4479be2b95f04f264bb78ac8089d</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/process"><code>@hackage/process</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H</dd><dt>Versions</dt><dd><code>&gt;=1.0.0.0 &amp;&amp; &lt;1.6.23.0</code></dd><dt>OSes</dt><dd>windows</dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

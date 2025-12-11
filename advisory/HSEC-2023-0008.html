@@ -1,0 +1,15 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2023-0008</h1><div class="content"><div id="advisory"><h1>Stored XSS in <em>hledger-web</em></h1>
+<p>An issue was discovered in <em>hledger-web</em> &lt; 1.23. A Stored
+Cross-Site Scripting (XSS) vulnerability exists in
+<code>toBloodhoundJson</code> that allows an attacker to execute
+JavaScript by encoding user-controlled values in a payload with base64
+and parsing them with the <code>atob</code> function.</p>
+<p><em>hledger-web</em> forms sanitise obvious JavaScript, but not
+obfuscated JavaScript (see <a
+href="https://owasp.org/www-community/xss-filter-evasion-cheatsheet">OWASP
+Filter Evasion Cheat Sheet</a>). This means <em>hledger-web</em>
+instances, especially anonymously-writable ones like
+<code>demo.hledger.org</code>, could be loaded with malicious JavaScript
+to be executed by subsequent visitors.</p>
+<p>Reported by Gaspard Baye and Hamidullah Muslih. Fix by Arsen
+Arsenović.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/87.html">87</a></dd><dt>Keywords</dt><dd>web, xss, historical</dd><dt>Aliases</dt><dd>CVE-2021-46888</dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/simonmichael/hledger/issues/1525">[REPORT] https://github.com/simonmichael/hledger/issues/1525</a></dd><dd><a href="https://github.com/simonmichael/hledger/commit/ec51d28839b2910eea360b1b8c72904b51cf7821">[INTRODUCED] https://github.com/simonmichael/hledger/commit/ec51d28839b2910eea360b1b8c72904b51cf7821</a></dd><dd><a href="https://www.youtube.com/watch?v=QnRO-VkfIic">[EVIDENCE] https://www.youtube.com/watch?v=QnRO-VkfIic</a></dd><dd><a href="https://github.com/simonmichael/hledger/pull/1663">[FIX] https://github.com/simonmichael/hledger/pull/1663</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/hledger-web"><code>@hackage/hledger-web</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N</dd><dt>Versions</dt><dd><code>&gt;=0.24 &amp;&amp; &lt;1.23</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

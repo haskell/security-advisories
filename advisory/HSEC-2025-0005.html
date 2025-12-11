@@ -1,0 +1,35 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2025-0005</h1><div class="content"><div id="advisory"><h1><code>cabal-install</code> dependency confusion</h1>
+<p>For <strong>cabal-install &lt; 3.4.0.0</strong> and where multiple
+repositories are configured, the resolver picks the highest available
+version across all repositories. Where a package is only defined in a
+private repository, this behaviour leads to a <a
+href="https://frasertweedale.github.io/blog-fp/posts/2021-02-12-haskell-dependency-confusion.html"><em>dependency
+confusion</em></a> supply chain vulnerability. If the private package
+name becomes known, a malicious actor can claim the name in the public
+repository and publish a malicious version at a higher version
+number.</p>
+<p>Default <code>cabal-install</code> configurations that only use the
+<code>hackage.haskell.org</code> repository are not affected.
+Configurations that use curated private repositories
+<strong>exclusively</strong> are also not affected.</p>
+<h2>Mitigations</h2>
+<p><em>cabal-install</em> version <strong>3.4.0.0</strong> and higher
+provide an <code>override</code> option in the repository configuration.
+It marks the associated repository as canonical for all packages defined
+in that repository. No other repositories will be considered. For
+example:</p>
+<pre><code>-- For packages in repo.example.com,
+-- only versions in repo.example.com are considered
+active-repositories:
+  , hackage.haskell.org
+  , repo.example.com:override</code></pre>
+<p>Users and organisations using private repositories that contain
+private packages in addition to public repositories
+<strong>MUST</strong> use the <code>override</code> option to prevent
+dependency confusion attacks.</p>
+<p>Alternatively, projects and organisations can run a private instance
+of <em>hackage-server</em> and carefully curate and review its contents.
+Using that instance exclusively defeats supply chain attacks including
+<em>dependency confusion</em>. For <em>cabal-install &lt; 3.4</em> and
+where using multiple repositories, this is the only effective mitigation
+against dependency confusion attacks.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/427.html">427</a></dd><dt>Keywords</dt><dd>hackage, supply-chain, historical</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://frasertweedale.github.io/blog-fp/posts/2021-02-12-haskell-dependency-confusion.html">[REPORT] https://frasertweedale.github.io/blog-fp/posts/2021-02-12-haskell-dependency-confusion.html</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/cabal-install"><code>@hackage/cabal-install</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:H/A:N</dd><dt>Versions</dt><dd><code>&gt;=1.0.0.0 &amp;&amp; &lt;3.4.0.0</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
