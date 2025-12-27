@@ -1,0 +1,25 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2023-0011</h1><div class="content"><div id="advisory"><h1><em>git-annex</em> GPG decryption attack via compromised remote</h1>
+<p>A malicious server for a special remote could trick
+<code>git-annex</code> into decrypting a file that was encrypted to the
+user's GPG key. This attack could be used to expose encrypted data that
+was never stored in <em>git-annex</em>. Daniel Dent discovered this
+attack in collaboration with Joey Hess.</p>
+<p>To perform this attack the attacker needs control of a server hosting
+an <em>encrypted</em> special remote used by the victim's
+<em>git-annex</em> repository. The attacker uses
+<code>git annex addurl --relaxed</code> with an innocuous URL, and waits
+for the user's <code>git-annex</code> to download it, and upload an
+(encrypted) copy to the special remote they also control. At some later
+point, when the user downloads the content from the special remote, the
+attacker instead sends them the content of the GPG-encrypted file that
+they wish to have decrypted in its place (which may have been
+exfiltrated from the victim's system via the attack described in
+<strong>HSEC-2023-0010</strong> / <strong>CVE-2018-10857</strong>, or
+acquired by other means). Finally, the attacker drops their own copy of
+the original innocuous URL, and waits for the victim
+<code>git-annex</code> to send them the accidentially decrypted
+file.</p>
+<p>The issue was fixed by making <code>git-annex</code> refuse to
+download encrypted content from special remotes, unless it knows the
+hash of the expected content. When the attacker provides some other
+GPG-encrypted content, it will fail the hash check and be discarded.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/200.html">200</a></dd><dt>Keywords</dt><dd>exfiltration, pgp, historical</dd><dt>Aliases</dt><dd>CVE-2018-10859</dd><dt>Related</dt><dd>HSEC-2023-0010, CVE-2018-10857</dd><dt>References</dt><dd><a href="https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/">[ADVISORY] https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/git-annex"><code>@hackage/git-annex</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N</dd><dt>Versions</dt><dd><code>&gt;=0.20110417 &amp;&amp; &lt;6.20180626</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

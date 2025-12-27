@@ -1,0 +1,43 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2023-0013</h1><div class="content"><div id="advisory"><h1><em>git-annex</em> plaintext storage of embedded credentials on
+encrypted remotes</h1>
+<p><em>git-annex</em> had a bug in the <strong>S3</strong> and
+<strong>Glacier</strong> remotes where if <code>embedcreds=yes</code>
+was set, and the remote used <code>encryption=pubkey</code> or
+<code>encryption=hybrid</code>, the embedded AWS credentials were stored
+in the Git repository in (effectively) plaintext, not encrypted as they
+were supposed to be.</p>
+<p>That means that anyone who gets a copy of the Git repository can
+extract the AWS credentials from it. Which would be bad.</p>
+<p>A remote with this problem cannot be enabled using
+<code>git annex enableremote</code>. Old versions of <em>git-annex</em>
+will fail with a GPG error; the current version will fail with a pointer
+to this web page.</p>
+<h2>Remediation</h2>
+<p>If your repository has this problem, chose from one of these
+approaches to deal with it:</p>
+<ol type="1">
+<li><p>Change your AWS credentials, so the ones stored in the clear in
+git won't be used.</p>
+<p>After changing the credentials, make sure you have a fixed version of
+git-annex, and you can then re-embed the new creds into the repository,
+encrypted this time, by setting the <code>AWS_SECRET_ACCESS_KEY</code>
+and <code>AWS_ACCESS_KEY_ID</code> environment variables, and running
+<code>git annex enableremote $remotename embedcreds=yes</code>.</p></li>
+<li><p>Fix the problem and then remove the history of the
+<em>git-annex</em> branch of the repository.</p>
+<p>Make sure you have a fixed version of <em>git-annex</em>, and force
+<em>git-annex</em> to rewrite the embedded creds, with encryption this
+time, by setting by setting the <code>AWS_SECRET_ACCESS_KEY</code> and
+<code>AWS_ACCESS_KEY_ID</code> environment variables, and running
+<code>git annex enableremote $remotename embedcreds=yes</code>.</p>
+<p>Then, to get rid of old versions of the <em>git-annex</em> branch
+that still contains the creds in cleartext, you can use
+<code>git annex forget</code>; note that it will remove other historical
+data too.</p>
+<p>Keep in mind that this will not necessarily delete data from clones
+you do not control.</p></li>
+<li><p>If you're sure that you're the only one who has access to the
+repository, you could decide to leave it as-is. It's no more insecure
+than if you had used <code>encryption=shared</code> in the first place
+when setting it up.</p></li>
+</ol><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/312.html">312</a></dd><dt>Keywords</dt><dd>historical</dd><dt>Aliases</dt><dd>CVE-2014-6274</dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://git-annex.branchable.com/security/CVE-2014-6274/">[ADVISORY] https://git-annex.branchable.com/security/CVE-2014-6274/</a></dd><dd><a href="https://git-annex.branchable.com/upgrades/insecure_embedded_creds/">[ARTICLE] https://git-annex.branchable.com/upgrades/insecure_embedded_creds/</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/git-annex"><code>@hackage/git-annex</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H</dd><dt>Versions</dt><dd><code>&gt;=0.20110401 &amp;&amp; &lt;5.20140919</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
