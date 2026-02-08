@@ -1,0 +1,19 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2025-0007</h1><div class="content"><div id="advisory"><h1>cmark-gfm: resource exhaustion due to quadratic complexity in
+parser</h1>
+<p><em>cmark-gfm</em> is GitHub's fork of <em>cmark</em>, a CommonMark
+parsing and rendering library and program in C. A polynomial time
+complexity issue in cmark-gfm may lead to unbounded resource exhaustion
+and subsequent denial of service, due to quadratic complexity issues
+when parsing text which leads with either large numbers of
+<code>&gt;</code> or <code>-</code> characters.</p>
+<p>The Haskell <em>cmark-gfm</em> package bundles the C sources and was
+affected by this issue. This fix was released in the upstream C package
+at version <code>0.29.0.gfm.10</code>. Version <code>0.2.6</code> of the
+Haskell package adopted the fix (moving from <code>0.29.0.gfm.6</code>
+to <code>0.29.0.gfm.13</code>). Packages that depend on
+<em>cmark-gfm</em> should update to <code>0.2.6</code> or later.</p>
+<p>Users unable to update should avoid processing data from untrusted
+sources or validate the input with other tools before using
+<em>cmark-gfm</em> to parse it.</p>
+<p>Pandoc <code>&lt; 2.10.1</code> depended on <em>cmark-gfm</em> and
+could be affected by this issue.</p><h3>Info</h3><dl><dt>Published</dt><dd>December 27, 2025</dd><dt>Modified</dt><dd>December 27, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/407.html">407</a></dd><dt>Keywords</dt><dd>dos, language-c, historical</dd><dt>Aliases</dt><dd>CVE-2023-24824, GHSA-66g8-4hjf-77xh</dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/kivikakk/cmark-gfm-hs/commit/1359b8740c6b29dde0ad8f816531112b32eb8cbe">[FIX] https://github.com/kivikakk/cmark-gfm-hs/commit/1359b8740c6b29dde0ad8f816531112b32eb8cbe</a></dd><dd><a href="https://github.com/github/cmark-gfm/commit/2300c1bd2c8226108885bf019655c4159cf26b59">[FIX] https://github.com/github/cmark-gfm/commit/2300c1bd2c8226108885bf019655c4159cf26b59</a></dd><dd><a href="https://github.com/github/cmark-gfm/security/advisories/GHSA-66g8-4hjf-77xh">[ADVISORY] https://github.com/github/cmark-gfm/security/advisories/GHSA-66g8-4hjf-77xh</a></dd><dd><a href="https://nvd.nist.gov/vuln/detail/CVE-2023-24824">[ADVISORY] https://nvd.nist.gov/vuln/detail/CVE-2023-24824</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/cmark-gfm"><code>@hackage/cmark-gfm</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</dd><dt>Versions</dt><dd><code>&gt;=0.1.0 &amp;&amp; &lt;0.2.6</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

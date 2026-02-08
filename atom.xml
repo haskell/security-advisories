@@ -1,0 +1,1509 @@
+<atom:feed xmlns="http://www.w3.org/2005/Atom" xmlns:atom="http://www.w3.org/2005/Atom"><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0011&amp;quot;
+cwe = [200]
+keywords = [&amp;quot;exfiltration&amp;quot;, &amp;quot;pgp&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2018-10859&amp;quot;]
+related = [&amp;quot;HSEC-2023-0010&amp;quot;, &amp;quot;CVE-2018-10857&amp;quot;]
+
+[[affected]]
+package = &amp;quot;git-annex&amp;quot;
+cvss = &amp;quot;CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.20110417&amp;quot;
+fixed = &amp;quot;6.20180626&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;em&gt;git-annex&lt;/em&gt; GPG decryption attack via compromised remote&lt;/h1&gt;
+&lt;p&gt;A malicious server for a special remote could trick &lt;code&gt;git-annex&lt;/code&gt; into
+decrypting a file that was encrypted to the user's GPG key.  This
+attack could be used to expose encrypted data that was never stored
+in &lt;em&gt;git-annex&lt;/em&gt;.  Daniel Dent discovered this attack in collaboration
+with Joey Hess.&lt;/p&gt;
+&lt;p&gt;To perform this attack the attacker needs control of a server
+hosting an &lt;em&gt;encrypted&lt;/em&gt; special remote used by the victim's
+&lt;em&gt;git-annex&lt;/em&gt; repository.  The attacker uses &lt;code&gt;git annex addurl --relaxed&lt;/code&gt; with an innocuous URL, and waits for the user's
+&lt;code&gt;git-annex&lt;/code&gt; to download it, and upload an (encrypted) copy to the
+special remote they also control.  At some later point, when the
+user downloads the content from the special remote, the attacker
+instead sends them the content of the GPG-encrypted file that they
+wish to have decrypted in its place (which may have been exfiltrated
+from the victim's system via the attack described in
+&lt;strong&gt;HSEC-2023-0010&lt;/strong&gt; / &lt;strong&gt;CVE-2018-10857&lt;/strong&gt;, or acquired by other
+means).  Finally, the attacker drops their own copy of the original
+innocuous URL, and waits for the victim &lt;code&gt;git-annex&lt;/code&gt; to send them the
+accidentially decrypted file.&lt;/p&gt;
+&lt;p&gt;The issue was fixed by making &lt;code&gt;git-annex&lt;/code&gt; refuse to download
+encrypted content from special remotes, unless it knows the hash of
+the expected content.  When the attacker provides some other
+GPG-encrypted content, it will fail the hash check and be discarded.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0011</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0011.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0011 - git-annex GPG decryption attack via compromised remote</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0014&amp;quot;
+keywords = [&amp;quot;file write&amp;quot;]
+aliases = [&amp;quot;CVE-2023-35936&amp;quot;, &amp;quot;GHSA-xj5q-fv23-575g&amp;quot;]
+cwe = [20]
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://github.com/jgm/pandoc/security/advisories/GHSA-xj5q-fv23-575g&amp;quot;
+
+[[affected]]
+package = &amp;quot;pandoc&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:L/AC:H/PR:L/UI:R/S:C/C:N/I:H/A:L&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;1.13&amp;quot;
+fixed = &amp;quot;3.1.4&amp;quot;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Arbitrary file write is possible when using PDF output or --extract-media with untrusted input&lt;/h1&gt;
+&lt;p&gt;Pandoc is susceptible to an arbitrary file write vulnerability, which can be triggered by providing a specially crafted image element in the input when generating files using the --extract-media option or outputting to PDF format. This vulnerability allows an attacker to create or overwrite arbitrary files on the system (depending on the privileges of the process running pandoc).&lt;/p&gt;
+&lt;p&gt;This vulnerability only affects systems that (a) pass untrusted user input to pandoc and (b) allow pandoc to be used to produce a PDF or with the --extract-media option.&lt;/p&gt;
+&lt;p&gt;The vulnerability is patched in pandoc 3.1.4.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0014</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0014.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0014 - Arbitrary file write is possible when using PDF output or --extract-media with untrusted input</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0004&amp;quot;
+cwe = [776]
+keywords = [&amp;quot;xml&amp;quot;, &amp;quot;dos&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2021-4249&amp;quot;, &amp;quot;VDB-216204&amp;quot;]
+
+[[affected]]
+package = &amp;quot;xml-conduit&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.5.0&amp;quot;
+fixed = &amp;quot;1.9.1.0&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/snoyberg/xml/pull/161&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/snoyberg/xml/commit/4be1021791dcdee8b164d239433a2043dc0939ea&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;xml-conduit unbounded entity expansion&lt;/h1&gt;
+&lt;p&gt;A vulnerability was found in &lt;em&gt;xml-conduit&lt;/em&gt;. It has been classified
+as problematic.  Affected is an unknown function of the file
+&lt;code&gt;xml-conduit/src/Text/XML/Stream/Parse.hs&lt;/code&gt; of the component DOCTYPE
+Entity Expansion Handler. The manipulation leads to infinite loop.
+It is possible to launch the attack remotely. Upgrading to version
+1.9.1.0 is able to address this issue. The name of the patch is
+&lt;code&gt;4be1021791dcdee8b164d239433a2043dc0939ea&lt;/code&gt;. It is recommended to
+upgrade the affected component.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0004</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0004.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0004 - xml-conduit unbounded entity expansion</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0008&amp;quot;
+cwe = [87]
+keywords = [&amp;quot;web&amp;quot;, &amp;quot;xss&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2021-46888&amp;quot;]
+
+[[affected]]
+package = &amp;quot;hledger-web&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:L/I:L/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.24&amp;quot;
+fixed = &amp;quot;1.23&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://github.com/simonmichael/hledger/issues/1525&amp;quot;
+[[references]]
+type = &amp;quot;INTRODUCED&amp;quot;
+url = &amp;quot;https://github.com/simonmichael/hledger/commit/ec51d28839b2910eea360b1b8c72904b51cf7821&amp;quot;
+[[references]]
+type = &amp;quot;EVIDENCE&amp;quot;
+url = &amp;quot;https://www.youtube.com/watch?v=QnRO-VkfIic&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/simonmichael/hledger/pull/1663&amp;quot;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Stored XSS in &lt;em&gt;hledger-web&lt;/em&gt;&lt;/h1&gt;
+&lt;p&gt;An issue was discovered in &lt;em&gt;hledger-web&lt;/em&gt; &amp;lt; 1.23. A Stored Cross-Site
+Scripting (XSS) vulnerability exists in &lt;code&gt;toBloodhoundJson&lt;/code&gt; that
+allows an attacker to execute JavaScript by encoding user-controlled
+values in a payload with base64 and parsing them with the &lt;code&gt;atob&lt;/code&gt;
+function.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;hledger-web&lt;/em&gt; forms sanitise obvious JavaScript, but not obfuscated
+JavaScript (see &lt;a href="https://owasp.org/www-community/xss-filter-evasion-cheatsheet"&gt;OWASP Filter Evasion Cheat Sheet&lt;/a&gt;).
+This means &lt;em&gt;hledger-web&lt;/em&gt; instances, especially anonymously-writable
+ones like &lt;code&gt;demo.hledger.org&lt;/code&gt;, could be loaded with malicious
+JavaScript to be executed by subsequent visitors.&lt;/p&gt;
+&lt;p&gt;Reported by Gaspard Baye and Hamidullah Muslih.  Fix by Arsen
+Arsenović.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0008</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0008.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0008 - Stored XSS in hledger-web</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0012&amp;quot;
+cwe = [200]
+keywords = [&amp;quot;historical&amp;quot;]
+
+[[affected]]
+package = &amp;quot;git-annex&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:N/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.20110417&amp;quot;
+fixed = &amp;quot;6.20160419&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://git-annex.branchable.com/security/checksum_exposure_to_encrypted_special_remotes/&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;http://source.git-annex.branchable.com/?p=source.git;a=commitdiff;h=b890f3a53d936b5e40aa9acc5876cb98f18b9657&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;em&gt;git-annex&lt;/em&gt; checksum exposure to encrypted special remotes&lt;/h1&gt;
+&lt;p&gt;A bug exposed the checksum of annexed files to encrypted special
+remotes, which are not supposed to have access to the checksum of
+the un-encrypted file.  This only occurred when resuming uploads to
+the encrypted special remote, so it is considered a low-severity
+security hole.&lt;/p&gt;
+&lt;p&gt;For details, see commit &lt;code&gt;b890f3a53d936b5e40aa9acc5876cb98f18b9657&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;No CVE was assigned for this issue.&lt;/p&gt;
+&lt;p&gt;Fixed in &lt;em&gt;git-annex-6.20160419&lt;/em&gt;.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0012</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0012.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0012 - git-annex checksum exposure to encrypted special remotes</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0003&amp;quot;
+cwe = [94]
+keywords = [&amp;quot;code&amp;quot;, &amp;quot;injection&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2013-1436&amp;quot;]
+
+[[affected]]
+package = &amp;quot;xmonad-contrib&amp;quot;
+cvss = &amp;quot;AV:N/AC:L/Au:N/C:P/I:P/A:P&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.5&amp;quot;
+fixed = &amp;quot;0.11.2&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://security.gentoo.org/glsa/201405-28&amp;quot;
+[[references]]
+type = &amp;quot;DISCUSSION&amp;quot;
+url = &amp;quot;http://www.openwall.com/lists/oss-security/2013/07/26/5&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/xmonad/xmonad-contrib/commit/d3b2a01e3d01ac628e7a3139dd55becbfa37cf51&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;code injection in &lt;em&gt;xmonad-contrib&lt;/em&gt;&lt;/h1&gt;
+&lt;p&gt;The &lt;code&gt;XMonad.Hooks.DynamicLog&lt;/code&gt; module in &lt;em&gt;xmonad-contrib&lt;/em&gt; before
+&lt;strong&gt;0.11.2&lt;/strong&gt; allows remote attackers to execute arbitrary commands via a
+web page title, which activates the commands when the user clicks on
+the xmobar window title, as demonstrated using an action tag.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0003</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0003.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0003 - code injection in xmonad-contrib</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0009&amp;quot;
+cwe = [20, 78]
+keywords = [&amp;quot;ssh&amp;quot;, &amp;quot;command-injection&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2017-12976&amp;quot;]
+related = [&amp;quot;CVE-2017-9800&amp;quot;, &amp;quot;CVE-2017-12836&amp;quot;, &amp;quot;CVE-2017-1000116&amp;quot;, &amp;quot;CVE-2017-1000117&amp;quot;]
+
+[[affected]]
+package = &amp;quot;git-annex&amp;quot;
+cvss = &amp;quot;CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0&amp;quot;
+fixed = &amp;quot;6.20170818&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://git-annex.branchable.com/security/CVE-2017-12976/&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;http://source.git-annex.branchable.com/?p=source.git;a=commitdiff;h=df11e54788b254efebb4898b474de11ae8d3b471&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;em&gt;git-annex&lt;/em&gt; command injection via malicious SSH hostname&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;git-annex&lt;/em&gt; was vulnerable to the same class of security hole as
+git's &lt;strong&gt;CVE-2017-1000117&lt;/strong&gt;. In several cases, &lt;code&gt;git-annex&lt;/code&gt; parses a
+repository URL, and uses it to generate a &lt;code&gt;ssh&lt;/code&gt; command, with the
+hostname to ssh to coming from the URL. If the hostname it parses is
+something like &lt;code&gt;-eProxyCommand=evil&lt;/code&gt;, this could result in arbitrary
+local code execution.&lt;/p&gt;
+&lt;p&gt;Some details of URL parsing may prevent the exploit working in some
+cases.&lt;/p&gt;
+&lt;p&gt;Exploiting this would involve the attacker tricking the victim into
+adding a remote something like &lt;code&gt;ssh://-eProxyCommand=evil/blah&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;One possible avenue for an attacker that avoids exposing the URL to
+the user is to use &lt;code&gt;initremote&lt;/code&gt; with an SSH remote, so embedding the
+URL in the &lt;em&gt;git-annex&lt;/em&gt; branch. Then the victim would enable it with
+&lt;code&gt;enableremote&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;This was fixed in version &lt;strong&gt;6.20170818&lt;/strong&gt;. Now there's a &lt;code&gt;SshHost&lt;/code&gt;
+type that is not allowed to start with a dash, and every invocation
+of &lt;code&gt;git-annex&lt;/code&gt; uses a function that takes a &lt;code&gt;SshHost&lt;/code&gt;.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0009</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0009.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0009 - git-annex command injection via malicious SSH hostname</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0006&amp;quot;
+cwe = [295]
+keywords = [&amp;quot;x509&amp;quot;, &amp;quot;pki&amp;quot;, &amp;quot;historical&amp;quot;]
+
+[[affected]]
+package = &amp;quot;x509-validation&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:H/UI:R/S:U/C:H/I:H/A:N&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;1.4.0&amp;quot;
+fixed = &amp;quot;1.4.8&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell-tls/hs-certificate/commit/06d15dbbc53739314760d8504ca764000770e46e&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;x509-validation does not enforce pathLenConstraint&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;x509-validation&lt;/em&gt; prior to version 1.4.8 did not enforce the
+pathLenConstraint value.  Constrained CAs could accidentally (or
+deliberately) issue CAs below the maximum depth and
+&lt;em&gt;x509-validation&lt;/em&gt; would accept certificates issued by the
+unauthorised intermediate CAs.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0006</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0006.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0006 - x509-validation does not enforce pathLenConstraint</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0005&amp;quot;
+cwe = [295]
+keywords = [&amp;quot;x509&amp;quot;, &amp;quot;pki&amp;quot;, &amp;quot;mitm&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2013-0243&amp;quot;]
+
+[[affected]]
+package = &amp;quot;tls-extra&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.1.0&amp;quot;
+fixed = &amp;quot;0.4.6.1&amp;quot;
+
+[[references]]
+type = &amp;quot;DISCUSSION&amp;quot;
+url = &amp;quot;https://www.openwall.com/lists/oss-security/2013/01/30/6&amp;quot;
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://github.com/haskell-tls/hs-tls/issues/29&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell-tls/hs-tls/commit/15885c0649ceabd2f4d2913df8ac6dc63d6b3b37&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;tls-extra: certificate validation does not check Basic Constraints&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;tls-extra&lt;/em&gt; does not check the Basic Constraints extension of a
+certificate in certificate chain processing.  Any certificate is
+treated as a CA certificate.  As a consequence, anyone who has a
+valid certificate can use it to sign another one (with an arbitrary
+subject DN/domain name embedded into it) and have it accepted by
+&lt;em&gt;tls&lt;/em&gt;.  This allows MITM attacks on TLS connections.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0005</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0005.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0005 - tls-extra: certificate validation does not check Basic Constraints</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0015&amp;quot;
+cwe = [672]
+keywords = [&amp;quot;hackage&amp;quot;, &amp;quot;mitm&amp;quot;, &amp;quot;supply-chain&amp;quot;]
+
+[[affected]]
+package = &amp;quot;cabal-install&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:H/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;1.24.0.0&amp;quot;
+fixed = &amp;quot;3.10.2.0&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://github.com/haskell/cabal/issues/8918#issuecomment-1521096581&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/cabal/commit/dcfdc9cffd74cade4e8cf3df37c5993413ffd30f&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;cabal-install uses expired key policies&lt;/h1&gt;
+&lt;p&gt;A problem was recently discovered in &lt;code&gt;cabal-install&lt;/code&gt;'s
+implementation of the Hackage Security protocol that would allow an
+attacker who was in possession of a revoked private key and who
+could perform a man-in-the-middle attack against Hackage to use the
+revoked key to deliver malicious packages. At this time, this is
+only a theoretical attack - no keys have been revoked. Release
+3.10.2.0 of &lt;code&gt;cabal-install&lt;/code&gt; contains a fix for this bug, and we have
+contacted distributors of older versions (such as Linux
+distributions) with a patch that they can apply.&lt;/p&gt;
+&lt;h2&gt;Background&lt;/h2&gt;
+&lt;p&gt;Hackage Security is an implementation of &lt;a href="https://theupdateframework.io/"&gt;The Update Framework&lt;/a&gt;,
+which is a design for a package repository that allows untrusted
+mirrors without undermining software supply-chain security. In
+particular, Hackage Security cryptographically guarantees the
+following properties:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Mirrors of Hackage cannot change the contents of packages. This
+prevents the insertion of malicious code.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Mirrors cannot omit newer packages for more than a few days
+without clients noticing. This ensures both that mirrors cannot
+maliciously deny security updates, and that mistakes in their
+configuration will be noticed.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Hackage has a &lt;a href="https://hackage.haskell.org/root.json"&gt;key policy file&lt;/a&gt; that delegates authority to a
+number of private keys for various purposes. Most of the keys are
+kept securely offline by trusted community members who annually
+re-sign the various files to indicate that they still have
+confidence in Hackage's policies. However, to prevent clients from
+being denied updates, Hackage has an automated process that
+periodically re-signs a timestamp file. This signature has a short
+expiry. Additionally, a snapshot file contains signed hashes of the
+Hackage index that is updated on each package upload. The timestamp
+and snapshot private keys are held in memory on the Hackage server.
+These are called the operational keys. If an operational key is ever
+compromised, then it will be revoked by having the Hackage root
+keyholders sign a new key policy file. To prevent replay attacks,
+clients that connect to Hackage after this update will reject older
+policy files, based on a monotonically increasing file version
+number.&lt;/p&gt;
+&lt;p&gt;If a client has not yet received the updated policy file (for
+example, because they have a fresh install of &lt;code&gt;cabal-install&lt;/code&gt; or
+because they have not run &lt;code&gt;cabal update&lt;/code&gt; in some time), the built-in
+expiration date in the file limits the window of exposure in which
+the revoked operational keys would be expected. As long as the root
+keys have not been compromised, the compromised operational keys can
+only be used until the policy file expires. In addition to
+compromising a Hackage operational key, an attacker would
+additionally need to either compromise a Hackage mirror or perform a
+man-in-the-middle attack against the target in order to serve a
+malicious or obsolete package index.&lt;/p&gt;
+&lt;h2&gt;The Issue&lt;/h2&gt;
+&lt;p&gt;A bug in &lt;code&gt;cabal-install&lt;/code&gt; caused it to skip the verification of the
+key policy file's expiration timestamp. This means that users of
+older, unpatched versions of &lt;code&gt;cabal-install&lt;/code&gt; could be vulnerable to
+a malicious mirror or man-in-the-middle attack against Hackage if
+they have not connected to Hackage in a long time, even after the
+policy file has expired.&lt;/p&gt;
+&lt;p&gt;We do not believe that it has been possible to exploit this
+vulnerability, because no operational keys have been revoked.
+However, in case key revocation occurs, we strongly advise all users
+of &lt;code&gt;cabal-install&lt;/code&gt; to ensure that they have version 3.10.2.0 or
+newer, which contain the fix.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0015</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0015.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0015 - cabal-install uses expired key policies</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0007&amp;quot;
+cwe = [1284, 789]
+keywords = [&amp;quot;toml&amp;quot;, &amp;quot;parser&amp;quot;, &amp;quot;dos&amp;quot;]
+
+[[affected]]
+package = &amp;quot;base&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&amp;quot;
+[[affected.versions]]
+# it was introduced earlier, but this is the earliest version on Hackage
+introduced = &amp;quot;3.0.3.1&amp;quot;
+
+[[affected]]
+package = &amp;quot;toml-reader&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.1.0.0&amp;quot;
+fixed = &amp;quot;0.2.0.0&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/issues/23538&amp;quot;
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://github.com/brandonchinn178/toml-reader/issues/8&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/brandonchinn178/toml-reader/pull/9&amp;quot;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;code&gt;readFloat&lt;/code&gt;: memory exhaustion with large exponent&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Numeric.readFloat&lt;/code&gt; takes time and memory linear in the size of the
+number &lt;em&gt;denoted&lt;/em&gt; by the input string.  In particular, processing a
+number expressed in scientific notation with a very large exponent
+could cause a denial of service.  The slowdown is observable on a
+modern machine running GHC 9.4.4:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;ghci&amp;gt; import qualified Numeric
+ghci&amp;gt; Numeric.readFloat &amp;quot;1e1000000&amp;quot;    -- near instantaneous
+[(Infinity,&amp;quot;&amp;quot;)]
+ghci&amp;gt; Numeric.readFloat &amp;quot;1e10000000&amp;quot;   -- perceptible pause
+[(Infinity,&amp;quot;&amp;quot;)]
+ghci&amp;gt; Numeric.readFloat &amp;quot;1e100000000&amp;quot;  -- ~ 3 seconds
+[(Infinity,&amp;quot;&amp;quot;)]
+ghci&amp;gt; Numeric.readFloat &amp;quot;1e1000000000&amp;quot; -- ~ 35 seconds
+[(Infinity,&amp;quot;&amp;quot;)]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;In &lt;em&gt;base&lt;/em&gt;&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;Numeric.readFloat&lt;/code&gt; is defined for all &lt;code&gt;RealFrac a =&amp;gt; a&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-haskell"&gt;readFloat :: RealFrac a =&amp;gt; ReadS a
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;RealFrac&lt;/code&gt; type class does not express any bounds on the size of
+values representable in the types for which instances exist, so
+bounds checking is not possible (in this &lt;em&gt;generic&lt;/em&gt; function).
+&lt;code&gt;readFloat&lt;/code&gt; uses to &lt;code&gt;Text.Read.Lex.numberToRational&lt;/code&gt; which, among
+other things, calculates &lt;code&gt;10 ^ exponent&lt;/code&gt;, which seems to take linear
+time and memory.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Mitigation:&lt;/strong&gt; use &lt;code&gt;read&lt;/code&gt;.  The &lt;code&gt;Read&lt;/code&gt; instances for &lt;code&gt;Float&lt;/code&gt; and
+&lt;code&gt;Double&lt;/code&gt; perform bounds checks on the exponent, via
+&lt;code&gt;Text.Read.Lex.numberToRangedRational&lt;/code&gt;.&lt;/p&gt;
+&lt;h2&gt;In &lt;em&gt;toml-reader&lt;/em&gt;&lt;/h2&gt;
+&lt;p&gt;The issue was detected in &lt;em&gt;toml-reader&lt;/em&gt; version 0.1.0.0, and
+mitigated in version 0.2.0.0 by immediately returning &lt;code&gt;Infinity&lt;/code&gt;
+when the exponent is large enough that there's no reason to process
+it.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0007</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0007.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0007 - readFloat: memory exhaustion with large exponent</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0010&amp;quot;
+cwe = [200, 610]
+keywords = [&amp;quot;exfiltration&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2018-10857&amp;quot;]
+
+[[affected]]
+package = &amp;quot;git-annex&amp;quot;
+cvss = &amp;quot;CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0&amp;quot;
+fixed = &amp;quot;6.20180626&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;em&gt;git-annex&lt;/em&gt; private data exfiltration to compromised remote&lt;/h1&gt;
+&lt;p&gt;Some uses of git-annex were vulnerable to a private data exposure
+and exfiltration attack. It could expose the content of files
+located outside the &lt;em&gt;git-annex&lt;/em&gt; repository, or content from a
+private web server on localhost or the LAN.  Joey Hess discovered
+this attack.&lt;/p&gt;
+&lt;p&gt;To perform this attack, the attacker needs to have control over one
+of the remotes of the victim's &lt;em&gt;git-annex&lt;/em&gt; repository. For example,
+they may provide a public &lt;em&gt;git-annex&lt;/em&gt; repository that the victim
+clones. Or, equivalantly, the attacker could have read access to the
+victim's &lt;em&gt;git-annex&lt;/em&gt; repository or a repository it pushes to, and
+some channel to get commits into it (e.g. pull requests).&lt;/p&gt;
+&lt;p&gt;These exploits are most likely to succeed when the victim is running
+the &lt;code&gt;git-annex&lt;/code&gt; assistant, or is periodically running &lt;code&gt;git annex sync --content&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;To perform the attack the attacker runs &lt;code&gt;git-annex addurl --relaxed file:///etc/passwd&lt;/code&gt; and commits this to the repository in some out
+of the way place.  After the victim's git repository receives that
+change, &lt;code&gt;git-annex&lt;/code&gt; follows the attacker-provided URL to the private
+data, which it stores in the &lt;em&gt;git-annex&lt;/em&gt; repository.  From there it
+transfers the content to the remote &lt;em&gt;git-annex&lt;/em&gt; repository that the
+attacker has access to.&lt;/p&gt;
+&lt;p&gt;As well as &lt;code&gt;file:///&lt;/code&gt; URLs, the attacker can use URLs to private web
+servers.  The URL can also be one that the attacker controls, that
+redirects to a URL that is accessible to the victim system (and not
+necessarily the compromised remote).&lt;/p&gt;
+&lt;h2&gt;Fix&lt;/h2&gt;
+&lt;p&gt;The issue was fixed by making &lt;code&gt;git-annex&lt;/code&gt; refuse to follow
+&lt;code&gt;file:///&lt;/code&gt; urls and URLs pointing to private/local IP addresses by
+default.  Two new configuration settings,
+&lt;code&gt;annex.security.allowed-url-schemes&lt;/code&gt; and
+&lt;code&gt;annex.security.allowed-ip-addresses&lt;/code&gt;, can relax this security
+policy, and are intended for cases where the &lt;em&gt;git-annex&lt;/em&gt; repository
+is kept private and so the attack does not apply.&lt;/p&gt;
+&lt;h2&gt;Impact on external special remotes&lt;/h2&gt;
+&lt;p&gt;One variant of this issue can exploit a vulnerable external special
+remote, and could not be prevented by &lt;code&gt;git-annex&lt;/code&gt;.  (&lt;code&gt;git-annex&lt;/code&gt;'s
+own built-in special remotes are not vulnerable to this attack.)&lt;/p&gt;
+&lt;p&gt;In this attack variant, the attacker guesses the hash of a file
+stored on the victim's private web server, and adds it to the
+&lt;code&gt;git-annex&lt;/code&gt; repository.  The attacker also has control of the server
+hosting an encrypted special remote used by the victim's &lt;em&gt;git-annex&lt;/em&gt;
+repository.  They cause that server to redirect to the victim's web
+server.  This allows the attacker to verify if the victim's web
+server contains a file that the attacker already knows the content
+of, assuming they can guess the URL to it.&lt;/p&gt;
+&lt;p&gt;Developers of external special remotes are encouraged to prevent
+this attack by not following such HTTP redirects.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0010</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0010.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0010 - git-annex private data exfiltration to compromised remote</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0001&amp;quot;
+cwe = [328, 400]
+keywords = [&amp;quot;json&amp;quot;, &amp;quot;dos&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2022-3433&amp;quot;]
+
+[[affected]]
+package = &amp;quot;aeson&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.4.0.0&amp;quot;
+fixed = &amp;quot;2.0.1.0&amp;quot;
+
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://cs-syd.eu/posts/2021-09-11-json-vulnerability&amp;quot;
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://frasertweedale.github.io/blog-fp/posts/2021-10-12-aeson-hash-flooding-protection.html&amp;quot;
+[[references]]
+type = &amp;quot;DISCUSSION&amp;quot;
+url = &amp;quot;https://github.com/haskell/aeson/issues/864&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Hash flooding vulnerability in aeson&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;aeson&lt;/em&gt; was vulnerable to hash flooding (a.k.a. hash DoS).  The
+issue is a consequence of the HashMap implementation from
+&lt;em&gt;unordered-containers&lt;/em&gt;.  It results in a denial of service through
+CPU consumption.  This technique has been used in real-world attacks
+against a variety of languages, libraries and frameworks over the
+years.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0001</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0001.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0001 - Hash flooding vulnerability in aeson</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0002&amp;quot;
+cwe = [347]
+keywords = [&amp;quot;crypto&amp;quot;, &amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2022-31053&amp;quot;]
+related = [&amp;quot;GHSA-75rw-34q6-72cr&amp;quot;]
+
+[[affected]]
+package = &amp;quot;biscuit-haskell&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.1.0.0&amp;quot;
+fixed = &amp;quot;0.2.0.0&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://eprint.iacr.org/2020/1484&amp;quot;
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://github.com/biscuit-auth/biscuit/security/advisories/GHSA-75rw-34q6-72cr&amp;quot;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Improper Verification of Cryptographic Signature&lt;/h1&gt;
+&lt;p&gt;The Biscuit specification version 1 contains a vulnerable algorithm that allows
+malicious actors to forge valid Γ-signatures. Such an attack would allow an
+attacker to create a token with any access level. The version 2 of the
+specification mandates a different algorithm than gamma signatures and as such
+is not affected by this vulnerability.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2023-0002</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0002.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0002 - Improper Verification of Cryptographic Signature</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2023-0013&amp;quot;
+cwe = [312]
+keywords = [&amp;quot;historical&amp;quot;]
+aliases = [&amp;quot;CVE-2014-6274&amp;quot;]
+
+[[affected]]
+package = &amp;quot;git-annex&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.20110401&amp;quot;
+fixed = &amp;quot;5.20140919&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://git-annex.branchable.com/security/CVE-2014-6274/&amp;quot;
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://git-annex.branchable.com/upgrades/insecure_embedded_creds/&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;em&gt;git-annex&lt;/em&gt; plaintext storage of embedded credentials on encrypted remotes&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;git-annex&lt;/em&gt; had a bug in the &lt;strong&gt;S3&lt;/strong&gt; and &lt;strong&gt;Glacier&lt;/strong&gt; remotes where if
+&lt;code&gt;embedcreds=yes&lt;/code&gt; was set, and the remote used &lt;code&gt;encryption=pubkey&lt;/code&gt; or
+&lt;code&gt;encryption=hybrid&lt;/code&gt;, the embedded AWS credentials were stored in the
+Git repository in (effectively) plaintext, not encrypted as they
+were supposed to be.&lt;/p&gt;
+&lt;p&gt;That means that anyone who gets a copy of the Git repository can
+extract the AWS credentials from it.  Which would be bad.&lt;/p&gt;
+&lt;p&gt;A remote with this problem cannot be enabled using &lt;code&gt;git annex enableremote&lt;/code&gt;. Old versions of &lt;em&gt;git-annex&lt;/em&gt; will fail with a GPG
+error; the current version will fail with a pointer to this web
+page.&lt;/p&gt;
+&lt;h2&gt;Remediation&lt;/h2&gt;
+&lt;p&gt;If your repository has this problem, chose from one of these
+approaches to deal with it:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;Change your AWS credentials, so the ones stored in the clear in
+git won't be used.&lt;/p&gt;
+&lt;p&gt;After changing the credentials, make sure you have a fixed
+version of git-annex, and you can then re-embed the new creds
+into the repository, encrypted this time, by setting the
+&lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; and &lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt; environment
+variables, and running &lt;code&gt;git annex enableremote $remotename embedcreds=yes&lt;/code&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Fix the problem and then remove the history of the &lt;em&gt;git-annex&lt;/em&gt;
+branch of the repository.&lt;/p&gt;
+&lt;p&gt;Make sure you have a fixed version of &lt;em&gt;git-annex&lt;/em&gt;, and force
+&lt;em&gt;git-annex&lt;/em&gt; to rewrite the embedded creds, with encryption this
+time, by setting by setting the &lt;code&gt;AWS_SECRET_ACCESS_KEY&lt;/code&gt; and
+&lt;code&gt;AWS_ACCESS_KEY_ID&lt;/code&gt; environment variables, and running &lt;code&gt;git annex enableremote $remotename embedcreds=yes&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Then, to get rid of old versions of the &lt;em&gt;git-annex&lt;/em&gt; branch that
+still contains the creds in cleartext, you can use &lt;code&gt;git annex forget&lt;/code&gt;; note that it will remove other historical data too.&lt;/p&gt;
+&lt;p&gt;Keep in mind that this will not necessarily delete data from
+clones you do not control.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;If you're sure that you're the only one who has access to the
+repository, you could decide to leave it as-is.  It's no more
+insecure than if you had used &lt;code&gt;encryption=shared&lt;/code&gt; in the first
+place when setting it up.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+</atom:content><atom:id>HSEC-2023-0013</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2023-0013.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2023-0013 - git-annex plaintext storage of embedded credentials on encrypted remotes</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;
+[advisory]
+id = &amp;quot;HSEC-2025-0004&amp;quot;
+cwe = [23]
+capec = [126]
+keywords = [&amp;quot;gopher&amp;quot;, &amp;quot;path-traversal&amp;quot;]
+
+aliases = []
+related = []
+
+[[affected]]
+package = &amp;quot;spacecookie&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N&amp;quot;
+
+declarations = { &amp;quot;Network.Gopher.Util.santinizePath&amp;quot; = &amp;quot;&amp;gt;= 0.2.0.0 &amp;amp;&amp;amp; &amp;lt; 1.0&amp;quot;, &amp;quot;Network.Gopher.Util.santinizeIfNotUrl&amp;quot; = &amp;quot;&amp;gt;= 0.2.0.0 &amp;amp;&amp;amp; &amp;lt; 1.0&amp;quot;, &amp;quot;Network.Gopher.Util.sanitizePath&amp;quot; = &amp;quot;&amp;gt;= 1.0.0.0 &amp;amp;&amp;amp; &amp;lt; 1.0.0.3&amp;quot;, &amp;quot;Network.Gopher.Util.sanitizeIfNotUrl&amp;quot; = &amp;quot;&amp;gt;= 1.0.0.0 &amp;amp;&amp;amp; &amp;lt; 1.0.0.3&amp;quot; }
+
+[[affected.versions]]
+introduced = &amp;quot;0.2.0.0&amp;quot;
+fixed = &amp;quot;1.0.0.3&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/sternenseemann/spacecookie/commit/2854a8a70833e7abdeeff3c02596a6f2a2f35c61&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Broken Path Sanitization in spacecookie Library&lt;/h1&gt;
+&lt;p&gt;The spacecookie library exposes the functions &lt;code&gt;sanitizePath&lt;/code&gt; and &lt;code&gt;sanitizeIfNotUrl&lt;/code&gt; intended to
+remove &lt;code&gt;..&lt;/code&gt; components from paths which can be used to prevent path traversal attacks. Due to
+erroneous comparison code, this elimination is not actually performed which has been remedied
+in version 1.0.0.3 by properly comparing using &lt;code&gt;equalFilePath&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Any user of those respective functions of any version of spacecookie should upgrade to 1.0.0.3
+or later. Note that the spacecookie server executable included in the same package is not affected
+by the problem since a separate check would reject any malicious path that gets by &lt;code&gt;sanitizePath&lt;/code&gt;.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0004</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0004.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2025-0004 - Broken Path Sanitization in spacecookie Library</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2025-0006&amp;quot;
+keywords = [&amp;quot;crypto&amp;quot;]
+cwe = [403]
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/kazu-yamamoto/crypton-certificate/commit/e353d450c381c9d6b903c4257927e0c89c97acb1&amp;quot;
+
+[[affected]]
+package = &amp;quot;x509-store&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.1&amp;quot;
+
+[[affected]]
+package = &amp;quot;crypton-x509-store&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:H/I:N/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;1.6.9&amp;quot;
+fixed = &amp;quot;1.6.12&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Private key leak via inherited file descriptor&lt;/h1&gt;
+&lt;p&gt;The X.509 key reading function &lt;code&gt;readKeyFile&lt;/code&gt; opened a file
+descriptor to the private key without setting the &lt;em&gt;close-on-exec&lt;/em&gt;
+flag. If a child process is &lt;code&gt;exec&lt;/code&gt;ed at the same time, it would
+inherit that file descriptor and could read the private key
+material.&lt;/p&gt;
+&lt;p&gt;Impact is limited to child processes that run untrusted code, but
+that do not close inherited file descriptors. (For example, the
+&lt;code&gt;su(1)&lt;/code&gt; command.)&lt;/p&gt;
+&lt;p&gt;This leak was fixed by setting the &lt;em&gt;close-on-exec&lt;/em&gt; flag on
+unix-based systems.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0006</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0006.html" rel="alternate"/><atom:published>2025-11-17T02:22:38Z</atom:published><atom:title>HSEC-2025-0006 - Private key leak via inherited file descriptor</atom:title><atom:updated>2025-11-17T02:22:38Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2025-0001&amp;quot;
+cwe = [682]
+keywords = [&amp;quot;integrity&amp;quot;, &amp;quot;dos&amp;quot;]
+
+[[affected]]
+ghc-component = &amp;quot;ghc&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.12.1&amp;quot;
+fixed = &amp;quot;9.12.2&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.12.3&amp;quot;
+fixed = &amp;quot;9.14&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/issues/25653&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://discourse.haskell.org/t/psa-correctness-issue-in-ghc-9-12/11204&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://discourse.haskell.org/t/critical-code-generation-bug-with-ghc-9-12-3/13505/2&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/merge_requests/13820&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Subword division operations may produce incorrect results&lt;/h1&gt;
+&lt;p&gt;Arithmetic operations may produce incorrect results when compiled with optimizations.
+For the most part, this bug only causes availability and data integrity issues.
+However, in some circumstances, it may result in other, more complicated security related flaws, such as buffer overflow conditions.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0001</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0001.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2025-0001 - Subword division operations may produce incorrect results</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2025-0003&amp;quot;
+cwe = [416]
+keywords = [&amp;quot;corruption&amp;quot;, &amp;quot;vendored-code&amp;quot;, &amp;quot;language-c&amp;quot;]
+aliases = [&amp;quot;CVE-2025-31115&amp;quot;]
+
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://tukaani.org/xz/threaded-decoder-early-free.html&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/tukaani-project/xz/commit/d5a2ffe41bb77b918a8c96084885d4dbe4bf6480&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/hasufell/lzma-static/commit/e95fe96530568addfc83b771900025053e2c6951&amp;quot;
+
+[[affected]]
+package = &amp;quot;xz-clib&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:L&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;5.6.3&amp;quot;
+fixed = &amp;quot;5.8.1&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Use after free in multithreaded lzma (.xz) decoder&lt;/h1&gt;
+&lt;p&gt;In XZ Utils 5.3.3alpha to 5.8.0, the multithreaded .xz decoder in
+liblzma has a bug where invalid input can at least result in a crash
+(CVE-2025-31115). The effects include heap use after free and
+writing to an address based on the null pointer plus an offset.
+Applications and libraries that use the &lt;code&gt;lzma_stream_decoder_mt&lt;/code&gt;
+function are affected.&lt;/p&gt;
+&lt;p&gt;The Haskell &lt;em&gt;xz-clib&lt;/em&gt; library vendors and builds the C
+implementation.  The &lt;em&gt;xz&lt;/em&gt; package does not use the multithreaded
+decoder and is therefore unaffected.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0003</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0003.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2025-0003 - Use after free in multithreaded lzma (.xz) decoder</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2025-0007&amp;quot;
+keywords = [&amp;quot;dos&amp;quot;, &amp;quot;language-c&amp;quot;, &amp;quot;historical&amp;quot;]
+cwe = [407]
+aliases = [&amp;quot;CVE-2023-24824&amp;quot;, &amp;quot;GHSA-66g8-4hjf-77xh&amp;quot;]
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/kivikakk/cmark-gfm-hs/commit/1359b8740c6b29dde0ad8f816531112b32eb8cbe&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/github/cmark-gfm/commit/2300c1bd2c8226108885bf019655c4159cf26b59&amp;quot;
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://github.com/github/cmark-gfm/security/advisories/GHSA-66g8-4hjf-77xh&amp;quot;
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://nvd.nist.gov/vuln/detail/CVE-2023-24824&amp;quot;
+
+
+[[affected]]
+package = &amp;quot;cmark-gfm&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.1.0&amp;quot;
+fixed = &amp;quot;0.2.6&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;cmark-gfm: resource exhaustion due to quadratic complexity in parser&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;cmark-gfm&lt;/em&gt; is GitHub's fork of &lt;em&gt;cmark&lt;/em&gt;, a CommonMark parsing and
+rendering library and program in C.  A polynomial time complexity
+issue in cmark-gfm may lead to unbounded resource exhaustion and
+subsequent denial of service, due to quadratic complexity issues
+when parsing text which leads with either large numbers of &lt;code&gt;&amp;gt;&lt;/code&gt; or
+&lt;code&gt;-&lt;/code&gt; characters.&lt;/p&gt;
+&lt;p&gt;The Haskell &lt;em&gt;cmark-gfm&lt;/em&gt; package bundles the C sources and was
+affected by this issue.  This fix was released in the upstream C
+package at version &lt;code&gt;0.29.0.gfm.10&lt;/code&gt;.  Version &lt;code&gt;0.2.6&lt;/code&gt; of the Haskell
+package adopted the fix (moving from &lt;code&gt;0.29.0.gfm.6&lt;/code&gt; to
+&lt;code&gt;0.29.0.gfm.13&lt;/code&gt;).  Packages that depend on &lt;em&gt;cmark-gfm&lt;/em&gt; should update
+to &lt;code&gt;0.2.6&lt;/code&gt; or later.&lt;/p&gt;
+&lt;p&gt;Users unable to update should avoid processing data from untrusted
+sources or validate the input with other tools before using
+&lt;em&gt;cmark-gfm&lt;/em&gt; to parse it.&lt;/p&gt;
+&lt;p&gt;Pandoc &lt;code&gt;&amp;lt; 2.10.1&lt;/code&gt; depended on &lt;em&gt;cmark-gfm&lt;/em&gt; and could be affected by
+this issue.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0007</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0007.html" rel="alternate"/><atom:published>2025-12-27T08:58:56Z</atom:published><atom:title>HSEC-2025-0007 - cmark-gfm: resource exhaustion due to quadratic complexity in parser</atom:title><atom:updated>2025-12-27T08:58:56Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2025-0002&amp;quot;
+cwe = []
+keywords = [&amp;quot;crypto&amp;quot;]
+related = [&amp;quot;GHSA-w5vr-6qhr-36cc&amp;quot;]
+
+[[affected]]
+package = &amp;quot;cryptonite&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:N/I:H/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.1&amp;quot;
+
+[[affected]]
+package = &amp;quot;crypton&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:N/I:H/A:N&amp;quot;
+[[affected.versions]]
+introduced = &amp;quot;0.31&amp;quot;
+fixed = &amp;quot;1.0.3&amp;quot;
+
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://portswigger.net/daily-swig/dozens-of-cryptography-libraries-vulnerable-to-private-key-theft&amp;quot;
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://github.com/MystenLabs/ed25519-unsafe-libs&amp;quot;
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://github.com/advisories/GHSA-w5vr-6qhr-36cc&amp;quot;
+[[references]]
+type = &amp;quot;EVIDENCE&amp;quot;
+url = &amp;quot;https://hackage.haskell.org/package/cryptonite-0.30/docs/src/Crypto.PubKey.Ed25519.html#sign&amp;quot;
+[[references]]
+type = &amp;quot;EVIDENCE&amp;quot;
+url = &amp;quot;https://github.com/haskell-crypto/cryptonite/blob/cryptonite-v0.30/cbits/ed25519/ed25519.c#53&amp;quot;
+[[references]]
+type = &amp;quot;EVIDENCE&amp;quot;
+url = &amp;quot;https://github.com/kazu-yamamoto/crypton/blob/48fb9df2de5ee752196724b081f4d3cdb57576ed/cbits/ed25519/ed25519.c#L53&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/kazu-yamamoto/crypton/pull/47&amp;quot;
+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Double Public Key Signing Function Oracle Attack on Ed25519&lt;/h1&gt;
+&lt;p&gt;The standard specification of Ed25519 message signing involves providing the
+algorithm with a message and private key.&lt;/p&gt;
+&lt;p&gt;The function will use the private key to compute the public key and sign the message.
+Some libraries provide a variant of the message signing function that also takes
+the pre-computed public key as an input parameter.&lt;/p&gt;
+&lt;p&gt;Libraries that allow arbitrary public keys as inputs without checking if the
+input public key corresponds to the input private key are vulnerable to the
+following attack.&lt;/p&gt;
+&lt;p&gt;By using several public keys and messages, a malicious user with access to the
+signing mechanism may build up insights into the private key parameters
+resulting in access to the private key.&lt;/p&gt;
+&lt;p&gt;This shortcoming means that an attacker could use the signing function as an
+Oracle, perform crypto-analysis and ultimately get at secrets.
+For example, an attacker who can’t access the private key but can access
+the signing mechanism through an API call could use several public keys and
+messages to gradually build up insights into private key parameters.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0002</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0002.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2025-0002 - Double Public Key Signing Function Oracle Attack on Ed25519</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2025-0005&amp;quot;
+cwe = [427]
+keywords = [&amp;quot;hackage&amp;quot;, &amp;quot;supply-chain&amp;quot;, &amp;quot;historical&amp;quot;]
+
+[[affected]]
+package = &amp;quot;cabal-install&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:N/I:H/A:N&amp;quot;
+[[affected.versions]]
+fixed = &amp;quot;3.4.0.0&amp;quot;
+introduced = &amp;quot;1.0.0.0&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://frasertweedale.github.io/blog-fp/posts/2021-02-12-haskell-dependency-confusion.html&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;code&gt;cabal-install&lt;/code&gt; dependency confusion&lt;/h1&gt;
+&lt;p&gt;For &lt;strong&gt;cabal-install &amp;lt; 3.4.0.0&lt;/strong&gt; and where multiple repositories are
+configured, the resolver picks the highest available version across
+all repositories.  Where a package is only defined in a private
+repository, this behaviour leads to a &lt;a href="https://frasertweedale.github.io/blog-fp/posts/2021-02-12-haskell-dependency-confusion.html"&gt;&lt;em&gt;dependency confusion&lt;/em&gt;&lt;/a&gt;
+supply chain vulnerability.  If the private package name becomes
+known, a malicious actor can claim the name in the public repository
+and publish a malicious version at a higher version number.&lt;/p&gt;
+&lt;p&gt;Default &lt;code&gt;cabal-install&lt;/code&gt; configurations that only use the
+&lt;code&gt;hackage.haskell.org&lt;/code&gt; repository are not affected.  Configurations
+that use curated private repositories &lt;strong&gt;exclusively&lt;/strong&gt; are also not
+affected.&lt;/p&gt;
+&lt;h2&gt;Mitigations&lt;/h2&gt;
+&lt;p&gt;&lt;em&gt;cabal-install&lt;/em&gt; version &lt;strong&gt;3.4.0.0&lt;/strong&gt; and higher provide an &lt;code&gt;override&lt;/code&gt;
+option in the repository configuration.  It marks the associated
+repository as canonical for all packages defined in that repository.
+No other repositories will be considered.  For example:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;-- For packages in repo.example.com,
+-- only versions in repo.example.com are considered
+active-repositories:
+  , hackage.haskell.org
+  , repo.example.com:override
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Users and organisations using private repositories that contain
+private packages in addition to public repositories &lt;strong&gt;MUST&lt;/strong&gt; use the
+&lt;code&gt;override&lt;/code&gt; option to prevent dependency confusion attacks.&lt;/p&gt;
+&lt;p&gt;Alternatively, projects and organisations can run a private instance
+of &lt;em&gt;hackage-server&lt;/em&gt; and carefully curate and review its contents.
+Using that instance exclusively defeats supply chain attacks
+including &lt;em&gt;dependency confusion&lt;/em&gt;.  For &lt;em&gt;cabal-install &amp;lt; 3.4&lt;/em&gt; and
+where using multiple repositories, this is the only effective
+mitigation against dependency confusion attacks.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2025-0005</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2025-0005.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2025-0005 - cabal-install dependency confusion</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0001&amp;quot;
+cwe = [79]
+keywords = [&amp;quot;http&amp;quot;, &amp;quot;xss&amp;quot;, &amp;quot;rxss&amp;quot;, &amp;quot;historical&amp;quot;]
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/snoyberg/keter/pull/246&amp;quot;
+
+[[affected]]
+package = &amp;quot;keter&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:L/I:L/A:N&amp;quot;
+declarations.&amp;quot;Keter.Proxy.toResponse&amp;quot; = &amp;quot;&amp;gt;= 0.3.4 &amp;amp;&amp;amp; &amp;lt; 1.0.1&amp;quot;
+declarations.&amp;quot;Keter.Proxy.unknownHostResponse&amp;quot; = &amp;quot;&amp;gt;= 1.0.1 &amp;amp;&amp;amp; &amp;lt; 1.8.4&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.3.4&amp;quot;
+fixed = &amp;quot;1.8.4&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Reflected XSS vulnerability in keter&lt;/h1&gt;
+&lt;p&gt;Keter is an app-server/reverse-proxy often used with webapps build on Yesod web-framework.&lt;/p&gt;
+&lt;p&gt;In the logic handling VHost dispatch, Keter was echoing back &lt;code&gt;Host&lt;/code&gt; header value, unescaped,
+as part of an HTML error page. This constitutes a reflected-XSS vulnerability. Although
+not readily exploitable directly from a browser (where &lt;code&gt;Host&lt;/code&gt; header can't generally assume
+arbitrary values), it may become such in presence of further weaknesses in components
+upstream of Keter in the http proxying chain. Therefore, AC:High in CVSS evaluation.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0001</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0001.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0001 - Reflected XSS vulnerability in keter</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0008&amp;quot;
+cwe = [194]
+keywords = [&amp;quot;integrity&amp;quot;, &amp;quot;dos&amp;quot;]
+
+[[affected]]
+ghc-component = &amp;quot;ghc&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.2.1&amp;quot;
+fixed = &amp;quot;9.6.6&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.8.1&amp;quot;
+fixed = &amp;quot;9.8.3&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.10.1&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/issues/23034&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/merge_requests/12885&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Sign extension error in the PPC64le FFI&lt;/h1&gt;
+&lt;p&gt;Numeric arguments of FFI call on the PPC64le backend may result in incorrect runtime values.
+For the most part, this bug only causes availability and data integrity issues.
+However, in some circumstances, it may result in other, more complicated security related flaws, such as buffer overflow conditions.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0008</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0008.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0008 - Sign extension error in the PPC64le FFI</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0003&amp;quot;
+cwe = [150]
+keywords = [&amp;quot;windows&amp;quot;]
+aliases = [&amp;quot;CVE-2024-3566&amp;quot;, &amp;quot;VU#123335&amp;quot;]
+related = [&amp;quot;CVE-2024-1874&amp;quot;, &amp;quot;CVE-2024-24576&amp;quot;, &amp;quot;CVE-2024-22423&amp;quot;]
+
+[[references]]
+type = &amp;quot;ARTICLE&amp;quot;
+url = &amp;quot;https://flatt.tech/research/posts/batbadbut-you-cant-securely-execute-commands-on-windows/&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://kb.cert.org/vuls/id/123335&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/process/commit/3c419f9eeedac024c9dccce544e5a6fb587179a5&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/process/commit/951b02dd95559b1a26f2456bfb97cf740ea40934&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/process/commit/5fc91f5f36ed4479be2b95f04f264bb78ac8089d&amp;quot;
+
+[[affected]]
+package = &amp;quot;process&amp;quot;
+os = [&amp;quot;mingw32&amp;quot;]
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;1.0.0.0&amp;quot;
+fixed = &amp;quot;1.6.23.0&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;process: command injection via argument list on Windows&lt;/h1&gt;
+&lt;p&gt;The &lt;em&gt;process&lt;/em&gt; library on Windows is vulnerable to a command injection
+vulnerability, via &lt;code&gt;cmd.exe&lt;/code&gt;'s interpretation of arguments.  Programs that
+invoke batch files (&lt;code&gt;.bat&lt;/code&gt;, &lt;code&gt;.cmd&lt;/code&gt;) and pass arguments whose values are
+affected by program inputs may be affected.&lt;/p&gt;
+&lt;p&gt;This issue was discovered in many programming languages' Windows process
+execution behaviour.  It was tracked by CERT/CC as &lt;strong&gt;VU#123335&lt;/strong&gt; and a
+coordinated disclosure was made on 2024-04-09 17:00 UTC.&lt;/p&gt;
+&lt;p&gt;A fix was released in &lt;em&gt;process-1.6.19.0&lt;/em&gt;.&lt;/p&gt;
+&lt;h2&gt;Background&lt;/h2&gt;
+&lt;p&gt;Unlike POSIX systems, Windows does not have a mechanism for passing multiple
+arguments.Command line parsing is up to individual programs.&lt;/p&gt;
+&lt;p&gt;The &lt;em&gt;process&lt;/em&gt; library defines the &lt;code&gt;RawCommand&lt;/code&gt; constructor for specifying an
+executable and its arguments:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-haskell"&gt;data CmdSpec
+  = ShellCommand String
+  | RawCommand FilePath [String]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;On Windows, the &lt;code&gt;RawCommand&lt;/code&gt; executable name and arguments are serialised into
+a single &lt;em&gt;command line&lt;/em&gt; string, with separate arguments quoted separately.
+&lt;em&gt;process&lt;/em&gt; then invokes the Windows &lt;a href="https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa"&gt;&lt;code&gt;CreateProcess&lt;/code&gt;&lt;/a&gt;
+routine with this command line string is given as the &lt;code&gt;lpCommandLine&lt;/code&gt;
+argument.&lt;/p&gt;
+&lt;h2&gt;Issue&lt;/h2&gt;
+&lt;p&gt;When executing &lt;code&gt;.bat&lt;/code&gt; or &lt;code&gt;.cmd&lt;/code&gt; files, &lt;a href="https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa"&gt;&lt;code&gt;CreateProcess&lt;/code&gt;&lt;/a&gt;
+implicitly spawns &lt;code&gt;cmd.exe&lt;/code&gt;.  The &lt;code&gt;System.Process&lt;/code&gt; command line construction
+does not escape characters with special meaning to &lt;code&gt;cmd.exe&lt;/code&gt;.  As a
+consequence, a command injection vulnerability arises when the following
+conditions are satisfied:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Program running on Windows
+&lt;/li&gt;
+&lt;li&gt;Program executes a &lt;code&gt;.bat&lt;/code&gt; or &lt;code&gt;.cmd&lt;/code&gt; file
+&lt;/li&gt;
+&lt;li&gt;The argument values include or are influenced by program input
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Demonstration&lt;/h2&gt;
+&lt;p&gt;The following batch file, &lt;code&gt;test.bat&lt;/code&gt;, merely prints the executable name the
+first two arguments (as interpreted by &lt;code&gt;cmd.exe&lt;/code&gt;):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;@ECHO OFF
+ECHO 0: %0
+ECHO 1: %1
+ECHO 2: %2
+PAUSE
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The following Haskell program executes &lt;code&gt;test.bat&lt;/code&gt; with basic string arguments.
+The output is as expected:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;λ&amp;gt; readProcess &amp;quot;test.bat&amp;quot; [&amp;quot;a&amp;quot;,&amp;quot;b&amp;quot;] [] &amp;gt;&amp;gt;= putStrLn
+0: &amp;quot;test.bat&amp;quot;
+1: &amp;quot;a&amp;quot;
+2: &amp;quot;b&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;However, we can use a close quote and the &lt;code&gt;&amp;amp;&lt;/code&gt; character to induce &lt;code&gt;cmd.exe&lt;/code&gt; to
+execute a program named in the argument:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;λ&amp;gt; readProcess &amp;quot;test.bat&amp;quot; [&amp;quot;\&amp;quot;&amp;amp;calc.exe&amp;quot;] [] &amp;gt;&amp;gt;= putStrLn
+0: &amp;quot;test.bat&amp;quot;
+1: &amp;quot;\&amp;quot;
+2:
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;In addition to producing the above output, &lt;code&gt;calc.exe&lt;/code&gt; is executed.&lt;/p&gt;
+&lt;h2&gt;Mitigation&lt;/h2&gt;
+&lt;p&gt;The lack of a general mechanism on Windows for safely conveying command line
+arguments to programs increases the risk of this kind of security issue.  The
+fact that &lt;code&gt;cmd.exe&lt;/code&gt; command line parsing is complex and poorly documented
+exacerbates this issue, and also heightens the risk that the fix is
+incomplete, or causes other issues.&lt;/p&gt;
+&lt;p&gt;If possible, avoid executing batch files where arguments include or are
+influenced by untrusted program inputs.  If it must be done, reject arguments
+that include special characters including &lt;code&gt;&amp;amp;&lt;/code&gt; and &lt;code&gt;&amp;quot;&lt;/code&gt;.&lt;/p&gt;
+&lt;h2&gt;Fix versions&lt;/h2&gt;
+&lt;p&gt;&lt;em&gt;process&lt;/em&gt; was modified to perform additional escaping and quoting
+when executing &lt;code&gt;.bat&lt;/code&gt; and &lt;code&gt;.cmd&lt;/code&gt; files on Windows (ignoring
+character case).  The behaviour is unchanged in all other cases.&lt;/p&gt;
+&lt;p&gt;The fix was released in &lt;em&gt;&lt;strong&gt;process-1.6.19.0&lt;/strong&gt;&lt;/em&gt;.  The following GHC
+releases were the first in their series to include a fixed version
+of the &lt;em&gt;process&lt;/em&gt; library:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;GHC 9.10.1-alpha3&lt;/strong&gt; (released 2024-04-15)
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GHC 9.8.3&lt;/strong&gt; (released 2024-10-20)
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GHC 9.6.5&lt;/strong&gt; (released 2024-04-16)
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Such a change in semantics should normally result in a major version
+bump.  Because we expect very few (if any) users will be impacted by
+the behavioural change, the GHC team made a pragmatic decision to
+avoid the disruption that a major version bump would cause.&lt;/p&gt;
+&lt;p&gt;A follow-up fix was released in &lt;em&gt;&lt;strong&gt;process-1.6.23.0&lt;/strong&gt;&lt;/em&gt; to handle batch
+scripts with paths ending in whitespace and periods and
+unescaped &lt;code&gt;%&lt;/code&gt; expansions.&lt;/p&gt;
+&lt;h2&gt;Acknowledgements&lt;/h2&gt;
+&lt;p&gt;Security researcher &lt;strong&gt;RyotaK&lt;/strong&gt; discovered and responsibly disclosed
+this vulnerability, coordinating the response across the many
+affected langauges and ecosystems.&lt;/p&gt;
+&lt;p&gt;Ben Gamari commited and released the fix, which was based on a
+proposal by Fraser Tweedale.  Fraser also improved the
+&lt;code&gt;System.Process&lt;/code&gt; module documentation to better explain the Windows
+semantics.&lt;/p&gt;
+&lt;p&gt;Security researcher &lt;strong&gt;Kainan Zhang&lt;/strong&gt; (@4xpl0r3r) discovered and
+responsibly disclosing the issue in the first fix and the Rust
+Security Response WG coordinated the response.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0003</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0003.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0003 - process: command injection via argument list on Windows</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0007&amp;quot;
+cwe = [194]
+keywords = [&amp;quot;integrity&amp;quot;, &amp;quot;dos&amp;quot;, &amp;quot;historical&amp;quot;]
+
+[[affected]]
+ghc-component = &amp;quot;ghc&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.2.4&amp;quot;
+fixed = &amp;quot;9.2.5&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;9.4.2&amp;quot;
+fixed = &amp;quot;9.4.3&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/issues/22282&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/merge_requests/9152&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/merge_requests/9139&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Sign extension error in the AArch64 NCG&lt;/h1&gt;
+&lt;p&gt;Arithmetic operations may result in incorrect runtime results on the native aarch64 backend.
+For the most part, this bug only causes availability and data integrity issues.
+However, in some circumstances, it may result in other, more complicated security related flaws, such as buffer overflow conditions.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0007</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0007.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0007 - Sign extension error in the AArch64 NCG</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0002&amp;quot;
+cwe = [787]
+keywords = [&amp;quot;corruption&amp;quot;, &amp;quot;vendored-code&amp;quot;, &amp;quot;language-c&amp;quot;]
+aliases = [&amp;quot;CVE-2019-12900&amp;quot;]
+
+[[references]]
+type = &amp;quot;DISCUSSION&amp;quot;
+url = &amp;quot;https://gnu.wildebeest.org/blog/mjw/2019/08/02/bzip2-and-the-cve-that-wasnt/&amp;quot;
+
+[[references]]
+type = &amp;quot;DISCUSSION&amp;quot;
+url = &amp;quot;http://scary.beasts.org/security/CESA-2008-005.html&amp;quot;
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://access.redhat.com/security/cve/cve-2019-12900&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://sourceware.org/git/?p=bzip2.git;a=commit;h=7ed62bfb46e87a9e878712603469440e6882b184&amp;quot;
+
+[[affected]]
+package = &amp;quot;bzlib&amp;quot;
+cvss = &amp;quot;CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.4&amp;quot;
+fixed = &amp;quot;0.5.2.0&amp;quot;
+
+[[affected]]
+package = &amp;quot;bz2&amp;quot;
+cvss = &amp;quot;CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.1.0.0&amp;quot;
+fixed = &amp;quot;1.0.1.1&amp;quot;
+
+[[affected]]
+package = &amp;quot;bzlib-conduit&amp;quot;
+cvss = &amp;quot;CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.1.0.0&amp;quot;
+fixed = &amp;quot;0.3.0.3&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;out-of-bounds write when there are many bzip2 selectors&lt;/h1&gt;
+&lt;p&gt;A malicious bzip2 payload may produce a memory corruption
+resulting in a denial of service and/or remote code execution.
+Network services or command line utilities decompressing
+untrusted bzip2 payloads are affected.&lt;/p&gt;
+&lt;p&gt;Note that the exploitation of this bug relies on an undefined
+behavior that appears to be handled safely by current compilers.&lt;/p&gt;
+&lt;p&gt;The Haskell libraires are vulnerable when they are built using
+the bundled C library source code, which is the default
+in most cases.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0002</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0002.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0002 - out-of-bounds write when there are many bzip2 selectors</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0004&amp;quot;
+cwe = [829]
+keywords = [&amp;quot;hackage&amp;quot;, &amp;quot;xss&amp;quot;, &amp;quot;supply-chain&amp;quot;]
+
+[[affected]]
+package = &amp;quot;hackage-server&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:L&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.1&amp;quot;
+fixed = &amp;quot;0.6&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/hackage-server/commit/5a0dc3357b042502fcf684ed7e2464fde1407809&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/hackage-server/commit/33d9ea3de9a298b21b53ba23386af2742384e627&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/haskell/hackage-server/commit/354a7de3b7f21ad1346677df515d8e8ec75016e6&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Hackage package and doc upload stored XSS vulnerability&lt;/h1&gt;
+&lt;p&gt;&lt;em&gt;Author: Fraser Tweedale (Haskell SRT)&lt;/em&gt;&lt;/p&gt;
+&lt;h2&gt;Executive summary&lt;/h2&gt;
+&lt;p&gt;A &lt;strong&gt;critical XSS vulnerability&lt;/strong&gt; affected &lt;em&gt;hackage-server&lt;/em&gt; and
+&lt;code&gt;hackage.haskell.org&lt;/code&gt;.  HTML and JavaScript files provided in source
+packages or via the documentation upload facility were served
+&lt;em&gt;as-is&lt;/em&gt; on the main &lt;code&gt;hackage.haskell.org&lt;/code&gt; domain.  As a consequence,
+when a user with latent HTTP credentials browses to the package
+pages or documentation uploaded by a malicious package maintainer,
+their &lt;strong&gt;session can be hijacked&lt;/strong&gt; to upload packages or
+documentation, amend maintainers or other package metadata, or
+perform any other action the user is authorised to do.&lt;/p&gt;
+&lt;p&gt;This issue was discovered and reported to the Haskell Security
+Response Team (SRT) in June 2024.  Remediations were progressively
+developed and deployed throughout 2025.  &lt;strong&gt;The known issues have
+been fully mitigated on &lt;code&gt;hackage.haskell.org&lt;/code&gt; as of January 2026.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;The mitigations involve serving user content from a sister domain.
+In the case of &lt;code&gt;hackage.haskell.org&lt;/code&gt;, this domain is
+&lt;code&gt;hackage-content.haskell.org&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Operators of other &lt;em&gt;hackage-server&lt;/em&gt; instances should update to the
+&lt;code&gt;master&lt;/code&gt; branch from the upstream repository
+(https://github.com/haskell/hackage-server; commit
+&lt;code&gt;9a1887607d9b8d1a3b8b02c990ee144c0d402b79&lt;/code&gt; or later), and configure
+the user content domain (new flag &lt;code&gt;--user-content-uri&lt;/code&gt;).&lt;/p&gt;
+&lt;h2&gt;Scope of the issue&lt;/h2&gt;
+&lt;h3&gt;Package documentation uploads&lt;/h3&gt;
+&lt;p&gt;Any Hackage user can upload documentation bundles for the packages
+they own.  Typically those are prepared by Haddock, but they may be
+customised or modified.  Malicious code can be delivered in several
+ways:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;In JavaScript files loaded by an HTML page;
+&lt;/li&gt;
+&lt;li&gt;In &lt;code&gt;&amp;lt;script&amp;gt;&lt;/code&gt; tags on an HTML page;
+&lt;/li&gt;
+&lt;li&gt;In action attributes (e.g. &lt;code&gt;onclick&lt;/code&gt;) on an HTML page.
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;&lt;code&gt;quick-jump&lt;/code&gt; JavaScript&lt;/h3&gt;
+&lt;p&gt;In addition to the supplied HTML pages, parts of the uploaded
+documentation bundle are referenced from the main package page (and
+candidate pages)—in particular, &lt;code&gt;quick-jump.min.js&lt;/code&gt;, which
+implements the &amp;quot;quick jump&amp;quot; feature, and the corresponding CSS file
+(CSS can also present an XSS risk).  These files are included by the
+following templates:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;datafiles/templates/Html/package-page.html.st&lt;/code&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;datafiles/templates/Html/candidate-page.html.st&lt;/code&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;It is loaded via a &lt;code&gt;&amp;lt;script&amp;gt;&lt;/code&gt; tag:&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-html"&gt;&amp;lt;script src=&amp;quot;$doc.baseUrl$/quick-jump.min.js&amp;quot; type=&amp;quot;text/javascript&amp;quot;&amp;gt;&amp;lt;/script&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;Source tarball browsing&lt;/h3&gt;
+&lt;p&gt;HTML content in the source package is served as &lt;code&gt;text/html&lt;/code&gt; or
+&lt;code&gt;application/xhtml+xml&lt;/code&gt;, depending on file extension.  The browser
+renders the page and executes scripts without restriction.  The same
+scope of exploitation arises as for documentation uploads.&lt;/p&gt;
+&lt;h2&gt;Impact&lt;/h2&gt;
+&lt;p&gt;Malicious scripts can use latent HTTP credentials in the browser to
+perform any action the user is authorised to do, &lt;strong&gt;without user
+interaction&lt;/strong&gt;.  This could include uploading new package versions,
+editing packaging metadata, adding new maintainers, and more.&lt;/p&gt;
+&lt;p&gt;Additionally, malicious scripts and HTML could present a counterfeit
+login form to the user, tricking the user into divulging their
+credentials.  The script can then abuse the credentials in the same
+way as the latent credential scenario.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;CVSS vector string: &lt;strong&gt;CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:L&lt;/strong&gt;
+&lt;/li&gt;
+&lt;li&gt;CVSS score: &lt;strong&gt;9.9 (Critical)&lt;/strong&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Mitigations&lt;/h2&gt;
+&lt;p&gt;This section describes the code and configuration changes to
+mitigate the issues.&lt;/p&gt;
+&lt;h3&gt;User content domain&lt;/h3&gt;
+&lt;p&gt;&lt;em&gt;hackage-server&lt;/em&gt; was updated to serve user-uploaded content from a
+separate DNS domain.  This includes package documentation (excluding
+the main package description) and source tarball browsing, for both
+published and candidate packages.&lt;/p&gt;
+&lt;p&gt;For the relevant resources, requests on the main domain are
+redirected to the user content domain via an HTTP 301 (&amp;quot;Moved
+Permanently&amp;quot;) response status.&lt;/p&gt;
+&lt;p&gt;Doc and source tarballs uploaded prior to the deployment of these
+mitigations are exempted from the redirection, and remain accessible
+via the main domain (this may be changed in the future).&lt;/p&gt;
+&lt;p&gt;Alternative approaches considered:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Serving HTML from the source tarball with &lt;code&gt;Content-Type: text/plain&lt;/code&gt; would prevent the browser from interpreting them as
+HTML and executing inline or referenced scripts.  But several
+packages have custom doc bundles uploaded, offering a rich
+documentation experience to their users.  Therefore, changing this
+behaviour would surprise and probably disappoint many users.
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3&gt;quick-jump: reject unrecognised JavaScript and CSS&lt;/h3&gt;
+&lt;p&gt;A small number of versions of &lt;code&gt;quick-jump.min.js&lt;/code&gt; and
+&lt;code&gt;quick-jump.css&lt;/code&gt; have appeared in official releases of of the
+Haddock documentation builder program.  &lt;em&gt;hackage-server&lt;/em&gt; matches the
+SHA-256 digests of the files in the doc bundle against the list of
+&amp;quot;known good&amp;quot; files.  If there is no match, &lt;em&gt;hackage-server&lt;/em&gt; refuses
+to serve the file (403 Forbidden).&lt;/p&gt;
+&lt;p&gt;The digest lists are currently hard-coded; the initial values are
+mentioned at the end of this document.  The list needs to be updated
+whenever the official Haddock quick-jump implementation changes.&lt;/p&gt;
+&lt;p&gt;Alternative approaches considered:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Using &lt;a href="https://www.w3.org/TR/SRI/"&gt;&lt;em&gt;Subresource Integrity (SRI)&lt;/em&gt;&lt;/a&gt; to limit to
+known-good hashes.  This would require the same amount of
+development and maintenance overhead whilst depending on browser
+implementation for enforcement.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Ignoring the quick-jump implementation from the doc bundle and
+serving a single &amp;quot;golden&amp;quot; implementation for all packages.
+Because quick-jump reads the generated &lt;code&gt;doc-index.json&lt;/code&gt; this
+approach ran the risk of breaking the feature on older (or newer)
+uploads if the format of the file changes.  Formally specifying
+the &lt;code&gt;doc-index.json&lt;/code&gt; would allow the quick-jump feature to be
+evolved and improved to bring benefits to all packages and reduce
+security risks.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;There was considerable debate between the digest allow-list and
+&amp;quot;golden&amp;quot; approaches.  The &lt;em&gt;hackage-server&lt;/em&gt; maintainers had the final
+say, and the SRT is satisfied that the chosen approach resolves the
+security issues.&lt;/p&gt;
+&lt;h2&gt;Acknowledgements&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Zubin Duggal&lt;/strong&gt; reported the issue in documentation uploads.
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Duncan Coutts&lt;/strong&gt; noticed that the issue also affects source
+tarball browsing.
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Gershom Bazerman&lt;/strong&gt; and &lt;strong&gt;Janus Troelsen&lt;/strong&gt; implemented the
+mitigations, and Gershom handled redeploys of the
+&lt;code&gt;hackage.haskell.org&lt;/code&gt; service.
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Fraser Tweedale&lt;/strong&gt; verified and analysed the issue, and
+coordinated the security response.
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2&gt;Appendix A.1.  Known-good variants of &lt;code&gt;quick-jump.min.js&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;This appendix records known variants of &lt;code&gt;quick-jump.min.js&lt;/code&gt; from the
+GHC and Haddock repositories.  The commit ID, Git object (short) ID,
+and SHA-256 digests are noted.  The SHA-256 digests can be used with
+Subresource Integrity (SRI) or server-side checks to prevent
+delivery or execution of unrecognised script content.&lt;/p&gt;
+&lt;h3&gt;From &lt;code&gt;https://gitlab.haskell.org/ghc/haddock.git&lt;/code&gt;—&lt;code&gt;master&lt;/code&gt; branch&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;commit: e99aefb50ca63e2dbcc95841efbb53cea90151d8 (Sep 23 2017)
+object: c9f2b445b9
+sha256: e1da96b0d7ab3d72cfe3786def923c5af91ba331858852f1f43a1acfc5ee6966
+
+commit: 8e88615a23a9f1980a55bd1b3ef9dcc938d95237 (Oct 10 2017)
+object: cb24f8bdea
+sha256: a273a3ef19c21032afc5f65d1e09933146f183da906ca9d0b4c285095539e0e7
+
+commit: b4982d87f41d9a4d3f6237bacfd819145723e35b (Oct 30 2017)
+object: f22f8f2881
+sha256: 8aed621ac2b746751585cbe271631394cacc0e01cca4ef589e11b077b0acd291
+
+commit: 93c1e6eb9e829a66ff213ec076d529ab008880b3 (Dec 16 2017)
+object: bfdf04a372
+sha256: 4b10c18a7ad35f032e8cdc0d263716a93878bf06d998b1b66dccff06ceeee89d
+
+commit: 59812a09eb69cbf12407206381f4c214987b1efd (Apr 3 2018)
+object: c03e083607
+sha256: ce86bba43edb0534c0faa2d6d0f504877576c5271321e3fbd9638fd4667384a2
+
+commit: a69311708493efe8524aed0e9d19365f79f2fab3 (Oct 24 2018)
+object: 06c35c7454
+sha256: 548d676b3e5a52cbfef06d7424ec065c1f34c230407f9f5dc002c27a9666bec4
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h3&gt;From &lt;code&gt;https://gitlab.haskell.org/ghc/ghc.git&lt;/code&gt;—&lt;code&gt;master&lt;/code&gt; branch&lt;/h3&gt;
+&lt;p&gt;Note: all of the &lt;em&gt;objects&lt;/em&gt; listed above also occur in the GHC repo,
+but the commit history is different (as expected).&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;commit: 7776566531e72c415f66dd3b13da9041c52076aa (Nov 13 2019)
+object: 0b0eeb27d1
+sha256: 7ca43fc2058574846e032bc5493a0ad4568e4fa14fb58558fbf48d3bd6693e59
+
+commit: 14e554cf682ae975ba356b07672c0f9d465e2a78 (May 24 2024)
+object: 06c35c7454
+sha256: (seen already)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2&gt;Appendix A.2.  Known-good variants of &lt;code&gt;quick-jump.css&lt;/code&gt;&lt;/h2&gt;
+&lt;p&gt;This appendix records known variants of &lt;code&gt;quick-jump.css&lt;/code&gt; from the
+GHC and Haddock repositories.  The commit ID, Git object (short) ID,
+and SHA-256 digests are noted.  The SHA-256 digests can be used with
+Subresource Integrity (SRI) or server-side checks to prevent
+delivery or use of unrecognised CSS content.&lt;/p&gt;
+&lt;h3&gt;From &lt;code&gt;https://gitlab.haskell.org/ghc/haddock.git&lt;/code&gt;—&lt;code&gt;master&lt;/code&gt; branch&lt;/h3&gt;
+&lt;p&gt;&lt;em&gt;No changes since integration of haddock into the ghc repo&lt;/em&gt;.&lt;/p&gt;
+&lt;h3&gt;From &lt;code&gt;https://gitlab.haskell.org/ghc/ghc.git&lt;/code&gt;—&lt;code&gt;master&lt;/code&gt; branch&lt;/h3&gt;
+&lt;pre&gt;&lt;code&gt;commit: 9511e587701349093cbe3ac7c00f13583820774f (Feb 7 2021)
+object: cf10eee4
+sha256: 6bd159f6d7b1cfef1bd190f1f5eadcd15d35c6c567330d7465c3c35d5195bc6f
+
+commit: 05ccce6e07731f9788a434d6e06f4cadeff3d6ba (Dec 8 2020)
+object: d656f51c
+sha256: 6997c223e09b340f5f1bb970c930b458f768a0bbbe787cb87f181820a3d122b3
+
+commit: fa5ec121e2a700137bab8bd48cc30b1e80f58fd4 (Feb 27 2019)
+object: 8772809c
+sha256: 29fe483bd37ad3feba12f646e9661731127526f246c246b0011b384e11649dff
+
+commit: fc069bf200f930c21f96ddbbec1d7c5c69f8ba72 (Jan 15 2018)
+object: 468d8036
+sha256: 1d51573b72bc8a7b9b0dda3beffb7882db78d22a37840203f761e3969d915027
+
+commit: 0997eb61803a37803ddb6cf7116eb9db1046b2ce (Oct 10 2017)
+object: ede05042
+sha256: 59693ef3f0d793031b3af58b214af7884c0f63ce6db659ffd7432cf0aa852b51
+
+commit: d41abb0f606bf5fdbdc0a7bd3758e0c30601b121 (Sep 23 2017)
+object: b69903c3
+sha256: f95b8b12a8a13dd31add93527e1239fdff6997c7f2396e975e2e415db04b75fb
+&lt;/code&gt;&lt;/pre&gt;
+</atom:content><atom:id>HSEC-2024-0004</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0004.html" rel="alternate"/><atom:published>2026-01-16T11:18:20Z</atom:published><atom:title>HSEC-2024-0004 - Hackage package and doc upload stored XSS vulnerability</atom:title><atom:updated>2026-01-16T11:18:20Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0009&amp;quot;
+keywords = [&amp;quot;biscuit&amp;quot;]
+aliases = [&amp;quot;CVE-2024-41949&amp;quot;, &amp;quot;GHSA-rgqv-mwc3-c78m&amp;quot;, &amp;quot;GHSA-47cq-pc2v-3rmp&amp;quot;]
+
+[[references]]
+type = &amp;quot;ADVISORY&amp;quot;
+url = &amp;quot;https://github.com/biscuit-auth/biscuit-haskell/security/advisories/GHSA-47cq-pc2v-3rmp&amp;quot;
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://github.com/biscuit-auth/biscuit-haskell/pull/93&amp;quot;
+
+[[affected]]
+package = &amp;quot;biscuit-haskell&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:N/I:L/A:N&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;0.3.0.0&amp;quot;
+fixed = &amp;quot;0.4.0.0&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;Public key confusion in third-party blocks&lt;/h1&gt;
+&lt;p&gt;Third-party blocks can be generated without transferring the whole token to the third-party authority. Instead, a &lt;code&gt;ThirdPartyBlock&lt;/code&gt; request can be sent, providing only the necessary info to generate a third-party block and to sign it:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;the public key of the previous block (used in the signature);
+&lt;/li&gt;
+&lt;li&gt;the public keys part of the token symbol table (for public key interning in datalog expressions).
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;A third-party block request forged by a malicious user can trick the third-party authority into generating datalog trusting the wrong keypair.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0009</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0009.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0009 - Public key confusion in third-party blocks</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:entry><atom:author><atom:name>Haskell Security Response Team</atom:name><atom:email>security-advisories@haskell.org</atom:email></atom:author><atom:content type="html">&lt;pre&gt;&lt;code class="language-toml"&gt;[advisory]
+id = &amp;quot;HSEC-2024-0006&amp;quot;
+cwe = [192]
+keywords = [&amp;quot;integrity&amp;quot;, &amp;quot;dos&amp;quot;, &amp;quot;historical&amp;quot;]
+
+[[affected]]
+package = &amp;quot;base&amp;quot;
+cvss = &amp;quot;CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:U/C:N/I:H/A:H&amp;quot;
+
+[[affected.versions]]
+introduced = &amp;quot;4.15.0.0&amp;quot;
+fixed = &amp;quot;4.15.1.0&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/issues/19345&amp;quot;
+
+[[references]]
+type = &amp;quot;REPORT&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/issues/20066&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/merge_requests/4980&amp;quot;
+
+[[references]]
+type = &amp;quot;FIX&amp;quot;
+url = &amp;quot;https://gitlab.haskell.org/ghc/ghc/-/merge_requests/6109&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h1&gt;&lt;code&gt;fromIntegral&lt;/code&gt;: conversion error&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;fromIntegral&lt;/code&gt; may result in coercion errors when used with optimization flags &lt;code&gt;-O1&lt;/code&gt; or &lt;code&gt;-O2&lt;/code&gt;
+in the following situation:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Converting negative &lt;code&gt;Int&lt;/code&gt; to &lt;code&gt;Natural&lt;/code&gt; does not throw an arithmetic underflow error
+&lt;/li&gt;
+&lt;li&gt;Converting large &lt;code&gt;Integer&lt;/code&gt; greater than 2^64 to &lt;code&gt;Natural&lt;/code&gt; overflow.
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For the most part, these errors in and of themselves result only in availability and data integrity issues.
+However, in some circumstances, they may result in other, more complicated security related flaws, such as buffer overflow conditions.&lt;/p&gt;
+</atom:content><atom:id>HSEC-2024-0006</atom:id><atom:link href="https://haskell.github.io/security-advisories/advisory/HSEC-2024-0006.html" rel="alternate"/><atom:published>2025-11-14T14:45:34Z</atom:published><atom:title>HSEC-2024-0006 - fromIntegral: conversion error</atom:title><atom:updated>2025-11-14T14:45:34Z</atom:updated></atom:entry><atom:id>73b10e73-16bc-4bf2-a56c-ad7d09213e45</atom:id><atom:link href="https://haskell.github.io/security-advisories/atom.xml" rel="self"/><atom:title>Haskell Security Advisory DB</atom:title><atom:updated>2026-01-16T11:18:20Z</atom:updated></atom:feed>

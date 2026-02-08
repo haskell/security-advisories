@@ -1,0 +1,50 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2023-0010</h1><div class="content"><div id="advisory"><h1><em>git-annex</em> private data exfiltration to compromised
+remote</h1>
+<p>Some uses of git-annex were vulnerable to a private data exposure and
+exfiltration attack. It could expose the content of files located
+outside the <em>git-annex</em> repository, or content from a private web
+server on localhost or the LAN. Joey Hess discovered this attack.</p>
+<p>To perform this attack, the attacker needs to have control over one
+of the remotes of the victim's <em>git-annex</em> repository. For
+example, they may provide a public <em>git-annex</em> repository that
+the victim clones. Or, equivalantly, the attacker could have read access
+to the victim's <em>git-annex</em> repository or a repository it pushes
+to, and some channel to get commits into it (e.g. pull requests).</p>
+<p>These exploits are most likely to succeed when the victim is running
+the <code>git-annex</code> assistant, or is periodically running
+<code>git annex sync --content</code>.</p>
+<p>To perform the attack the attacker runs
+<code>git-annex addurl --relaxed file:///etc/passwd</code> and commits
+this to the repository in some out of the way place. After the victim's
+git repository receives that change, <code>git-annex</code> follows the
+attacker-provided URL to the private data, which it stores in the
+<em>git-annex</em> repository. From there it transfers the content to
+the remote <em>git-annex</em> repository that the attacker has access
+to.</p>
+<p>As well as <code>file:///</code> URLs, the attacker can use URLs to
+private web servers. The URL can also be one that the attacker controls,
+that redirects to a URL that is accessible to the victim system (and not
+necessarily the compromised remote).</p>
+<h2>Fix</h2>
+<p>The issue was fixed by making <code>git-annex</code> refuse to follow
+<code>file:///</code> urls and URLs pointing to private/local IP
+addresses by default. Two new configuration settings,
+<code>annex.security.allowed-url-schemes</code> and
+<code>annex.security.allowed-ip-addresses</code>, can relax this
+security policy, and are intended for cases where the <em>git-annex</em>
+repository is kept private and so the attack does not apply.</p>
+<h2>Impact on external special remotes</h2>
+<p>One variant of this issue can exploit a vulnerable external special
+remote, and could not be prevented by <code>git-annex</code>.
+(<code>git-annex</code>'s own built-in special remotes are not
+vulnerable to this attack.)</p>
+<p>In this attack variant, the attacker guesses the hash of a file
+stored on the victim's private web server, and adds it to the
+<code>git-annex</code> repository. The attacker also has control of the
+server hosting an encrypted special remote used by the victim's
+<em>git-annex</em> repository. They cause that server to redirect to the
+victim's web server. This allows the attacker to verify if the victim's
+web server contains a file that the attacker already knows the content
+of, assuming they can guess the URL to it.</p>
+<p>Developers of external special remotes are encouraged to prevent this
+attack by not following such HTTP redirects.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/200.html">200</a></dd><dd><a href="https://cwe.mitre.org/data/definitions/610.html">610</a></dd><dt>Keywords</dt><dd>exfiltration, historical</dd><dt>Aliases</dt><dd>CVE-2018-10857</dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/">[ADVISORY] https://git-annex.branchable.com/security/CVE-2018-10857_and_CVE-2018-10859/</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/git-annex"><code>@hackage/git-annex</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.0/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N</dd><dt>Versions</dt><dd><code>&gt;=0 &amp;&amp; &lt;6.20180626</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
