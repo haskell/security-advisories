@@ -1,0 +1,13 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2024-0009</h1><div class="content"><div id="advisory"><h1>Public key confusion in third-party blocks</h1>
+<p>Third-party blocks can be generated without transferring the whole
+token to the third-party authority. Instead, a
+<code>ThirdPartyBlock</code> request can be sent, providing only the
+necessary info to generate a third-party block and to sign it:</p>
+<ul>
+<li>the public key of the previous block (used in the signature);</li>
+<li>the public keys part of the token symbol table (for public key
+interning in datalog expressions).</li>
+</ul>
+<p>A third-party block request forged by a malicious user can trick the
+third-party authority into generating datalog trusting the wrong
+keypair.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 14, 2025</dd><dt>Modified</dt><dd>November 14, 2025</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><i>&lt; none &gt;</i></dd><dt>Keywords</dt><dd>biscuit</dd><dt>Aliases</dt><dd>CVE-2024-41949, GHSA-rgqv-mwc3-c78m, GHSA-47cq-pc2v-3rmp</dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/biscuit-auth/biscuit-haskell/security/advisories/GHSA-47cq-pc2v-3rmp">[ADVISORY] https://github.com/biscuit-auth/biscuit-haskell/security/advisories/GHSA-47cq-pc2v-3rmp</a></dd><dd><a href="https://github.com/biscuit-auth/biscuit-haskell/pull/93">[FIX] https://github.com/biscuit-auth/biscuit-haskell/pull/93</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/biscuit-haskell"><code>@hackage/biscuit-haskell</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:N/I:L/A:N</dd><dt>Versions</dt><dd><code>&gt;=0.3.0.0 &amp;&amp; &lt;0.4.0.0</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
