@@ -82,7 +82,7 @@ newtype RepositoryName
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
 data GHCComponent = GHCCompiler | GHCi | GHCRTS | GHCPkg | RunGHC | IServ | HP2PS | HPC | HSC2HS | Haddock
-  deriving stock (Show, Eq, Enum, Bounded)
+  deriving stock (Show, Eq, Ord, Enum, Bounded)
 
 ghcComponentToText :: GHCComponent -> Text
 ghcComponentToText c = case c of
