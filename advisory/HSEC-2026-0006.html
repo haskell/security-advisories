@@ -1,0 +1,13 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class><a href="by-dates.html">by date</a></li><li class><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0006</h1><div class="content"><div id="advisory"><h1>Cabal deletes project source files during configure</h1>
+<p>The <code>checkDuplicateHeaders</code> function in
+<code>Distribution.Simple.Configure</code> removes header files from the
+source directory when a header with the same name exists in both the
+build directory and the source directory.</p>
+<p>This behavior was introduced in commit <code>3a9830b</code> to
+resolve header precedence issues, as C compilers prefer relative
+includes over <code>-I</code> search paths. The workaround uses
+<code>removeFile</code> on source directory files, which is destructive
+and should not happen during a build process.</p>
+<p>While the current implementation does not follow symlinks explicitly,
+the deletion of source files outside of the project during a build
+operation is possible on Microsoft Windows.</p><h3>Info</h3><dl><dt>Published</dt><dd>April 08, 2026</dd><dt>Modified</dt><dd>April 08, 2026</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/73.html">73</a></dd><dt>Keywords</dt><dd>cabal, file-deletion, configure</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/haskell/cabal/issues/11176">[REPORT] https://github.com/haskell/cabal/issues/11176</a></dd><dd><a href="https://github.com/haskell/cabal/commit/3a9830bbdabef2f1009a69957966b778c7c1a9ee">[INTRODUCED] https://github.com/haskell/cabal/commit/3a9830bbdabef2f1009a69957966b778c7c1a9ee</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/Cabal"><code>@hackage/Cabal</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:H/A:N</dd><dt>Versions</dt><dd><code>&gt;=2.2</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
