@@ -34,6 +34,7 @@ test-suite spec
     , cvss
     , tasty        <2
     , tasty-hunit  <1.0
+    , tasty-quickcheck
     , text
 
   default-language: Haskell2010
