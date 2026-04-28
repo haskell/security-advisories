@@ -15,9 +15,10 @@ main =
   defaultMain $
     testGroup
       "Security.CVSS"
-      [ testCase "examples" testExamples,
-        testProperty "CVSS 3.1 X temporal/environmental metrics do not change base score" prop_cvss31NotDefinedOptionalMetricsDoNotChangeScore,
-        testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTripsParseToString
+      [ testCase "examples" testExamples
+      , testCase "CVSS 3.1 X temporal/env metrics do not change score"
+          testNotDefinedOptionalNoScoreChange
+      , testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip
       ]
 
 testExamples :: Assertion
@@ -51,6 +52,23 @@ examples =
     ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 9.8, CVSS.Critical)
     ]
 
+testNotDefinedOptionalNoScoreChange :: Assertion
+testNotDefinedOptionalNoScoreChange = do
+  let baseVector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      fullVector = baseVector <> notDefinedTemporalEnv
+  case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
+    (Right baseCvss, Right fullCvss) ->
+      CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
+    _ -> assertFailure ("base parse failed: " <> show fullVector)
+
+-- CVSS.cvssVectorString <$> CVSS.parseCVSS input == Right input
+prop_cvss31RoundTrip :: Base31 -> Property
+prop_cvss31RoundTrip b =
+  let input = base31Vector b <> notDefinedTemporalEnv
+   in case CVSS.parseCVSS input of
+        Right cvss -> CVSS.cvssVectorString cvss === input
+        Left e -> counterexample ("parse failed: " <> show e <> "\n" <> Text.unpack input) False
+
 data Base31 = Base31
   { bAV :: Char,
     bAC :: Char,
@@ -75,40 +93,25 @@ instance Arbitrary Base31 where
       <*> elements ['H', 'L', 'N']
       <*> elements ['H', 'L', 'N']
 
+metric :: Text -> Char -> Text
+metric name value = name <> ":" <> Text.singleton value
+
+cvss31Vector :: [Text] -> Text
+cvss31Vector metrics = Text.intercalate "/" ("CVSS:3.1" : metrics)
+
 base31Vector :: Base31 -> Text
-base31Vector b = Text.pack
-    [ 'C', 'V', 'S', 'S', ':', '3', '.', '1'
-    , '/', 'A', 'V', ':', bAV b
-    , '/', 'A', 'C', ':', bAC b
-    , '/', 'P', 'R', ':', bPR b
-    , '/', 'U', 'I', ':', bUI b
-    , '/', 'S', ':', bS b
-    , '/', 'C', ':', bC b
-    , '/', 'I', ':', bI b
-    , '/', 'A', ':', bA b
+base31Vector b =
+  cvss31Vector
+    [ metric "AV" (bAV b)
+    , metric "AC" (bAC b)
+    , metric "PR" (bPR b)
+    , metric "UI" (bUI b)
+    , metric "S"  (bS b)
+    , metric "C"  (bC b)
+    , metric "I"  (bI b)
+    , metric "A"  (bA b)
     ]
 
 notDefinedTemporalEnv :: Text
 notDefinedTemporalEnv =
   "/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
-
-prop_cvss31NotDefinedOptionalMetricsDoNotChangeScore :: Base31 -> Property
-prop_cvss31NotDefinedOptionalMetricsDoNotChangeScore b =
-  ioProperty $ do
-    let baseVector = base31Vector b
-        fullVector = baseVector <> notDefinedTemporalEnv
-    case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
-      (Right baseCvss, Right fullCvss) ->
-        pure $
-          counterexample ("baseVector = " <> Text.unpack baseVector) $
-            counterexample ("fullVector = " <> Text.unpack fullVector) $
-              CVSS.cvssScore fullCvss === CVSS.cvssScore baseCvss
-      _ -> pure $ counterexample ("base parse failed: " <> show fullVector) False
-
--- CVSS.cvssVectorString <$> CVSS.parseCVSS input == Right input
-prop_cvss31RoundTripsParseToString :: Base31 -> Property
-prop_cvss31RoundTripsParseToString b =
-  let input = base31Vector b <> notDefinedTemporalEnv
-   in case CVSS.parseCVSS input of
-        Right cvss -> CVSS.cvssVectorString cvss === input
-        Left e -> counterexample ("parse failed: " <> show e <> "\n" <> Text.unpack input) False
