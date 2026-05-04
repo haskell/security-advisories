@@ -460,9 +460,9 @@ cvss31TemporalScore :: [Metric] -> (Rating, Float)
 cvss31TemporalScore metrics = (toRating score, score)
   where
     (_, baseScore) = cvss31BaseScore metrics
-    exploitCodeMaturity = gmOr metrics 1.0 "Exploit Code Maturity"
-    remediationLevel = gmOr metrics 1.0 "Remediation Level"
-    reportConfidence = gmOr metrics 1.0 "Report Confidence"
+    exploitCodeMaturity = optionalMetric metrics 1.0 "Exploit Code Maturity"
+    remediationLevel = optionalMetric metrics 1.0 "Remediation Level"
+    reportConfidence = optionalMetric metrics 1.0 "Report Confidence"
     score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
 
 -- | Implementation of section 7.3. Environmental Metrics Equations
@@ -529,64 +529,75 @@ cvss31EnvironmentalScore metrics = (toRating score, score)
                 * reportConfidence
             )
 
-    exploitCodeMaturity = gmOr metrics 1.0 "Exploit Code Maturity"
-    remediationLevel = gmOr metrics 1.0 "Remediation Level"
-    reportConfidence = gmOr metrics 1.0 "Report Confidence"
-    confidentialityRequirement = gmOr metrics 1.0 "Confidentiality Requirement"
-    integrityRequirement = gmOr metrics 1.0 "Integrity Requirement"
-    availabilityRequirement = gmOr metrics 1.0 "Availability Requirement"
-    modifiedAttackVector = modifiedMetricValue "Modified Attack Vector" "Attack Vector" modifiedScope
-    modifiedAttackComplexity = modifiedMetricValue "Modified Attack Complexity" "Attack Complexity" modifiedScope
-    modifiedPrivilegesRequired = modifiedMetricValue "Modified Privileges Required" "Privileges Required" modifiedScope
-    modifiedUserInteraction = modifiedMetricValue "Modified User Interaction" "User Interaction" modifiedScope
-    modifiedScope = modifiedMetricValue "Modified Scope" "Scope" Unchanged
-    modifiedConfidentiality = modifiedMetricValue "Modified Confidentiality" "Confidentiality Impact" modifiedScope
-    modifiedIntegrity = modifiedMetricValue "Modified Integrity" "Integrity Impact" modifiedScope
-    modifiedAvailability = modifiedMetricValue "Modified Availability" "Availability Impact" modifiedScope
+    exploitCodeMaturity = optionalMetric metrics 1.0 "Exploit Code Maturity"
+    remediationLevel = optionalMetric metrics 1.0 "Remediation Level"
+    reportConfidence = optionalMetric metrics 1.0 "Report Confidence"
+    confidentialityRequirement = optionalMetric metrics 1.0 "Confidentiality Requirement"
+    integrityRequirement = optionalMetric metrics 1.0 "Integrity Requirement"
+    availabilityRequirement = optionalMetric metrics 1.0 "Availability Requirement"
+    modifiedAttackVector = getModifiedMetricValue cvss31 metrics "Modified Attack Vector" "Attack Vector" modifiedScope
+    modifiedAttackComplexity = getModifiedMetricValue cvss31 metrics "Modified Attack Complexity" "Attack Complexity" modifiedScope
+    modifiedPrivilegesRequired = getModifiedMetricValue cvss31 metrics "Modified Privileges Required" "Privileges Required" modifiedScope
+    modifiedUserInteraction = getModifiedMetricValue cvss31 metrics "Modified User Interaction" "User Interaction" modifiedScope
+    modifiedScope = getModifiedMetricValue cvss31 metrics "Modified Scope" "Scope" Unchanged
+    modifiedConfidentiality = getModifiedMetricValue cvss31 metrics "Modified Confidentiality" "Confidentiality Impact" modifiedScope
+    modifiedIntegrity = getModifiedMetricValue cvss31 metrics "Modified Integrity" "Integrity Impact" modifiedScope
+    modifiedAvailability = getModifiedMetricValue cvss31 metrics "Modified Availability" "Availability Impact" modifiedScope
 
-    modifiedMetricValue :: Text -> Text -> Float -> Float
-    modifiedMetricValue modifiedName baseName scope =
-      case lookupMetricValueCharByName cvss31 metrics modifiedName of
-        Just (C 'X') -> getMetricValue cvss31 metrics scope baseName
-        Just _ -> getMetricValue cvss31 metrics scope modifiedName
-        Nothing -> getMetricValue cvss31 metrics scope baseName
+    {- Missing or X modified metrics fall back to the corresponding base metric
+    MAV:X  => use AV
+    MAC:X  => use AC
+    MPR:X  => use PR
+    MUI:X  => use UI
+    MS:X   => use S
+    MC:X   => use C
+    MI:X   => use I
+    MA:X   => use A
+    -}
+    getModifiedMetricValue :: CVSSDB -> [Metric] -> Text -> Text -> Float -> Float
+    getModifiedMetricValue db ms modifiedName baseName scope =
+      case lookupMetricValueChar db ms modifiedName of
+        Just (C 'X') -> getMetricValue db ms scope baseName
+        Just _ -> getMetricValue db ms scope modifiedName
+        Nothing -> getMetricValue db ms scope baseName
 
-gmOr :: [Metric] -> Float -> Text -> Float
-gmOr metrics defaultValue name =
-  getMetricValueOr cvss31 metrics defaultValue Unchanged name
+optionalMetric :: [Metric] -> Float -> Text -> Float
+optionalMetric metrics defaultValue =
+  getMetricValueOr cvss31 metrics defaultValue Unchanged
 
-lookupMetricValueCharByName :: CVSSDB -> [Metric] -> Text -> Maybe MetricValueChar
-lookupMetricValueCharByName db metrics name = do
-  mi <- find (\mi -> miName mi == name) (allMetrics db)
+-- e.g. for "Attack Vector" lookup MetricInfo "Attack Vector" "AV" True avValues
+lookupMetricInfo :: CVSSDB -> Text -> Maybe MetricInfo
+lookupMetricInfo db name =
+  find (\mi -> miName mi == name) (allMetrics db)
+
+-- what char value the parsed vector have e.g. in AV:N, for "Attack Vector" returns Just (C 'N').
+lookupMetricValueChar :: CVSSDB -> [Metric] -> Text -> Maybe MetricValueChar
+lookupMetricValueChar db metrics name = do
+  mi <- lookupMetricInfo db name
   Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
   pure valueChar
 
+-- strict lookup for required base metrics
 getMetricValue :: CVSSDB -> [Metric] -> Float -> Text -> Float
-getMetricValue db metrics scope name = case mValue of
+getMetricValue db metrics scope name = case lookupMetricValue db metrics scope name of
   Nothing -> error $ "The impossible have happened, unknown metric: " <> Text.unpack name
-  Just v -> v
-  where
-    mValue = do
-      mi <- find (\mi -> miName mi == name) (allMetrics db)
-      Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
-      mv <- find (\mv -> mvChar mv == valueChar) (miValues mi)
-      pure $ case mvNumChangedScope mv of
-        Just value | scope /= Unchanged -> value
-        _ -> mvNum mv
+  Just value -> value
 
+-- Converts the parsed value char into a numeric CVSS value. Example: AV:N -> 0.85, RL:O -> 0.95
+lookupMetricValue :: CVSSDB -> [Metric] -> Float -> Text -> Maybe Float
+lookupMetricValue db metrics scope name = do
+  mi <- lookupMetricInfo db name
+  valueChar <- lookupMetricValueChar db metrics name
+  mv <- find (\mv -> mvChar mv == valueChar) (miValues mi)
+  pure $ case mvNumChangedScope mv of
+    Just value | scope /= Unchanged -> value
+    _ -> mvNum mv
+
+-- lookup for optional temporal/environmental metrics
 getMetricValueOr :: CVSSDB -> [Metric] -> Float -> Float -> Text -> Float
-getMetricValueOr db metrics defaultValue scope name =
-  case mValue of
-    Nothing -> defaultValue
-    Just v -> v
-  where
-    mValue = do
-      mi <- find (\mi -> miName mi == name) (allMetrics db)
-      Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
-      mv <- find (\mv -> mvChar mv == valueChar) (miValues mi)
-      pure $ case mvNumChangedScope mv of
-        Just value | scope /= Unchanged -> value
-        _ -> mvNum mv
+getMetricValueOr db metrics defaultValue scope name = case lookupMetricValue db metrics scope name of
+  Nothing -> defaultValue
+  Just value -> value
 
 validateCvss31 :: [Metric] -> Either CVSSError [Metric]
 validateCvss31 metrics = do
