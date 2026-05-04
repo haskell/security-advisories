@@ -419,6 +419,11 @@ cvss31score metrics = (toRating score, score)
 
     gm :: Text -> Float
     gm = getMetricValue cvss31 metrics scope
+    -- FUTUREWORK: The 'scope' parameter is always the base Scope metric. Once
+    -- environmental scoring is implemented, Modified Privileges Required (MPR)
+    -- use Modified Scope (MS) instead of base Scope per spec Section 4.2:
+    -- "if Scope / Modified Scope is Changed". The caller (or this function) will
+    -- need to resolve MS when looking up scope-dependent values for MPR.
 
 getMetricValue :: CVSSDB -> [Metric] -> Float -> Text -> Float
 getMetricValue db metrics scope name = case mValue of
