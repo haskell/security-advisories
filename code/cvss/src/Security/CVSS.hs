@@ -419,18 +419,7 @@ hasEnvironmentalMetrics =
   any
     ( \metric ->
         mName metric
-          `elem` [ "CR",
-                   "IR",
-                   "AR",
-                   "MAV",
-                   "MAC",
-                   "MPR",
-                   "MUI",
-                   "MS",
-                   "MC",
-                   "MI",
-                   "MA"
-                 ]
+          `elem` [ "CR", "IR", "AR", "MAV", "MAC", "MPR", "MUI", "MS", "MC", "MI", "MA" ]
     )
 
 -- | Implementation of section 7.1. Base Metrics Equations
