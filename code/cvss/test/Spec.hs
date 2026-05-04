@@ -15,7 +15,8 @@ main =
   defaultMain $
     testGroup
       "Security.CVSS"
-      [ testCase "examples" testExamples
+      [ testCase "score examples" testExamples
+      , testCase "temporal score examples" testTemporalScore
       , testCase "CVSS 3.1 X temporal/env metrics do not change score"
           testNotDefinedOptionalNoScoreChange
       , testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip
@@ -49,7 +50,25 @@ examples =
     , ("AV:N/AC:M/Au:N/C:P/I:N/A:N", 4.3, CVSS.Medium)
     , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
       , 9.8, CVSS.Critical)
-    ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 9.8, CVSS.Critical)
+    ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
+    ]
+
+
+testTemporalScore :: Assertion
+testTemporalScore =
+  forM_ temporalScoreExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS{CVSS.cvssVersion = CVSS.CVSS31, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss31TemporalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+temporalScoreExamples :: [(Text, Float, CVSS.Rating)]
+temporalScoreExamples =
+    [ ("CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.0, CVSS.High)
+    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N/E:F/RL:O/RC:R", 6.7, CVSS.Medium)
+    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+      , 9.8, CVSS.Critical)
+    ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
     ]
 
 testNotDefinedOptionalNoScoreChange :: Assertion

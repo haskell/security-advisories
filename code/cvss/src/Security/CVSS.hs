@@ -9,7 +9,7 @@
 -- adapted from https://www.first.org/cvss/v3.1/specification-document
 module Security.CVSS
   ( -- * Type
-    CVSS (cvssVersion),
+    CVSS (..),
     CVSSVersion (..),
     Rating (..),
 
@@ -21,6 +21,7 @@ module Security.CVSS
     cvssVectorString,
     cvssVectorStringOrdered,
     cvssScore,
+    cvss31TemporalScore,
     cvssInfo,
   )
 where
@@ -42,7 +43,7 @@ data CVSSVersion
     CVSS30
   | -- | Version 2.0: https://www.first.org/cvss/v2/
     CVSS20
-  deriving (Eq)
+  deriving (Eq, Show)
 
 -- | Parsed CVSS string obtained with 'parseCVSS'.
 data CVSS = CVSS
@@ -402,9 +403,18 @@ roundup input
     int_input :: Int
     int_input = round (input * 100000)
 
--- | Implementation of section 7.1. Base Metrics Equations
 cvss31score :: [Metric] -> (Rating, Float)
-cvss31score metrics = (toRating score, score)
+cvss31score metrics
+  | hasTemporalMetrics metrics = cvss31TemporalScore metrics
+  | otherwise = cvss31BaseScore metrics
+
+hasTemporalMetrics :: [Metric] -> Bool
+hasTemporalMetrics =
+  any (\metric -> mName metric `elem` ["E", "RL", "RC"])
+
+-- | Implementation of section 7.1. Base Metrics Equations
+cvss31BaseScore :: [Metric] -> (Rating, Float)
+cvss31BaseScore metrics = (toRating score, score)
   where
     iss = 1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact")
     impact
@@ -424,6 +434,17 @@ cvss31score metrics = (toRating score, score)
     -- use Modified Scope (MS) instead of base Scope per spec Section 4.2:
     -- "if Scope / Modified Scope is Changed". The caller (or this function) will
     -- need to resolve MS when looking up scope-dependent values for MPR.
+
+cvss31TemporalScore :: [Metric] -> (Rating, Float)
+cvss31TemporalScore metrics = (toRating score, score)
+  where
+    (_, baseScore) = cvss31BaseScore metrics
+    exploitCodeMaturity = metricNumOr metrics 1.0 "Exploit Code Maturity"
+    remediationLevel = metricNumOr metrics 1.0 "Remediation Level"
+    reportConfidence = metricNumOr metrics 1.0 "Report Confidence"
+    score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
+    metricNumOr :: [Metric] -> Float -> Text -> Float
+    metricNumOr metrics scope name = getMetricValue cvss31 metrics scope name
 
 getMetricValue :: CVSSDB -> [Metric] -> Float -> Text -> Float
 getMetricValue db metrics scope name = case mValue of
