@@ -17,6 +17,7 @@ main =
       "Security.CVSS"
       [ testCase "score examples" testExamples
       , testCase "temporal score examples" testTemporalScore
+      , testCase "environmental score examples" testEnvironmentalScore
       , testCase "CVSS 3.1 X temporal/env metrics do not change score"
           testNotDefinedOptionalNoScoreChange
       , testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip
@@ -69,6 +70,34 @@ temporalScoreExamples =
     , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
       , 9.8, CVSS.Critical)
     ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
+    ]
+
+testEnvironmentalScore :: Assertion
+testEnvironmentalScore =
+  forM_ environmentalScoreExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS{CVSS.cvssVersion = CVSS.CVSS31, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss31EnvironmentalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+environmentalScoreExamples :: [(Text, Float, CVSS.Rating)]
+environmentalScoreExamples =
+
+    [ -- https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator?vector=AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/RL:X/RC:X/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N&version=3.1
+      ( "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N"
+      , 6.5
+      , CVSS.Medium
+      )
+    , ( "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+      , 9.8
+      , CVSS.Critical
+      )
+    -- Tests Modified Scope + MPR changed-scope override.
+    -- MPR:H should use 0.50 when MS:C, not 0.27.
+    , ( "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/CR:M/IR:M/AR:M/MAV:N/MAC:L/MPR:H/MUI:N/MS:C/MC:L/MI:L/MA:N"
+      , 5.5
+      , CVSS.Medium
+      )
     ]
 
 testNotDefinedOptionalNoScoreChange :: Assertion

@@ -22,6 +22,7 @@ module Security.CVSS
     cvssVectorStringOrdered,
     cvssScore,
     cvss31TemporalScore,
+    cvss31EnvironmentalScore,
     cvssInfo,
   )
 where
@@ -405,12 +406,32 @@ roundup input
 
 cvss31score :: [Metric] -> (Rating, Float)
 cvss31score metrics
+  | hasEnvironmentalMetrics metrics = cvss31EnvironmentalScore metrics
   | hasTemporalMetrics metrics = cvss31TemporalScore metrics
   | otherwise = cvss31BaseScore metrics
 
 hasTemporalMetrics :: [Metric] -> Bool
 hasTemporalMetrics =
   any (\metric -> mName metric `elem` ["E", "RL", "RC"])
+
+hasEnvironmentalMetrics :: [Metric] -> Bool
+hasEnvironmentalMetrics =
+  any
+    ( \metric ->
+        mName metric
+          `elem` [ "CR",
+                   "IR",
+                   "AR",
+                   "MAV",
+                   "MAC",
+                   "MPR",
+                   "MUI",
+                   "MS",
+                   "MC",
+                   "MI",
+                   "MA"
+                 ]
+    )
 
 -- | Implementation of section 7.1. Base Metrics Equations
 cvss31BaseScore :: [Metric] -> (Rating, Float)
@@ -439,17 +460,125 @@ cvss31TemporalScore :: [Metric] -> (Rating, Float)
 cvss31TemporalScore metrics = (toRating score, score)
   where
     (_, baseScore) = cvss31BaseScore metrics
-    exploitCodeMaturity = metricNumOr metrics 1.0 "Exploit Code Maturity"
-    remediationLevel = metricNumOr metrics 1.0 "Remediation Level"
-    reportConfidence = metricNumOr metrics 1.0 "Report Confidence"
+    exploitCodeMaturity = gmOr metrics 1.0 "Exploit Code Maturity"
+    remediationLevel = gmOr metrics 1.0 "Remediation Level"
+    reportConfidence = gmOr metrics 1.0 "Report Confidence"
     score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
-    metricNumOr :: [Metric] -> Float -> Text -> Float
-    metricNumOr metrics scope name = getMetricValue cvss31 metrics scope name
+
+-- | Implementation of section 7.3. Environmental Metrics Equations
+cvss31EnvironmentalScore :: [Metric] -> (Rating, Float)
+cvss31EnvironmentalScore metrics = (toRating score, score)
+  where
+    {- MISS = Minimum (
+      1 - [(1 - ConfidentialityRequirement × ModifiedConfidentiality)
+           × (1 - IntegrityRequirement × ModifiedIntegrity)
+           × (1 - AvailabilityRequirement × ModifiedAvailability) ], 0.915)
+    -}
+    miss =
+      min
+        ( 1
+            - (1 - confidentialityRequirement * modifiedConfidentiality)
+              * (1 - integrityRequirement * modifiedIntegrity)
+              * (1 - availabilityRequirement * modifiedAvailability)
+        )
+        0.915
+    {-
+    ModifiedImpact =
+    If ModifiedScope is Unchanged 6.42 × MISS
+    If ModifiedScope is Changed   7.52 × (MISS - 0.029) - 3.25 × (MISS × 0.9731 - 0.02)^13
+    -}
+    modifiedImpact
+      | modifiedScope == Unchanged = 6.42 * miss
+      | otherwise = 7.52 * (miss - 0.029) - 3.25 * powerFloat (miss * 0.9731 - 0.02) 13
+
+    {-
+      ModifiedExploitability = 8.22 × ModifiedAttackVector × ModifiedAttackComplexity
+        × ModifiedPrivilegesRequired × ModifiedUserInteraction
+    -}
+    modifiedExploitability =
+      8.22
+        * modifiedAttackVector
+        * modifiedAttackComplexity
+        * modifiedPrivilegesRequired
+        * modifiedUserInteraction
+
+    {-
+    EnvironmentalScore =
+    If ModifiedImpact \<= 0   0, else
+    If ModifiedScope is Unchanged
+       Roundup ( Roundup [Minimum ([ModifiedImpact + ModifiedExploitability], 10) ]
+           × ExploitCodeMaturity × RemediationLevel × ReportConfidence)
+    If ModifiedScope is Changed
+    	Roundup ( Roundup [Minimum (1.08 × [ModifiedImpact + ModifiedExploitability], 10) ]
+    	   × ExploitCodeMaturity × RemediationLevel × ReportConfidence)
+    -}
+    envScoreHelper
+      | modifiedImpact <= 0 = 0
+      | modifiedScope == Unchanged =
+          roundup (min (modifiedImpact + modifiedExploitability) 10)
+      | otherwise =
+          roundup (min (1.08 * (modifiedImpact + modifiedExploitability)) 10)
+
+    score
+      | modifiedImpact <= 0 = 0
+      | otherwise =
+          roundup
+            ( envScoreHelper
+                * exploitCodeMaturity
+                * remediationLevel
+                * reportConfidence
+            )
+
+    exploitCodeMaturity = gmOr metrics 1.0 "Exploit Code Maturity"
+    remediationLevel = gmOr metrics 1.0 "Remediation Level"
+    reportConfidence = gmOr metrics 1.0 "Report Confidence"
+    confidentialityRequirement = gmOr metrics 1.0 "Confidentiality Requirement"
+    integrityRequirement = gmOr metrics 1.0 "Integrity Requirement"
+    availabilityRequirement = gmOr metrics 1.0 "Availability Requirement"
+    modifiedAttackVector = modifiedMetricValue "Modified Attack Vector" "Attack Vector" modifiedScope
+    modifiedAttackComplexity = modifiedMetricValue "Modified Attack Complexity" "Attack Complexity" modifiedScope
+    modifiedPrivilegesRequired = modifiedMetricValue "Modified Privileges Required" "Privileges Required" modifiedScope
+    modifiedUserInteraction = modifiedMetricValue "Modified User Interaction" "User Interaction" modifiedScope
+    modifiedScope = modifiedMetricValue "Modified Scope" "Scope" Unchanged
+    modifiedConfidentiality = modifiedMetricValue "Modified Confidentiality" "Confidentiality Impact" modifiedScope
+    modifiedIntegrity = modifiedMetricValue "Modified Integrity" "Integrity Impact" modifiedScope
+    modifiedAvailability = modifiedMetricValue "Modified Availability" "Availability Impact" modifiedScope
+
+    modifiedMetricValue :: Text -> Text -> Float -> Float
+    modifiedMetricValue modifiedName baseName scope =
+      case lookupMetricValueCharByName cvss31 metrics modifiedName of
+        Just (C 'X') -> getMetricValue cvss31 metrics scope baseName
+        Just _ -> getMetricValue cvss31 metrics scope modifiedName
+        Nothing -> getMetricValue cvss31 metrics scope baseName
+
+gmOr :: [Metric] -> Float -> Text -> Float
+gmOr metrics defaultValue name =
+  getMetricValueOr cvss31 metrics defaultValue Unchanged name
+
+lookupMetricValueCharByName :: CVSSDB -> [Metric] -> Text -> Maybe MetricValueChar
+lookupMetricValueCharByName db metrics name = do
+  mi <- find (\mi -> miName mi == name) (allMetrics db)
+  Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
+  pure valueChar
 
 getMetricValue :: CVSSDB -> [Metric] -> Float -> Text -> Float
 getMetricValue db metrics scope name = case mValue of
   Nothing -> error $ "The impossible have happened, unknown metric: " <> Text.unpack name
   Just v -> v
+  where
+    mValue = do
+      mi <- find (\mi -> miName mi == name) (allMetrics db)
+      Metric _ valueChar <- find (\metric -> miShortName mi == mName metric) metrics
+      mv <- find (\mv -> mvChar mv == valueChar) (miValues mi)
+      pure $ case mvNumChangedScope mv of
+        Just value | scope /= Unchanged -> value
+        _ -> mvNum mv
+
+getMetricValueOr :: CVSSDB -> [Metric] -> Float -> Float -> Text -> Float
+getMetricValueOr db metrics defaultValue scope name =
+  case mValue of
+    Nothing -> defaultValue
+    Just v -> v
   where
     mValue = do
       mi <- find (\mi -> miName mi == name) (allMetrics db)
