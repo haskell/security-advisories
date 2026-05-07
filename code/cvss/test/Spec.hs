@@ -15,12 +15,14 @@ main =
   defaultMain $
     testGroup
       "Security.CVSS"
-      [ testCase "score examples" testExamples
-      , testCase "temporal score examples" testTemporalScore
-      , testCase "environmental score examples" testEnvironmentalScore
-      , testCase "CVSS 3.1 X temporal/env metrics do not change score"
-          testNotDefinedOptionalNoScoreChange
-      , testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip
+      [ testCase "score examples" testExamples,
+        testCase "temporal score examples" testTemporalScore,
+        testCase "environmental score examples" testEnvironmentalScore,
+        testCase
+          "CVSS 3.1 X temporal/env metrics do not change score"
+          testNotDefinedOptionalNoScoreChange,
+        testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip,
+        testCase "CVSS v2.0 rating boundary tests" testCVSS20RatingBoundaries
       ]
 
 testExamples :: Assertion
@@ -35,70 +37,72 @@ testExamples =
 
 examples :: [(Text, Float, CVSS.Rating)]
 examples =
-    [ ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:L/A:N", 5.8, CVSS.Medium)
-    , ("CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium)
-    , ("CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low)
-    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N", 7.5, CVSS.High)
-    , ("CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N", 6.1, CVSS.Medium)
-    , ("CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium)
-    , ("CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low)
-    , ("CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N", 4.0, CVSS.Medium)
-    , ("CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H", 9.9, CVSS.Critical)
-    , ("CVSS:3.0/AV:L/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:L", 4.2, CVSS.Medium)
-    , ("AV:N/AC:L/Au:N/C:N/I:N/A:C", 7.8, CVSS.High)
-    , ("AV:N/AC:L/Au:N/C:C/I:C/A:C", 10, CVSS.Critical)
-    , ("AV:L/AC:H/Au:N/C:C/I:C/A:C", 6.2, CVSS.Medium)
-    , ("AV:N/AC:M/Au:N/C:P/I:N/A:N", 4.3, CVSS.Medium)
-    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
-      , 9.8, CVSS.Critical)
-    ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
-    ]
-
+  [ ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:L/A:N", 5.8, CVSS.Medium),
+    ("CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium),
+    ("CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low),
+    ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N", 7.5, CVSS.High),
+    ("CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N", 6.1, CVSS.Medium),
+    ("CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:L/A:N", 6.4, CVSS.Medium),
+    ("CVSS:3.0/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:N/A:N", 3.1, CVSS.Low),
+    ("CVSS:3.0/AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N", 4.0, CVSS.Medium),
+    ("CVSS:3.0/AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:H/A:H", 9.9, CVSS.Critical),
+    ("CVSS:3.0/AV:L/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:L", 4.2, CVSS.Medium),
+    ("AV:N/AC:L/Au:N/C:N/I:N/A:C", 7.8, CVSS.High),
+    ("AV:N/AC:L/Au:N/C:C/I:C/A:C", 10, CVSS.High),
+    ("AV:L/AC:H/Au:N/C:C/I:C/A:C", 6.2, CVSS.Medium),
+    ("AV:N/AC:M/Au:N/C:P/I:N/A:N", 4.3, CVSS.Medium),
+    ( "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X",
+      9.8,
+      CVSS.Critical
+    ),
+    ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
+  ]
 
 testTemporalScore :: Assertion
 testTemporalScore =
   forM_ temporalScoreExamples $ \(cvssString, score, rating) -> do
     case CVSS.parseCVSS cvssString of
-      Right CVSS.CVSS{CVSS.cvssVersion = CVSS.CVSS31, CVSS.cvssMetrics = cm} -> do
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS31, CVSS.cvssMetrics = cm} -> do
         CVSS.cvss31TemporalScore cm @?= (rating, score)
       other -> assertFailure (show other)
 
 temporalScoreExamples :: [(Text, Float, CVSS.Rating)]
 temporalScoreExamples =
-    [ ("CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.0, CVSS.High)
-    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N/E:F/RL:O/RC:R", 6.7, CVSS.Medium)
-    , ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
-      , 9.8, CVSS.Critical)
-    ,  ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
-    ]
+  [ ("CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.0, CVSS.High),
+    ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N/E:F/RL:O/RC:R", 6.7, CVSS.Medium),
+    ( "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X",
+      9.8,
+      CVSS.Critical
+    ),
+    ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
+  ]
 
 testEnvironmentalScore :: Assertion
 testEnvironmentalScore =
   forM_ environmentalScoreExamples $ \(cvssString, score, rating) -> do
     case CVSS.parseCVSS cvssString of
-      Right CVSS.CVSS{CVSS.cvssVersion = CVSS.CVSS31, CVSS.cvssMetrics = cm} -> do
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS31, CVSS.cvssMetrics = cm} -> do
         CVSS.cvss31EnvironmentalScore cm @?= (rating, score)
       other -> assertFailure (show other)
 
 environmentalScoreExamples :: [(Text, Float, CVSS.Rating)]
 environmentalScoreExamples =
-
-    [ -- https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator?vector=AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/RL:X/RC:X/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N&version=3.1
-      ( "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N"
-      , 6.5
-      , CVSS.Medium
-      )
-    , ( "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
-      , 9.8
-      , CVSS.Critical
-      )
+  [ -- https://nvd.nist.gov/vuln-metrics/cvss/v3-calculator?vector=AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/RL:X/RC:X/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N&version=3.1
+    ( "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N",
+      6.5,
+      CVSS.Medium
+    ),
+    ( "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X",
+      9.8,
+      CVSS.Critical
+    ),
     -- Tests Modified Scope + MPR changed-scope override.
     -- MPR:H should use 0.50 when MS:C, not 0.27.
-    , ( "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/CR:M/IR:M/AR:M/MAV:N/MAC:L/MPR:H/MUI:N/MS:C/MC:L/MI:L/MA:N"
-      , 5.5
-      , CVSS.Medium
-      )
-    ]
+    ( "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/CR:M/IR:M/AR:M/MAV:N/MAC:L/MPR:H/MUI:N/MS:C/MC:L/MI:L/MA:N",
+      5.5,
+      CVSS.Medium
+    )
+  ]
 
 testNotDefinedOptionalNoScoreChange :: Assertion
 testNotDefinedOptionalNoScoreChange = do
@@ -150,16 +154,33 @@ cvss31Vector metrics = Text.intercalate "/" ("CVSS:3.1" : metrics)
 base31Vector :: Base31 -> Text
 base31Vector b =
   cvss31Vector
-    [ metric "AV" (bAV b)
-    , metric "AC" (bAC b)
-    , metric "PR" (bPR b)
-    , metric "UI" (bUI b)
-    , metric "S"  (bS b)
-    , metric "C"  (bC b)
-    , metric "I"  (bI b)
-    , metric "A"  (bA b)
+    [ metric "AV" (bAV b),
+      metric "AC" (bAC b),
+      metric "PR" (bPR b),
+      metric "UI" (bUI b),
+      metric "S" (bS b),
+      metric "C" (bC b),
+      metric "I" (bI b),
+      metric "A" (bA b)
     ]
 
 notDefinedTemporalEnv :: Text
 notDefinedTemporalEnv =
   "/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+
+testCVSS20RatingBoundaries :: Assertion
+testCVSS20RatingBoundaries =
+  forM_ cvss20BoundaryTests $ \(score, expectedRating) -> do
+    CVSS.toRating20 score @?= expectedRating
+
+cvss20BoundaryTests :: [(Float, CVSS.Rating)]
+cvss20BoundaryTests =
+  [ (0, CVSS.None), -- Score 0 maps to None
+    (0.1, CVSS.Low), -- Low: 0.0-3.9
+    (3.9, CVSS.Low), -- Upper bound of Low
+    (4.0, CVSS.Medium), -- Medium: 4.0-6.9
+    (6.9, CVSS.Medium), -- Upper bound of Medium
+    (7.0, CVSS.High), -- High: 7.0-10.0
+    (9.0, CVSS.High), -- Scores that would be Critical in v3.1 are High in v2
+    (10, CVSS.High) -- Maximum score
+  ]

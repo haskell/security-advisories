@@ -24,6 +24,7 @@ module Security.CVSS
     cvss31TemporalScore,
     cvss31EnvironmentalScore,
     cvssInfo,
+    toRating20,
   )
 where
 
@@ -70,6 +71,15 @@ toRating score
   | score < 7 = Medium
   | score < 9 = High
   | otherwise = Critical
+
+-- | CVSS v2.0 Qualitative Severity Rating Scale (Section 5)
+-- v2 uses different bands: Low (0.0-3.9), Medium (4.0-6.9), High (7.0-10.0)
+toRating20 :: Float -> Rating
+toRating20 score
+  | score <= 0 = None
+  | score < 4 = Low
+  | score < 7 = Medium
+  | otherwise = High
 
 data CVSSError
   = UnknownVersion
@@ -362,11 +372,11 @@ cvss31 =
     mkEnvMedium m = MetricValue "Medium" (C 'M') 1 Nothing $ mkEnvMediumMsg m
     mkEnvLowMsg m = "Loss of " <> m <> " is likely to have only a limited adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
     mkEnvLow m = MetricValue "Low" (C 'L') 0.5 Nothing $ mkEnvLowMsg m
-     -- FUTUREWORK: Per spec Section 4.2, Modified Base Metric "Not Defined" means                                                                                                                                                          
-     -- "use the value of the corresponding Base Metric." Currently set to 0, which                                                                                                                                                         
-     -- is incorrect once environmental scoring (MISS, ModifiedImpact, etc.) is                                                                                                                                                             
-     -- implemented. The scoring code should substitute the base metric value when                                                                                                                                                          
-     -- encountering 'X', rather than using mvNum = 0 here.
+    -- FUTUREWORK: Per spec Section 4.2, Modified Base Metric "Not Defined" means
+    -- "use the value of the corresponding Base Metric." Currently set to 0, which
+    -- is incorrect once environmental scoring (MISS, ModifiedImpact, etc.) is
+    -- implemented. The scoring code should substitute the base metric value when
+    -- encountering 'X', rather than using mvNum = 0 here.
     mkModifiedUndef = MetricValue "Not Defined" (C 'X') 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score"
 
 pattern C :: Char -> MetricValueChar
@@ -419,7 +429,7 @@ hasEnvironmentalMetrics =
   any
     ( \metric ->
         mName metric
-          `elem` [ "CR", "IR", "AR", "MAV", "MAC", "MPR", "MUI", "MS", "MC", "MI", "MA" ]
+          `elem` ["CR", "IR", "AR", "MAV", "MAC", "MPR", "MUI", "MS", "MC", "MI", "MA"]
     )
 
 -- | Implementation of section 7.1. Base Metrics Equations
@@ -751,7 +761,7 @@ validateCvss20 metrics = do
 
 -- | Implementation of section 3.2.1. "Base Equation"
 cvss20score :: [Metric] -> (Rating, Float)
-cvss20score metrics = (toRating score, score)
+cvss20score metrics = (toRating20 score, score)
   where
     score = round_to_1_decimal ((0.6 * impact + 0.4 * exploitability - 1.5) * fImpact)
     impact = 10.41 * (1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact"))
