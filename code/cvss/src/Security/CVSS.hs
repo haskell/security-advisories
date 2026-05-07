@@ -375,12 +375,7 @@ cvss31 =
     mkEnvMedium m = MetricValue "Medium" (C "M") 1 Nothing $ mkEnvMediumMsg m
     mkEnvLowMsg m = "Loss of " <> m <> " is likely to have only a limited adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
     mkEnvLow m = MetricValue "Low" (C "L") 0.5 Nothing $ mkEnvLowMsg m
-    -- FUTUREWORK: Per spec Section 4.2, Modified Base Metric "Not Defined" means
-    -- "use the value of the corresponding Base Metric." Currently set to 0, which
-    -- is incorrect once environmental scoring (MISS, ModifiedImpact, etc.) is
-    -- implemented. The scoring code should substitute the base metric value when
-    -- encountering 'X', rather than using mvNum = 0 here.
-    mkModifiedUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score"
+    mkModifiedUndef = MetricValue "Not Defined" (C "X") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score" -- Not Defined (X): mvNum is ignored in scoring; getModifiedMetricValue substitutes the base metric value
 
 pattern C :: Text -> MetricValueChar
 pattern C c = MetricValueChar c
