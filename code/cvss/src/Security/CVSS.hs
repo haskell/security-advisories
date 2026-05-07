@@ -126,6 +126,7 @@ data Metric = Metric
 -- | Parse a CVSS string.
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
+  | "CVSS:4.0/" `Text.isPrefixOf` txt = CVSS CVSS40 <$> validateComponents True validateCvss40
   | "CVSS:3.1/" `Text.isPrefixOf` txt = CVSS CVSS31 <$> validateComponents True validateCvss31
   | "CVSS:3.0/" `Text.isPrefixOf` txt = CVSS CVSS30 <$> validateComponents True validateCvss30
   | "CVSS:" `Text.isPrefixOf` txt = Left UnknownVersion
@@ -1021,6 +1022,11 @@ cvss20 =
 validateCvss20 :: [Metric] -> Either CVSSError [Metric]
 validateCvss20 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss20, validateRequired cvss20]
+  pure metrics
+
+validateCvss40 :: [Metric] -> Either CVSSError [Metric]
+validateCvss40 metrics = do
+  traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss40, validateRequired cvss40]
   pure metrics
 
 cvss40 :: CVSSDB
