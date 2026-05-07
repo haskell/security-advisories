@@ -22,7 +22,9 @@ main =
           "CVSS 3.1 X temporal/env metrics do not change score"
           testNotDefinedOptionalNoScoreChange,
         testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip,
-        testCase "CVSS v2.0 rating boundary tests" testCVSS20RatingBoundaries
+        testCase "CVSS v2.0 rating boundary tests" testCVSS20RatingBoundaries,
+        testCase "CVSS v2.0 temporal score examples" testCVSS20TemporalScore,
+        testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange
       ]
 
 testExamples :: Assertion
@@ -184,3 +186,27 @@ cvss20BoundaryTests =
     (9.0, CVSS.High), -- Scores that would be Critical in v3.1 are High in v2
     (10, CVSS.High) -- Maximum score
   ]
+
+testCVSS20TemporalScore :: Assertion
+testCVSS20TemporalScore =
+  forM_ cvss20TemporalExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS20, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss20TemporalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+cvss20TemporalExamples :: [(Text, Float, CVSS.Rating)]
+cvss20TemporalExamples =
+  [ -- High severity base with ND temporal (should give same score as base)
+    ("AV:N/AC:L/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND", 10.0, CVSS.High),
+    ("AV:N/AC:L/Au:N/C:N/I:N/A:C/E:ND/RL:ND/RC:ND", 7.8, CVSS.High)
+  ]
+
+testCVSS20NotDefinedNoScoreChange :: Assertion
+testCVSS20NotDefinedNoScoreChange = do
+  let baseVector = "AV:N/AC:L/Au:N/C:C/I:C/A:C"
+      fullVector = baseVector <> "/E:ND/RL:ND/RC:ND"
+  case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
+    (Right baseCvss, Right fullCvss) ->
+      CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
+    _ -> assertFailure ("base or full vector parse failed")

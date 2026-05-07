@@ -21,6 +21,7 @@ module Security.CVSS
     cvssVectorString,
     cvssVectorStringOrdered,
     cvssScore,
+    cvss20TemporalScore,
     cvss31TemporalScore,
     cvss31EnvironmentalScore,
     cvssInfo,
@@ -88,7 +89,7 @@ data CVSSError
   | DuplicateMetric Text
   | MissingRequiredMetric Text
   | UnknownMetric Text
-  | UnknownValue Text Char
+  | UnknownValue Text Text
 
 instance Show CVSSError where
   show = Text.unpack . showCVSSError
@@ -101,13 +102,13 @@ showCVSSError e = case e of
   DuplicateMetric name -> "Duplicate metric for \"" <> name <> "\""
   MissingRequiredMetric name -> "Missing required metric \"" <> name <> "\""
   UnknownMetric name -> "Unknown metric \"" <> name <> "\""
-  UnknownValue name value -> "Unknown value '" <> Text.pack (show value) <> "' for \"" <> name <> "\""
+  UnknownValue name value -> "Unknown value '" <> value <> "' for \"" <> name <> "\""
 
 newtype MetricShortName = MetricShortName Text
   deriving newtype (Eq, IsString, Ord, Show)
 
-newtype MetricValueChar = MetricValueChar Char
-  deriving newtype (Eq, Ord, Show)
+newtype MetricValueChar = MetricValueChar Text
+  deriving newtype (Eq, IsString, Ord, Show)
 
 data Metric = Metric
   { mName :: MetricShortName,
@@ -131,11 +132,12 @@ parseCVSS txt
 
     components withPrefix = (if withPrefix then drop 1 else id) $ Text.split (== '/') txt
     splitComponent :: Text -> Either CVSSError Metric
-    splitComponent componentTxt = case Text.unsnoc componentTxt of
-      Nothing -> Left EmptyComponent
-      Just (rest, c) -> case Text.unsnoc rest of
-        Just (name, ':') -> Right (Metric (MetricShortName name) (MetricValueChar c))
-        _ -> Left (MissingValue componentTxt)
+    splitComponent componentTxt = case Text.breakOnEnd ":" componentTxt of
+      ("", _) -> Left EmptyComponent
+      (_, "") -> Left (MissingValue componentTxt)
+      (nameWithColon, valueText) ->
+        let name = Text.init nameWithColon
+         in Right (Metric (MetricShortName name) (MetricValueChar valueText))
 
 -- | Compute the base score.
 cvssScore :: CVSS -> (Rating, Float)
@@ -164,7 +166,7 @@ cvssShow ordered cvss = case cvssVersion cvss of
   where
     components = map toComponent (cvssOrder (cvssMetrics cvss))
     toComponent :: Metric -> Text
-    toComponent (Metric (MetricShortName name) (MetricValueChar value)) = Text.snoc (name <> ":") value
+    toComponent (Metric (MetricShortName name) (MetricValueChar value)) = name <> ":" <> value
     cvssOrder metrics
       | ordered = mapMaybe getMetric (allMetrics (cvssDB (cvssVersion cvss)))
       | otherwise = metrics
@@ -254,27 +256,27 @@ cvss31 =
           aValues
       ]
     avValues =
-      [ MetricValue "Network" (C 'N') 0.85 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet.",
-        MetricValue "Adjacent" (C 'A') 0.62 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology.",
-        MetricValue "Local" (C 'L') 0.55 Nothing "The vulnerable component is not bound to the network stack and the attacker’s path is via read/write/execute capabilities.",
-        MetricValue "Physical" (C 'P') 0.2 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
+      [ MetricValue "Network" (C "N") 0.85 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet.",
+        MetricValue "Adjacent" (C "A") 0.62 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology.",
+        MetricValue "Local" (C "L") 0.55 Nothing "The vulnerable component is not bound to the network stack and the attacker's path is via read/write/execute capabilities.",
+        MetricValue "Physical" (C "P") 0.2 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
       ]
     acValues =
-      [ MetricValue "Low" (C 'L') 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
-        MetricValue "High" (C 'H') 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
+      [ MetricValue "Low" (C "L") 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
+        MetricValue "High" (C "H") 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
       ]
     prValues =
-      [ MetricValue "None" (C 'N') 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack.",
-        MetricValue "Low" (C 'L') 0.62 (Just 0.68) "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
-        MetricValue "High" (C 'H') 0.27 (Just 0.5) "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
+      [ MetricValue "None" (C "N") 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack.",
+        MetricValue "Low" (C "L") 0.62 (Just 0.68) "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
+        MetricValue "High" (C "H") 0.27 (Just 0.5) "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
       ]
     uiValues =
-      [ MetricValue "None" (C 'N') 0.85 Nothing "The vulnerable system can be exploited without interaction from any user.",
-        MetricValue "Required" (C 'R') 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
+      [ MetricValue "None" (C "N") 0.85 Nothing "The vulnerable system can be exploited without interaction from any user.",
+        MetricValue "Required" (C "R") 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
       ]
     sValues =
-      [ MetricValue "Unchanged" (C 'U') Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same security authority.",
-        MetricValue "Changed" (C 'C') Changed Nothing "An exploited vulnerability can affect resources beyond the security scope managed by the security authority of the vulnerable component."
+      [ MetricValue "Unchanged" (C "U") Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same security authority.",
+        MetricValue "Changed" (C "C") Changed Nothing "An exploited vulnerability can affect resources beyond the security scope managed by the security authority of the vulnerable component."
       ]
     cValues =
       [ mkHigh "There is a total loss of confidentiality, resulting in all resources within the impacted component being divulged to the attacker.",
@@ -291,41 +293,41 @@ cvss31 =
         mkLow "Performance is reduced or there are interruptions in resource availability.",
         mkNone "There is no impact to availability within the impacted component."
       ]
-    mkHigh = MetricValue "High" (C 'H') 0.56 Nothing
-    mkLow = MetricValue "Low" (C 'L') 0.22 Nothing
-    mkNone = MetricValue "None" (C 'N') 0 Nothing
+    mkHigh = MetricValue "High" (C "H") 0.56 Nothing
+    mkLow = MetricValue "Low" (C "L") 0.22 Nothing
+    mkNone = MetricValue "None" (C "N") 0 Nothing
     temporalMetrics =
       [ MetricInfo
           "Exploit Code Maturity"
           "E"
           False
           [ mkTemporalUndef "High",
-            MetricValue "High" (C 'H') 1 Nothing "Functional autonomous code exists, or no exploit is required (manual trigger) and details are widely available. Exploit code works in every situation, or is actively being delivered via an autonomous agent (such as a worm or virus). Network-connected systems are likely to encounter scanning or exploitation attempts. Exploit development has reached the level of reliable, widely available, easy-to-use automated tools.",
-            MetricValue "Functional" (C 'F') 0.97 Nothing "Functional exploit code is available. The code works in most situations where the vulnerability exists.",
-            MetricValue "Proof of Concept" (C 'P') 0.94 Nothing "Proof-of-concept exploit code is available, or an attack demonstration is not practical for most systems. The code or technique is not functional in all situations and may require substantial modification by a skilled attacker.",
-            MetricValue "Unproven" (C 'U') 0.91 Nothing "No exploit code is available, or an exploit is theoretical."
+            MetricValue "High" (C "H") 1 Nothing "Functional autonomous code exists, or no exploit is required (manual trigger) and details are widely available. Exploit code works in every situation, or is actively being delivered via an autonomous agent (such as a worm or virus). Network-connected systems are likely to encounter scanning or exploitation attempts. Exploit development has reached the level of reliable, widely available, easy-to-use automated tools.",
+            MetricValue "Functional" (C "F") 0.97 Nothing "Functional exploit code is available. The code works in most situations where the vulnerability exists.",
+            MetricValue "Proof of Concept" (C "P") 0.94 Nothing "Proof-of-concept exploit code is available, or an attack demonstration is not practical for most systems. The code or technique is not functional in all situations and may require substantial modification by a skilled attacker.",
+            MetricValue "Unproven" (C "U") 0.91 Nothing "No exploit code is available, or an exploit is theoretical."
           ],
         MetricInfo
           "Remediation Level"
           "RL"
           False
           [ mkTemporalUndef "Unavailable",
-            MetricValue "Unavailable" (C 'U') 1 Nothing "There is either no solution available or it is impossible to apply.",
-            MetricValue "Workaround" (C 'W') 0.97 Nothing "There is an unofficial, non-vendor solution available. In some cases, users of the affected technology will create a patch of their own or provide steps to work around or otherwise mitigate the vulnerability.",
-            MetricValue "Temporary Fix" (C 'T') 0.96 Nothing "There is an official but temporary fix available. This includes instances where the vendor issues a temporary hotfix, tool, or workaround.",
-            MetricValue "Official Fix" (C 'O') 0.95 Nothing "A complete vendor solution is available. Either the vendor has issued an official patch, or an upgrade is available."
+            MetricValue "Unavailable" (C "U") 1 Nothing "There is either no solution available or it is impossible to apply.",
+            MetricValue "Workaround" (C "W") 0.97 Nothing "There is an unofficial, non-vendor solution available. In some cases, users of the affected technology will create a patch of their own or provide steps to work around or otherwise mitigate the vulnerability.",
+            MetricValue "Temporary Fix" (C "T") 0.96 Nothing "There is an official but temporary fix available. This includes instances where the vendor issues a temporary hotfix, tool, or workaround.",
+            MetricValue "Official Fix" (C "O") 0.95 Nothing "A complete vendor solution is available. Either the vendor has issued an official patch, or an upgrade is available."
           ],
         MetricInfo
           "Report Confidence"
           "RC"
           False
           [ mkTemporalUndef "Confirmed",
-            MetricValue "Confirmed" (C 'C') 1 Nothing "Detailed reports exist, or functional reproduction is possible (functional exploits may provide this). Source code is available to independently verify the assertions of the research, or the author or vendor of the affected code has confirmed the presence of the vulnerability.",
-            MetricValue "Reasonable" (C 'R') 0.96 Nothing "Significant details are published, but researchers either do not have full confidence in the root cause, or do not have access to source code to fully confirm all of the interactions that may lead to the result. Reasonable confidence exists, however, that the bug is reproducible and at least one impact is able to be verified (proof-of-concept exploits may provide this). An example is a detailed write-up of research into a vulnerability with an explanation (possibly obfuscated or “left as an exercise to the reader”) that gives assurances on how to reproduce the results.",
-            MetricValue "Unknown" (C 'U') 0.92 Nothing "There are reports of impacts that indicate a vulnerability is present. The reports indicate that the cause of the vulnerability is unknown, or reports may differ on the cause or impacts of the vulnerability. Reporters are uncertain of the true nature of the vulnerability, and there is little confidence in the validity of the reports or whether a static Base Score can be applied given the differences described. An example is a bug report which notes that an intermittent but non-reproducible crash occurs, with evidence of memory corruption suggesting that denial of service, or possible more serious impacts, may result."
+            MetricValue "Confirmed" (C "C") 1 Nothing "Detailed reports exist, or functional reproduction is possible (functional exploits may provide this). Source code is available to independently verify the assertions of the research, or the author or vendor of the affected code has confirmed the presence of the vulnerability.",
+            MetricValue "Reasonable" (C "R") 0.96 Nothing "Significant details are published, but researchers either do not have full confidence in the root cause, or do not have access to source code to fully confirm all of the interactions that may lead to the result. Reasonable confidence exists, however, that the bug is reproducible and at least one impact is able to be verified (proof-of-concept exploits may provide this). An example is a detailed write-up of research into a vulnerability with an explanation (possibly obfuscated or \"left as an exercise to the reader\") that gives assurances on how to reproduce the results.",
+            MetricValue "Unknown" (C "U") 0.92 Nothing "There are reports of impacts that indicate a vulnerability is present. The reports indicate that the cause of the vulnerability is unknown, or reports may differ on the cause or impacts of the vulnerability. Reporters are uncertain of the true nature of the vulnerability, and there is little confidence in the validity of the reports or whether a static Base Score can be applied given the differences described. An example is a bug report which notes that an intermittent but non-reproducible crash occurs, with evidence of memory corruption suggesting that denial of service, or possible more serious impacts, may result."
           ]
       ]
-    mkTemporalUndef m = MetricValue "Not Defined" (C 'X') 1 Nothing $ mkTemporalUndefMsg m
+    mkTemporalUndef m = MetricValue "Not Defined" (C "X") 1 Nothing $ mkTemporalUndefMsg m
     mkTemporalUndefMsg m = "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Temporal Score, i.e., it has the same effect on scoring as assigning " <> m <> "."
     environmentalMetrics =
       [ MetricInfo
@@ -365,21 +367,21 @@ cvss31 =
         MetricInfo "Modified Integrity" "MI" False $ mkModifiedUndef : iValues,
         MetricInfo "Modified Availability" "MA" False $ mkModifiedUndef : aValues
       ]
-    mkEnvUndef = MetricValue "Not Defined" (C 'X') 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium."
+    mkEnvUndef = MetricValue "Not Defined" (C "X") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium."
     mkEnvHighMsg m = "Loss of " <> m <> " is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
-    mkEnvHigh m = MetricValue "High" (C 'H') 1.5 Nothing $ mkEnvHighMsg m
+    mkEnvHigh m = MetricValue "High" (C "H") 1.5 Nothing $ mkEnvHighMsg m
     mkEnvMediumMsg m = "Loss of " <> m <> " is likely to have a serious adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
-    mkEnvMedium m = MetricValue "Medium" (C 'M') 1 Nothing $ mkEnvMediumMsg m
+    mkEnvMedium m = MetricValue "Medium" (C "M") 1 Nothing $ mkEnvMediumMsg m
     mkEnvLowMsg m = "Loss of " <> m <> " is likely to have only a limited adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
-    mkEnvLow m = MetricValue "Low" (C 'L') 0.5 Nothing $ mkEnvLowMsg m
+    mkEnvLow m = MetricValue "Low" (C "L") 0.5 Nothing $ mkEnvLowMsg m
     -- FUTUREWORK: Per spec Section 4.2, Modified Base Metric "Not Defined" means
     -- "use the value of the corresponding Base Metric." Currently set to 0, which
     -- is incorrect once environmental scoring (MISS, ModifiedImpact, etc.) is
     -- implemented. The scoring code should substitute the base metric value when
     -- encountering 'X', rather than using mvNum = 0 here.
-    mkModifiedUndef = MetricValue "Not Defined" (C 'X') 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score"
+    mkModifiedUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score"
 
-pattern C :: Char -> MetricValueChar
+pattern C :: Text -> MetricValueChar
 pattern C c = MetricValueChar c
 
 pattern Unchanged :: Float
@@ -551,7 +553,7 @@ cvss31EnvironmentalScore metrics = (toRating score, score)
     getModifiedMetricValue :: CVSSDB -> [Metric] -> Text -> Text -> Float -> Float
     getModifiedMetricValue db ms modifiedName baseName scope =
       case lookupMetricValueChar db ms modifiedName of
-        Just (C 'X') -> getMetricValue db ms scope baseName
+        Just (C "X") -> getMetricValue db ms scope baseName
         Just _ -> getMetricValue db ms scope modifiedName
         Nothing -> getMetricValue db ms scope baseName
 
@@ -609,39 +611,39 @@ cvss30 =
           "Attack Vector"
           "AV"
           True
-          [ MetricValue "Network" (C 'N') 0.85 Nothing "A vulnerability exploitable with network access means the vulnerable component is bound to the network stack and the attacker's path is through OSI layer 3 (the network layer).",
-            MetricValue "Adjacent" (C 'A') 0.62 Nothing "A vulnerability exploitable with adjacent network access means the vulnerable component is bound to the network stack",
-            MetricValue "Local" (C 'L') 0.55 Nothing "A vulnerability exploitable with Local access means that the vulnerable component is not bound to the network stack, and the attacker's path is via read/write/execute capabilities.",
-            MetricValue "Physical" (C 'P') 0.2 Nothing "A vulnerability exploitable with Physical access requires the attacker to physically touch or manipulate the vulnerable component."
+          [ MetricValue "Network" (C "N") 0.85 Nothing "A vulnerability exploitable with network access means that the vulnerable component is bound to the network stack and the attacker's path is through OSI layer 3 (the network layer).",
+            MetricValue "Adjacent" (C "A") 0.62 Nothing "A vulnerability exploitable with adjacent network access means that the vulnerable component is bound to the network stack",
+            MetricValue "Local" (C "L") 0.55 Nothing "A vulnerability exploitable with Local access means that the vulnerable component is not bound to the network stack, and the attacker's path is via read/write/execute capabilities.",
+            MetricValue "Physical" (C "P") 0.2 Nothing "A vulnerability exploitable with Physical access requires the attacker to physically touch or manipulate the vulnerable component."
           ],
         MetricInfo
           "Attack Complexity"
           "AC"
           True
-          [ MetricValue "Low" (C 'L') 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
-            MetricValue "High" (C 'H') 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
+          [ MetricValue "Low" (C "L") 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
+            MetricValue "High" (C "H") 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
           ],
         MetricInfo
           "Privileges Required"
           "PR"
           True
-          [ MetricValue "None" (C 'N') 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files to carry out an attack.",
-            MetricValue "Low" (C 'L') 0.62 (Just 0.68) "The attacker is authorized with (i.e. requires) privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
-            MetricValue "High" (C 'H') 0.27 (Just 0.5) "The attacker is authorized with (i.e. requires) privileges that provide significant (e.g. administrative) control over the vulnerable component that could affect component-wide settings and files."
+          [ MetricValue "None" (C "N") 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files to carry out an attack.",
+            MetricValue "Low" (C "L") 0.62 (Just 0.68) "The attacker is authorized with (i.e. requires) privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
+            MetricValue "High" (C "H") 0.27 (Just 0.5) "The attacker is authorized with (i.e. requires) privileges that provide significant (e.g., administrative) control over the vulnerable component that could affect component-wide settings and files."
           ],
         MetricInfo
           "User Interaction"
           "UI"
           True
-          [ MetricValue "None" (C 'N') 0.85 Nothing "The vulnerable system can be exploited without interaction from any user.",
-            MetricValue "Required" (C 'R') 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
+          [ MetricValue "None" (C "N") 0.85 Nothing "The vulnerable system can be exploited without interaction from any user.",
+            MetricValue "Required" (C "R") 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
           ],
         MetricInfo
           "Scope"
           "S"
           True
-          [ MetricValue "Unchanged" (C 'U') Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same authority.",
-            MetricValue "Changed" (C 'C') Changed Nothing "An exploited vulnerability can affect resources beyond the authorization privileges intended by the vulnerable component."
+          [ MetricValue "Unchanged" (C "U") Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same authority.",
+            MetricValue "Changed" (C "C") Changed Nothing "An exploited vulnerability can affect resources beyond the authorization privileges intended by the vulnerable component."
           ],
         MetricInfo
           "Confidentiality Impact"
@@ -668,9 +670,9 @@ cvss30 =
             mkNone "There is no impact to availability within the impacted component."
           ]
       ]
-    mkHigh = MetricValue "High" (C 'H') 0.56 Nothing
-    mkLow = MetricValue "Low" (C 'L') 0.22 Nothing
-    mkNone = MetricValue "None" (C 'N') 0 Nothing
+    mkHigh = MetricValue "High" (C "H") 0.56 Nothing
+    mkLow = MetricValue "Low" (C "L") 0.22 Nothing
+    mkNone = MetricValue "None" (C "N") 0 Nothing
 
 -- | Implementation of Section 8.1 "Base"
 cvss30score :: [Metric] -> (Rating, Float)
@@ -697,7 +699,8 @@ validateCvss30 metrics = do
 cvss20 :: CVSSDB
 cvss20 =
   CVSSDB
-    [ MetricGroup "Base" baseMetrics
+    [ MetricGroup "Base" baseMetrics,
+      MetricGroup "Temporal" temporalMetrics
     ]
   where
     baseMetrics =
@@ -705,25 +708,25 @@ cvss20 =
           "Access Vector"
           "AV"
           True
-          [ MetricValue "Local" (C 'L') 0.395 Nothing "A vulnerability exploitable with only local access requires the attacker to have either physical access to the vulnerable system or a local (shell) account.",
-            MetricValue "Adjacent Network" (C 'A') 0.646 Nothing "A vulnerability exploitable with adjacent network access requires the attacker to have access to either the broadcast or collision domain of the vulnerable software.",
-            MetricValue "Network" (C 'N') 1.0 Nothing "A vulnerability exploitable with network access means the vulnerable software is bound to the network stack and the attacker does not require local network access or local access."
+          [ MetricValue "Local" (C "L") 0.395 Nothing "A vulnerability exploitable with only local access requires the attacker to have either physical access to the vulnerable system or a local (shell) account.",
+            MetricValue "Adjacent Network" (C "A") 0.646 Nothing "A vulnerability exploitable with adjacent network access requires the attacker to have access to either the broadcast or collision domain of the vulnerable software.",
+            MetricValue "Network" (C "N") 1.0 Nothing "A vulnerability exploitable with network access means that the vulnerable software is bound to the network stack and the attacker does not require local network access or local access."
           ],
         MetricInfo
           "Access Complexity"
           "AC"
           True
-          [ MetricValue "High" (C 'H') 0.35 Nothing "Specialized access conditions exist.",
-            MetricValue "Medium" (C 'M') 0.61 Nothing "The access conditions are somewhat specialized.",
-            MetricValue "Low" (C 'L') 0.71 Nothing "Specialized access conditions or extenuating circumstances do not exist."
+          [ MetricValue "High" (C "H") 0.35 Nothing "Specialized access conditions exist.",
+            MetricValue "Medium" (C "M") 0.61 Nothing "The access conditions are somewhat specialized.",
+            MetricValue "Low" (C "L") 0.71 Nothing "Specialized access conditions or extenuating circumstances do not exist."
           ],
         MetricInfo
           "Authentication"
           "Au"
           True
-          [ MetricValue "Multiple" (C 'M') 0.45 Nothing "Exploiting the vulnerability requires that the attacker authenticate two or more times, even if the same credentials are used each time.",
-            MetricValue "Single" (C 'S') 0.56 Nothing "The vulnerability requires an attacker to be logged into the system (such as at a command line or via a desktop session or web interface).",
-            MetricValue "None" (C 'N') 0.704 Nothing "Authentication is not required to exploit the vulnerability."
+          [ MetricValue "Multiple" (C "M") 0.45 Nothing "Exploiting the vulnerability requires that the attacker authenticate two or more times, even if the same credentials are used each time.",
+            MetricValue "Single" (C "S") 0.56 Nothing "The vulnerability requires an attacker to be logged into the system (such as at a command line or via a desktop session or web interface).",
+            MetricValue "None" (C "N") 0.704 Nothing "Authentication is not required to exploit the vulnerability."
           ],
         MetricInfo
           "Confidentiality Impact"
@@ -750,9 +753,40 @@ cvss20 =
             mkComplete "There is a total shutdown of the affected resource."
           ]
       ]
-    mkNone = MetricValue "None" (C 'N') 0 Nothing
-    mkPartial = MetricValue "Partial" (C 'P') 0.275 Nothing
-    mkComplete = MetricValue "Complete" (C 'C') 0.660 Nothing
+    mkNone = MetricValue "None" (C "N") 0 Nothing
+    mkPartial = MetricValue "Partial" (C "P") 0.275 Nothing
+    mkComplete = MetricValue "Complete" (C "C") 0.660 Nothing
+    temporalMetrics =
+      [ MetricInfo
+          "Exploitability"
+          "E"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Temporal Score.",
+            MetricValue "Unproven" (C "U") 0.85 Nothing "No exploit code is available, or an exploit is theoretical.",
+            MetricValue "Proof of Concept" (C "POC") 0.9 Nothing "Proof-of-concept exploit code is available, or an attack demonstration is not practical for most systems.",
+            MetricValue "Functional" (C "F") 0.95 Nothing "Functional exploit code is available. The code works in most situations where the vulnerability exists.",
+            MetricValue "High" (C "H") 1.0 Nothing "Functional autonomous code exists, or no exploit is required (manual trigger) and details are widely available."
+          ],
+        MetricInfo
+          "Remediation Level"
+          "RL"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Temporal Score.",
+            MetricValue "Official Fix" (C "OF") 0.87 Nothing "A complete vendor solution is available. Either the vendor has issued an official patch, or an upgrade is available.",
+            MetricValue "Temporary Fix" (C "TF") 0.9 Nothing "There is an official but temporary fix available. This includes instances where the vendor issues a temporary hotfix, tool, or workaround.",
+            MetricValue "Workaround" (C "W") 0.95 Nothing "There is an unofficial, non-vendor solution available. In some cases, users of the affected technology will create a patch of their own or provide steps to work around or otherwise mitigate the vulnerability.",
+            MetricValue "Unavailable" (C "U") 1.0 Nothing "There is either no solution available or it is impossible to apply."
+          ],
+        MetricInfo
+          "Report Confidence"
+          "RC"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Temporal Score.",
+            MetricValue "Unconfirmed" (C "UC") 0.9 Nothing "There are reports of impacts that indicate a vulnerability is present. The reports indicate that the cause of the vulnerability is unknown, or reports may differ on the cause or impacts of the vulnerability.",
+            MetricValue "Uncorroborated" (C "UR") 0.95 Nothing "Significant details are published, but researchers either do not have full confidence in the root cause.",
+            MetricValue "Confirmed" (C "C") 1.0 Nothing "Detailed reports exist, or functional reproduction is possible (functional exploits may provide this). Source code is available to independently verify the assertions of the research."
+          ]
+      ]
 
 validateCvss20 :: [Metric] -> Either CVSSError [Metric]
 validateCvss20 metrics = do
@@ -761,7 +795,12 @@ validateCvss20 metrics = do
 
 -- | Implementation of section 3.2.1. "Base Equation"
 cvss20score :: [Metric] -> (Rating, Float)
-cvss20score metrics = (toRating20 score, score)
+cvss20score metrics
+  | hasTemporalMetrics metrics = cvss20TemporalScore metrics
+  | otherwise = cvss20BaseScore metrics
+
+cvss20BaseScore :: [Metric] -> (Rating, Float)
+cvss20BaseScore metrics = (toRating20 score, score)
   where
     score = round_to_1_decimal ((0.6 * impact + 0.4 * exploitability - 1.5) * fImpact)
     impact = 10.41 * (1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact"))
@@ -775,6 +814,22 @@ cvss20score metrics = (toRating20 score, score)
 
     gm :: Text -> Float
     gm = getMetricValue cvss20 metrics 0
+
+cvss20TemporalScore :: [Metric] -> (Rating, Float)
+cvss20TemporalScore metrics = (toRating20 score, score)
+  where
+    (_, baseScore) = cvss20BaseScore metrics
+    exploitability = optionalMetric20 metrics 1.0 "Exploitability"
+    remediationLevel = optionalMetric20 metrics 1.0 "Remediation Level"
+    reportConfidence = optionalMetric20 metrics 1.0 "Report Confidence"
+    score = round_to_1_decimal (baseScore * exploitability * remediationLevel * reportConfidence)
+
+    round_to_1_decimal :: Float -> Float
+    round_to_1_decimal x = fromIntegral @Int (round (x * 10)) / 10
+
+optionalMetric20 :: [Metric] -> Float -> Text -> Float
+optionalMetric20 metrics defaultValue =
+  getMetricValueOr cvss20 metrics defaultValue 0
 
 -- | Check for duplicates metric
 --
