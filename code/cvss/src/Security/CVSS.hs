@@ -43,7 +43,9 @@ import GHC.Float (powerFloat)
 
 -- | The CVSS version.
 data CVSSVersion
-  = -- | Version 3.1: https://www.first.org/cvss/v3-1/
+  = -- | Version 4.0: https://www.first.org/cvss/v4.0/
+    CVSS40
+  | -- | Version 3.1: https://www.first.org/cvss/v3-1/
     CVSS31
   | -- | Version 3.0: https://www.first.org/cvss/v3.0/
     CVSS30
@@ -145,6 +147,7 @@ parseCVSS txt
 -- | Compute the base score.
 cvssScore :: CVSS -> (Rating, Float)
 cvssScore cvss = case cvssVersion cvss of
+  CVSS40 -> error "CVSS 4.0 scoring not yet implemented"
   CVSS31 -> cvss31score (cvssMetrics cvss)
   CVSS30 -> cvss30score (cvssMetrics cvss)
   CVSS20 -> cvss20score (cvssMetrics cvss)
@@ -163,6 +166,7 @@ cvssVectorStringOrdered = cvssShow True
 
 cvssShow :: Bool -> CVSS -> Text
 cvssShow ordered cvss = case cvssVersion cvss of
+  CVSS40 -> Text.intercalate "/" ("CVSS:4.0" : components)
   CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : components)
   CVSS30 -> Text.intercalate "/" ("CVSS:3.0" : components)
   CVSS20 -> Text.intercalate "/" components
@@ -180,6 +184,7 @@ newtype CVSSDB = CVSSDB [MetricGroup]
 
 cvssDB :: CVSSVersion -> CVSSDB
 cvssDB v = case v of
+  CVSS40 -> cvss40
   CVSS31 -> cvss31
   CVSS30 -> cvss30
   CVSS20 -> cvss20
@@ -1017,6 +1022,9 @@ validateCvss20 :: [Metric] -> Either CVSSError [Metric]
 validateCvss20 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss20, validateRequired cvss20]
   pure metrics
+
+cvss40 :: CVSSDB
+cvss40 = CVSSDB []
 
 -- | Implementation of section 3.2.1. "Base Equation"
 cvss20score :: [Metric] -> (Rating, Float)
