@@ -31,8 +31,9 @@ main =
         testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange,
         testCase "CVSS v2.0 environmental score examples" testCVSS20EnvironmentalScore,
         testCase "CVSS v2.0 ND environmental metrics do not change score" testCVSS20EnvironmentalNotDefinedNoScoreChange,
-        testCase "CVSS v4.0 parsing tests" testCVSS40Parsing
-      ]
+        testCase "CVSS v4.0 parsing tests" testCVSS40Parsing,
+        testGroup "CVSS v4.0 base score examples" $ cvss40ScoringCase <$> cvss40ScoringExamples
+       ]
 
 testExamples :: Assertion
 testExamples =
@@ -354,4 +355,22 @@ cvss40InvalidVectors =
     "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N",
     "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:INVALID",
     "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/AV:N"
+  ]
+
+cvss40ScoringCase :: (Text, Float, CVSS.Rating) -> TestTree
+cvss40ScoringCase (cvssString, score, rating) =
+  testCase (Text.unpack cvssString) $ do
+    case CVSS.parseCVSS cvssString of
+      Left e -> assertFailure (show e)
+      Right cvss -> do
+        CVSS.cvssScore cvss @?= (rating, score)
+        CVSS.cvssVectorString cvss @?= cvssString
+
+cvss40ScoringExamples :: [(Text, Float, CVSS.Rating)]
+cvss40ScoringExamples =
+  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:N", 9.9, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.0, CVSS.Critical),
+    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.4, CVSS.Critical),
+    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 8.8, CVSS.High),
+    ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low)
   ]
