@@ -24,6 +24,8 @@ main =
         testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip,
         testCase "CVSS v3.0 temporal score examples" testCVSS30TemporalScore,
         testCase "CVSS v3.0 ND temporal metrics do not change score" testCVSS30NotDefinedNoScoreChange,
+        testCase "CVSS v3.0 environmental score examples" testCVSS30EnvironmentalScore,
+        testCase "CVSS v3.0 ND environmental metrics do not change score" testCVSS30EnvironmentalNotDefinedNoScoreChange,
         testCase "CVSS v2.0 rating boundary tests" testCVSS20RatingBoundaries,
         testCase "CVSS v2.0 temporal score examples" testCVSS20TemporalScore,
         testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange,
@@ -290,3 +292,34 @@ testCVSS30NotDefinedNoScoreChange = do
     (Right baseCvss, Right fullCvss) ->
       CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
     _ -> assertFailure ("base or full vector parse failed")
+
+testCVSS30EnvironmentalScore :: Assertion
+testCVSS30EnvironmentalScore =
+  forM_ cvss30EnvironmentalExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS30, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss30EnvironmentalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+cvss30EnvironmentalExamples :: [(Text, Float, CVSS.Rating)]
+cvss30EnvironmentalExamples =
+  [ -- High security requirements increase the environmental score
+    ( "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/E:F/CR:L/IR:M/AR:H/MAV:N/MAC:L/MPR:H/MUI:R/MS:C/MC:L/MI:H/MA:N",
+      6.5,
+      CVSS.Medium
+    ),
+    -- Tests Modified Scope + MPR changed-scope override
+    ( "CVSS:3.0/AV:N/AC:L/PR:H/UI:N/S:U/C:L/I:L/A:N/CR:M/IR:M/AR:M/MAV:N/MAC:L/MPR:H/MUI:N/MS:C/MC:L/MI:L/MA:N",
+      5.5,
+      CVSS.Medium
+    )
+  ]
+
+testCVSS30EnvironmentalNotDefinedNoScoreChange :: Assertion
+testCVSS30EnvironmentalNotDefinedNoScoreChange = do
+  let temporalVector = "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R"
+      fullVector = temporalVector <> "/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+  case (CVSS.parseCVSS temporalVector, CVSS.parseCVSS fullVector) of
+    (Right temporalCvss, Right fullCvss) ->
+      CVSS.cvssScore fullCvss @?= CVSS.cvssScore temporalCvss
+    _ -> assertFailure ("temporal or full vector parse failed")

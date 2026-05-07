@@ -24,6 +24,7 @@ module Security.CVSS
     cvss20TemporalScore,
     cvss20EnvironmentalScore,
     cvss30TemporalScore,
+    cvss30EnvironmentalScore,
     cvss31TemporalScore,
     cvss31EnvironmentalScore,
     cvssInfo,
@@ -604,7 +605,8 @@ cvss30 :: CVSSDB
 cvss30 =
   CVSSDB
     [ MetricGroup "Base" baseMetrics,
-      MetricGroup "Temporal" temporalMetrics
+      MetricGroup "Temporal" temporalMetrics,
+      MetricGroup "Environmental" environmentalMetrics
     ]
   where
     baseMetrics =
@@ -612,64 +614,80 @@ cvss30 =
           "Attack Vector"
           "AV"
           True
-          [ MetricValue "Network" (C "N") 0.85 Nothing "A vulnerability exploitable with network access means that the vulnerable component is bound to the network stack and the attacker's path is through OSI layer 3 (the network layer).",
-            MetricValue "Adjacent" (C "A") 0.62 Nothing "A vulnerability exploitable with adjacent network access means that the vulnerable component is bound to the network stack",
-            MetricValue "Local" (C "L") 0.55 Nothing "A vulnerability exploitable with Local access means that the vulnerable component is not bound to the network stack, and the attacker's path is via read/write/execute capabilities.",
-            MetricValue "Physical" (C "P") 0.2 Nothing "A vulnerability exploitable with Physical access requires the attacker to physically touch or manipulate the vulnerable component."
-          ],
+          avValues,
         MetricInfo
           "Attack Complexity"
           "AC"
           True
-          [ MetricValue "Low" (C "L") 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
-            MetricValue "High" (C "H") 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
-          ],
+          acValues,
         MetricInfo
           "Privileges Required"
           "PR"
           True
-          [ MetricValue "None" (C "N") 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files to carry out an attack.",
-            MetricValue "Low" (C "L") 0.62 (Just 0.68) "The attacker is authorized with (i.e. requires) privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
-            MetricValue "High" (C "H") 0.27 (Just 0.5) "The attacker is authorized with (i.e. requires) privileges that provide significant (e.g., administrative) control over the vulnerable component that could affect component-wide settings and files."
-          ],
+          prValues,
         MetricInfo
           "User Interaction"
           "UI"
           True
-          [ MetricValue "None" (C "N") 0.85 Nothing "The vulnerable system can be exploited without interaction from any user.",
-            MetricValue "Required" (C "R") 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
-          ],
+          uiValues,
         MetricInfo
           "Scope"
           "S"
           True
-          [ MetricValue "Unchanged" (C "U") Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same authority.",
-            MetricValue "Changed" (C "C") Changed Nothing "An exploited vulnerability can affect resources beyond the authorization privileges intended by the vulnerable component."
-          ],
+          sValues,
         MetricInfo
           "Confidentiality Impact"
           "C"
           True
-          [ mkHigh "There is a total loss of confidentiality, resulting in all resources within the impacted component being divulged to the attacker.",
-            mkLow "There is some loss of confidentiality.",
-            mkNone "There is no loss of confidentiality within the impacted component."
-          ],
+          cValues,
         MetricInfo
           "Integrity Impact"
           "I"
           True
-          [ mkHigh "There is a total loss of integrity, or a complete loss of protection.",
-            mkLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.",
-            mkNone "There is no loss of integrity within the impacted component."
-          ],
+          iValues,
         MetricInfo
           "Availability Impact"
           "A"
           True
-          [ mkHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the impacted component",
-            mkLow "Performance is reduced or there are interruptions in resource availability.",
-            mkNone "There is no impact to availability within the impacted component."
-          ]
+          aValues
+      ]
+    avValues =
+      [ MetricValue "Network" (C "N") 0.85 Nothing "A vulnerability exploitable with network access means that the vulnerable component is bound to the network stack and the attacker's path is through OSI layer 3 (the network layer).",
+        MetricValue "Adjacent" (C "A") 0.62 Nothing "A vulnerability exploitable with adjacent network access means that the vulnerable component is bound to the network stack",
+        MetricValue "Local" (C "L") 0.55 Nothing "A vulnerability exploitable with Local access means that the vulnerable component is not bound to the network stack, and the attacker's path is via read/write/execute capabilities.",
+        MetricValue "Physical" (C "P") 0.2 Nothing "A vulnerability exploitable with Physical access requires the attacker to physically touch or manipulate the vulnerable component."
+      ]
+    acValues =
+      [ MetricValue "Low" (C "L") 0.77 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
+        MetricValue "High" (C "H") 0.44 Nothing "A successful attack depends on conditions beyond the attacker's control."
+      ]
+    prValues =
+      [ MetricValue "None" (C "N") 0.85 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files to carry out an attack.",
+        MetricValue "Low" (C "L") 0.62 (Just 0.68) "The attacker is authorized with (i.e. requires) privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
+        MetricValue "High" (C "H") 0.27 (Just 0.5) "The attacker is authorized with (i.e. requires) privileges that provide significant (e.g., administrative) control over the vulnerable component that could affect component-wide settings and files."
+      ]
+    uiValues =
+      [ MetricValue "None" (C "N") 0.85 Nothing "The vulnerable system can be exploited without interaction from any user.",
+        MetricValue "Required" (C "R") 0.62 Nothing "Successful exploitation of this vulnerability requires a user to take some action before the vulnerability can be exploited."
+      ]
+    sValues =
+      [ MetricValue "Unchanged" (C "U") Unchanged Nothing "An exploited vulnerability can only affect resources managed by the same authority.",
+        MetricValue "Changed" (C "C") Changed Nothing "An exploited vulnerability can affect resources beyond the authorization privileges intended by the vulnerable component."
+      ]
+    cValues =
+      [ mkHigh "There is a total loss of confidentiality, resulting in all resources within the impacted component being divulged to the attacker.",
+        mkLow "There is some loss of confidentiality.",
+        mkNone "There is no loss of confidentiality within the impacted component."
+      ]
+    iValues =
+      [ mkHigh "There is a total loss of integrity, or a complete loss of protection.",
+        mkLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.",
+        mkNone "There is no loss of integrity within the impacted component."
+      ]
+    aValues =
+      [ mkHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the impacted component",
+        mkLow "Performance is reduced or there are interruptions in resource availability.",
+        mkNone "There is no impact to availability within the impacted component."
       ]
     mkHigh = MetricValue "High" (C "H") 0.56 Nothing
     mkLow = MetricValue "Low" (C "L") 0.22 Nothing
@@ -707,6 +725,51 @@ cvss30 =
       ]
     mkTemporalUndef m = MetricValue "Not Defined" (C "X") 1 Nothing $ mkTemporalUndefMsg m
     mkTemporalUndefMsg m = "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Temporal Score, i.e., it has the same effect on scoring as assigning " <> m <> "."
+    environmentalMetrics =
+      [ MetricInfo
+          "Confidentiality Requirement"
+          "CR"
+          False
+          [ mkEnvUndef,
+            mkEnvHigh "Confidentiality",
+            mkEnvMedium "Confidentiality",
+            mkEnvLow "Confidentiality"
+          ],
+        MetricInfo
+          "Integrity Requirement"
+          "IR"
+          False
+          [ mkEnvUndef,
+            mkEnvHigh "Integrity",
+            mkEnvMedium "Integrity",
+            mkEnvLow "Integrity"
+          ],
+        MetricInfo
+          "Availability Requirement"
+          "AR"
+          False
+          [ mkEnvUndef,
+            mkEnvHigh "Availability",
+            mkEnvMedium "Availability",
+            mkEnvLow "Availability"
+          ],
+        MetricInfo "Modified Attack Vector" "MAV" False $ mkModifiedUndef : avValues,
+        MetricInfo "Modified Attack Complexity" "MAC" False $ mkModifiedUndef : acValues,
+        MetricInfo "Modified Privileges Required" "MPR" False $ mkModifiedUndef : prValues,
+        MetricInfo "Modified User Interaction" "MUI" False $ mkModifiedUndef : uiValues,
+        MetricInfo "Modified Scope" "MS" False $ mkModifiedUndef : sValues,
+        MetricInfo "Modified Confidentiality" "MC" False $ mkModifiedUndef : cValues,
+        MetricInfo "Modified Integrity" "MI" False $ mkModifiedUndef : iValues,
+        MetricInfo "Modified Availability" "MA" False $ mkModifiedUndef : aValues
+      ]
+    mkEnvUndef = MetricValue "Not Defined" (C "X") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium."
+    mkEnvHighMsg m = "Loss of " <> m <> " is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
+    mkEnvHigh m = MetricValue "High" (C "H") 1.5 Nothing $ mkEnvHighMsg m
+    mkEnvMediumMsg m = "Loss of " <> m <> " is likely to have a serious adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
+    mkEnvMedium m = MetricValue "Medium" (C "M") 1 Nothing $ mkEnvMediumMsg m
+    mkEnvLowMsg m = "Loss of " <> m <> " is likely to have only a limited adverse effect on the organization or individuals associated with the organization (e.g., employees, customers)."
+    mkEnvLow m = MetricValue "Low" (C "L") 0.5 Nothing $ mkEnvLowMsg m
+    mkModifiedUndef = MetricValue "Not Defined" (C "X") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score"
 
 -- | Implementation of Section 8.1 "Base"
 cvss30BaseScore :: [Metric] -> (Rating, Float)
@@ -727,6 +790,7 @@ cvss30BaseScore metrics = (toRating score, score)
 
 cvss30score :: [Metric] -> (Rating, Float)
 cvss30score metrics
+  | hasEnvironmentalMetrics metrics = cvss30EnvironmentalScore metrics
   | hasTemporalMetrics metrics = cvss30TemporalScore metrics
   | otherwise = cvss30BaseScore metrics
 
@@ -738,6 +802,68 @@ cvss30TemporalScore metrics = (toRating score, score)
     remediationLevel = getMetricValueOr cvss30 metrics 1.0 Unchanged "Remediation Level"
     reportConfidence = getMetricValueOr cvss30 metrics 1.0 Unchanged "Report Confidence"
     score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
+
+cvss30EnvironmentalScore :: [Metric] -> (Rating, Float)
+cvss30EnvironmentalScore metrics = (toRating score, score)
+  where
+    miss =
+      min
+        ( 1
+            - (1 - confidentialityRequirement * modifiedConfidentiality)
+              * (1 - integrityRequirement * modifiedIntegrity)
+              * (1 - availabilityRequirement * modifiedAvailability)
+        )
+        0.915
+
+    modifiedImpact
+      | modifiedScope == Unchanged = 6.42 * miss
+      | otherwise = 7.52 * (miss - 0.029) - 3.25 * powerFloat (miss - 0.02) 15
+
+    modifiedExploitability =
+      8.22
+        * modifiedAttackVector
+        * modifiedAttackComplexity
+        * modifiedPrivilegesRequired
+        * modifiedUserInteraction
+
+    envScoreHelper
+      | modifiedImpact <= 0 = 0
+      | modifiedScope == Unchanged =
+          roundup (min (modifiedImpact + modifiedExploitability) 10)
+      | otherwise =
+          roundup (min (1.08 * (modifiedImpact + modifiedExploitability)) 10)
+
+    score
+      | modifiedImpact <= 0 = 0
+      | otherwise =
+          roundup
+            ( envScoreHelper
+                * exploitCodeMaturity
+                * remediationLevel
+                * reportConfidence
+            )
+
+    exploitCodeMaturity = getMetricValueOr cvss30 metrics 1.0 Unchanged "Exploit Code Maturity"
+    remediationLevel = getMetricValueOr cvss30 metrics 1.0 Unchanged "Remediation Level"
+    reportConfidence = getMetricValueOr cvss30 metrics 1.0 Unchanged "Report Confidence"
+    confidentialityRequirement = getMetricValueOr cvss30 metrics 1.0 Unchanged "Confidentiality Requirement"
+    integrityRequirement = getMetricValueOr cvss30 metrics 1.0 Unchanged "Integrity Requirement"
+    availabilityRequirement = getMetricValueOr cvss30 metrics 1.0 Unchanged "Availability Requirement"
+    modifiedAttackVector = getModifiedMetricValue cvss30 metrics "Modified Attack Vector" "Attack Vector" modifiedScope
+    modifiedAttackComplexity = getModifiedMetricValue cvss30 metrics "Modified Attack Complexity" "Attack Complexity" modifiedScope
+    modifiedPrivilegesRequired = getModifiedMetricValue cvss30 metrics "Modified Privileges Required" "Privileges Required" modifiedScope
+    modifiedUserInteraction = getModifiedMetricValue cvss30 metrics "Modified User Interaction" "User Interaction" modifiedScope
+    modifiedScope = getModifiedMetricValue cvss30 metrics "Modified Scope" "Scope" Unchanged
+    modifiedConfidentiality = getModifiedMetricValue cvss30 metrics "Modified Confidentiality" "Confidentiality Impact" modifiedScope
+    modifiedIntegrity = getModifiedMetricValue cvss30 metrics "Modified Integrity" "Integrity Impact" modifiedScope
+    modifiedAvailability = getModifiedMetricValue cvss30 metrics "Modified Availability" "Availability Impact" modifiedScope
+
+    getModifiedMetricValue :: CVSSDB -> [Metric] -> Text -> Text -> Float -> Float
+    getModifiedMetricValue db ms modifiedName baseName scope =
+      case lookupMetricValueChar db ms modifiedName of
+        Just (C "X") -> getMetricValue db ms scope baseName
+        Just _ -> getMetricValue db ms scope modifiedName
+        Nothing -> getMetricValue db ms scope baseName
 
 validateCvss30 :: [Metric] -> Either CVSSError [Metric]
 validateCvss30 metrics = do
