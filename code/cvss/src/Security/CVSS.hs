@@ -22,6 +22,7 @@ module Security.CVSS
     cvssVectorStringOrdered,
     cvssScore,
     cvss20TemporalScore,
+    cvss30TemporalScore,
     cvss31TemporalScore,
     cvss31EnvironmentalScore,
     cvssInfo,
@@ -603,7 +604,8 @@ validateCvss31 metrics = do
 cvss30 :: CVSSDB
 cvss30 =
   CVSSDB
-    [ MetricGroup "Base" baseMetrics
+    [ MetricGroup "Base" baseMetrics,
+      MetricGroup "Temporal" temporalMetrics
     ]
   where
     baseMetrics =
@@ -673,10 +675,43 @@ cvss30 =
     mkHigh = MetricValue "High" (C "H") 0.56 Nothing
     mkLow = MetricValue "Low" (C "L") 0.22 Nothing
     mkNone = MetricValue "None" (C "N") 0 Nothing
+    temporalMetrics =
+      [ MetricInfo
+          "Exploit Code Maturity"
+          "E"
+          False
+          [ mkTemporalUndef "High",
+            MetricValue "High" (C "H") 1 Nothing "Functional autonomous code exists, or no exploit is required (manual trigger) and details are widely available. Exploit code works in every situation, or is actively being delivered via an autonomous agent (such as a worm or virus). Network-connected systems are likely to encounter scanning or exploitation attempts. Exploit development has reached the level of reliable, widely available, easy-to-use automated tools.",
+            MetricValue "Functional" (C "F") 0.97 Nothing "Functional exploit code is available. The code works in most situations where the vulnerability exists.",
+            MetricValue "Proof of Concept" (C "P") 0.94 Nothing "Proof-of-concept exploit code is available, or an attack demonstration is not practical for most systems. The code or technique is not functional in all situations and may require substantial modification by a skilled attacker.",
+            MetricValue "Unproven" (C "U") 0.91 Nothing "No exploit code is available, or an exploit is theoretical."
+          ],
+        MetricInfo
+          "Remediation Level"
+          "RL"
+          False
+          [ mkTemporalUndef "Unavailable",
+            MetricValue "Unavailable" (C "U") 1 Nothing "There is either no solution available or it is impossible to apply.",
+            MetricValue "Workaround" (C "W") 0.97 Nothing "There is an unofficial, non-vendor solution available. In some cases, users of the affected technology will create a patch of their own or provide steps to work around or otherwise mitigate the vulnerability.",
+            MetricValue "Temporary Fix" (C "T") 0.96 Nothing "There is an official but temporary fix available. This includes instances where the vendor issues a temporary hotfix, tool, or workaround.",
+            MetricValue "Official Fix" (C "O") 0.95 Nothing "A complete vendor solution is available. Either the vendor has issued an official patch, or an upgrade is available."
+          ],
+        MetricInfo
+          "Report Confidence"
+          "RC"
+          False
+          [ mkTemporalUndef "Confirmed",
+            MetricValue "Confirmed" (C "C") 1 Nothing "Detailed reports exist, or functional reproduction is possible (functional exploits may provide this). Source code is available to independently verify the assertions of the research, or the author or vendor of the affected code has confirmed the presence of the vulnerability.",
+            MetricValue "Reasonable" (C "R") 0.96 Nothing "Significant details are published, but researchers either do not have full confidence in the root cause, or do not have access to source code to fully confirm all of the interactions that may lead to the result. Reasonable confidence exists, however, that the bug is reproducible and at least one impact is able to be verified (proof-of-concept exploits may provide this). An example is a detailed write-up of research into a vulnerability with an explanation (possibly obfuscated or \"left as an exercise to the reader\") that gives assurances on how to reproduce the results.",
+            MetricValue "Unknown" (C "U") 0.92 Nothing "There are reports of impacts that indicate a vulnerability is present. The reports indicate that the cause of the vulnerability is unknown, or reports may differ on the cause or impacts of the vulnerability. Reporters are uncertain of the true nature of the vulnerability, and there is little confidence in the validity of the reports or whether a static Base Score can be applied given the differences described. An example is a bug report which notes that an intermittent but non-reproducible crash occurs, with evidence of memory corruption suggesting that denial of service, or possible more serious impacts, may result."
+          ]
+      ]
+    mkTemporalUndef m = MetricValue "Not Defined" (C "X") 1 Nothing $ mkTemporalUndefMsg m
+    mkTemporalUndefMsg m = "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Temporal Score, i.e., it has the same effect on scoring as assigning " <> m <> "."
 
 -- | Implementation of Section 8.1 "Base"
-cvss30score :: [Metric] -> (Rating, Float)
-cvss30score metrics = (toRating score, score)
+cvss30BaseScore :: [Metric] -> (Rating, Float)
+cvss30BaseScore metrics = (toRating score, score)
   where
     score
       | impact <= 0 = 0
@@ -690,6 +725,20 @@ cvss30score metrics = (toRating score, score)
 
     exploitability = 8.22 * gm "Attack Vector" * gm "Attack Complexity" * gm "Privileges Required" * gm "User Interaction"
     gm = getMetricValue cvss30 metrics scope
+
+cvss30score :: [Metric] -> (Rating, Float)
+cvss30score metrics
+  | hasTemporalMetrics metrics = cvss30TemporalScore metrics
+  | otherwise = cvss30BaseScore metrics
+
+cvss30TemporalScore :: [Metric] -> (Rating, Float)
+cvss30TemporalScore metrics = (toRating score, score)
+  where
+    (_, baseScore) = cvss30BaseScore metrics
+    exploitCodeMaturity = getMetricValueOr cvss30 metrics 1.0 Unchanged "Exploit Code Maturity"
+    remediationLevel = getMetricValueOr cvss30 metrics 1.0 Unchanged "Remediation Level"
+    reportConfidence = getMetricValueOr cvss30 metrics 1.0 Unchanged "Report Confidence"
+    score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
 
 validateCvss30 :: [Metric] -> Either CVSSError [Metric]
 validateCvss30 metrics = do

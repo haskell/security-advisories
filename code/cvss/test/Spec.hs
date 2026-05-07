@@ -22,6 +22,8 @@ main =
           "CVSS 3.1 X temporal/env metrics do not change score"
           testNotDefinedOptionalNoScoreChange,
         testProperty "CVSS 3.1 parser preserves original vector string" prop_cvss31RoundTrip,
+        testCase "CVSS v3.0 temporal score examples" testCVSS30TemporalScore,
+        testCase "CVSS v3.0 ND temporal metrics do not change score" testCVSS30NotDefinedNoScoreChange,
         testCase "CVSS v2.0 rating boundary tests" testCVSS20RatingBoundaries,
         testCase "CVSS v2.0 temporal score examples" testCVSS20TemporalScore,
         testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange
@@ -57,7 +59,8 @@ examples =
       9.8,
       CVSS.Critical
     ),
-    ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
+    ("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High),
+    ("CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High)
   ]
 
 testTemporalScore :: Assertion
@@ -206,6 +209,30 @@ testCVSS20NotDefinedNoScoreChange :: Assertion
 testCVSS20NotDefinedNoScoreChange = do
   let baseVector = "AV:N/AC:L/Au:N/C:C/I:C/A:C"
       fullVector = baseVector <> "/E:ND/RL:ND/RC:ND"
+  case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
+    (Right baseCvss, Right fullCvss) ->
+      CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
+    _ -> assertFailure ("base or full vector parse failed")
+
+testCVSS30TemporalScore :: Assertion
+testCVSS30TemporalScore =
+  forM_ cvss30TemporalExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS30, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss30TemporalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+cvss30TemporalExamples :: [(Text, Float, CVSS.Rating)]
+cvss30TemporalExamples =
+  [ ("CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:F/RL:O/RC:R", 8.7, CVSS.High),
+    ("CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N/E:F/RL:O/RC:R", 5.4, CVSS.Medium),
+    ("CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:X/RL:X/RC:X", 9.8, CVSS.Critical)
+  ]
+
+testCVSS30NotDefinedNoScoreChange :: Assertion
+testCVSS30NotDefinedNoScoreChange = do
+  let baseVector = "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      fullVector = baseVector <> "/E:X/RL:X/RC:X"
   case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
     (Right baseCvss, Right fullCvss) ->
       CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
