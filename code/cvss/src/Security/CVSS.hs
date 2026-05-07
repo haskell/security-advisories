@@ -22,6 +22,7 @@ module Security.CVSS
     cvssVectorStringOrdered,
     cvssScore,
     cvss20TemporalScore,
+    cvss20EnvironmentalScore,
     cvss30TemporalScore,
     cvss31TemporalScore,
     cvss31EnvironmentalScore,
@@ -430,6 +431,9 @@ hasEnvironmentalMetrics =
           `elem` ["CR", "IR", "AR", "MAV", "MAC", "MPR", "MUI", "MS", "MC", "MI", "MA"]
     )
 
+hasEnvironmentalMetrics20 :: [Metric] -> Bool
+hasEnvironmentalMetrics20 = any (\metric -> mName metric `elem` ["CDP", "TD", "CR", "IR", "AR"])
+
 -- | Implementation of section 7.1. Base Metrics Equations
 cvss31BaseScore :: [Metric] -> (Rating, Float)
 cvss31BaseScore metrics = (toRating score, score)
@@ -744,7 +748,8 @@ cvss20 :: CVSSDB
 cvss20 =
   CVSSDB
     [ MetricGroup "Base" baseMetrics,
-      MetricGroup "Temporal" temporalMetrics
+      MetricGroup "Temporal" temporalMetrics,
+      MetricGroup "Environmental" environmentalMetrics
     ]
   where
     baseMetrics =
@@ -831,6 +836,56 @@ cvss20 =
             MetricValue "Confirmed" (C "C") 1.0 Nothing "Detailed reports exist, or functional reproduction is possible (functional exploits may provide this). Source code is available to independently verify the assertions of the research."
           ]
       ]
+    environmentalMetrics =
+      [ MetricInfo
+          "Confidentiality Requirement"
+          "CR"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.",
+            MetricValue "Low" (C "L") 0.5 Nothing "Loss of the metric is likely to have only a limited adverse effect on the organization or individuals associated with the organization.",
+            MetricValue "Medium" (C "M") 1 Nothing "Loss of the metric is likely to have a serious adverse effect on the organization or individuals associated with the organization.",
+            MetricValue "High" (C "H") 1.5 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+          ],
+        MetricInfo
+          "Integrity Requirement"
+          "IR"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.",
+            MetricValue "Low" (C "L") 0.5 Nothing "Loss of the metric is likely to have only a limited adverse effect on the organization or individuals associated with the organization.",
+            MetricValue "Medium" (C "M") 1 Nothing "Loss of the metric is likely to have a serious adverse effect on the organization or individuals associated with the organization.",
+            MetricValue "High" (C "H") 1.5 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+          ],
+        MetricInfo
+          "Availability Requirement"
+          "AR"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.",
+            MetricValue "Low" (C "L") 0.5 Nothing "Loss of the metric is likely to have only a limited adverse effect on the organization or individuals associated with the organization.",
+            MetricValue "Medium" (C "M") 1 Nothing "Loss of the metric is likely to have a serious adverse effect on the organization or individuals associated with the organization.",
+            MetricValue "High" (C "H") 1.5 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+          ],
+        MetricInfo
+          "Collateral Damage Potential"
+          "CDP"
+          False
+          [ MetricValue "Not Defined" (C "ND") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning None.",
+            MetricValue "None" (C "N") 0 Nothing "There is no potential for loss of physical assets or loss of human life.",
+            MetricValue "Low" (C "L") 0.1 Nothing "There is a negligible loss of physical assets or a minor loss of human life.",
+            MetricValue "Low-Medium" (C "LM") 0.3 Nothing "There is a significant loss of physical assets or a significant loss of human life.",
+            MetricValue "Medium-High" (C "MH") 0.4 Nothing "There is a massive loss of physical assets or a major loss of human life.",
+            MetricValue "High" (C "H") 0.5 Nothing "There is a catastrophic loss of physical assets or a massive loss of human life."
+          ],
+        MetricInfo
+          "Target Distribution"
+          "TD"
+          False
+          [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning High.",
+            MetricValue "None" (C "N") 0 Nothing "There is no significant effect on the organization.",
+            MetricValue "Low" (C "L") 0.25 Nothing "The vulnerable component affects a minority of the organization.",
+            MetricValue "Medium" (C "M") 0.75 Nothing "The vulnerable component affects a significant portion of the organization.",
+            MetricValue "High" (C "H") 1 Nothing "The vulnerable component affects the entire organization."
+          ]
+      ]
 
 validateCvss20 :: [Metric] -> Either CVSSError [Metric]
 validateCvss20 metrics = do
@@ -840,6 +895,7 @@ validateCvss20 metrics = do
 -- | Implementation of section 3.2.1. "Base Equation"
 cvss20score :: [Metric] -> (Rating, Float)
 cvss20score metrics
+  | hasEnvironmentalMetrics20 metrics = cvss20EnvironmentalScore metrics
   | hasTemporalMetrics metrics = cvss20TemporalScore metrics
   | otherwise = cvss20BaseScore metrics
 
@@ -874,6 +930,44 @@ cvss20TemporalScore metrics = (toRating20 score, score)
 optionalMetric20 :: [Metric] -> Float -> Text -> Float
 optionalMetric20 metrics defaultValue =
   getMetricValueOr cvss20 metrics defaultValue 0
+
+cvss20EnvironmentalScore :: [Metric] -> (Rating, Float)
+cvss20EnvironmentalScore metrics = (toRating20 score, score)
+  where
+    securityRequirement = getMetricValueOr cvss20 metrics 1 0
+    confidentialityRequirement = securityRequirement "Confidentiality Requirement"
+    integrityRequirement = securityRequirement "Integrity Requirement"
+    availabilityRequirement = securityRequirement "Availability Requirement"
+
+    cVal = gm "Confidentiality Impact"
+    iVal = gm "Integrity Impact"
+    aVal = gm "Availability Impact"
+
+    adjustedImpact = min 10.0 (10.41 * (1 - (1 - cVal * confidentialityRequirement) * (1 - iVal * integrityRequirement) * (1 - aVal * availabilityRequirement)))
+
+    exploitability = 20 * gm "Access Vector" * gm "Access Complexity" * gm "Authentication"
+
+    fAdj
+      | adjustedImpact == 0 = 0
+      | otherwise = 1.176
+
+    adjustedBase = round_to_1_decimal ((0.6 * adjustedImpact + 0.4 * exploitability - 1.5) * fAdj)
+
+    exploitabilityTemporal = optionalMetric20 metrics 1.0 "Exploitability"
+    remediationLevel = optionalMetric20 metrics 1.0 "Remediation Level"
+    reportConfidence = optionalMetric20 metrics 1.0 "Report Confidence"
+    adjustedTemporal = round_to_1_decimal (adjustedBase * exploitabilityTemporal * remediationLevel * reportConfidence)
+
+    collateralDamagePotential = optionalMetric20 metrics 0 "Collateral Damage Potential"
+    targetDistribution = optionalMetric20 metrics 1 "Target Distribution"
+
+    score = round_to_1_decimal ((adjustedTemporal + (10 - adjustedTemporal) * collateralDamagePotential) * targetDistribution)
+
+    gm :: Text -> Float
+    gm = getMetricValue cvss20 metrics 0
+
+    round_to_1_decimal :: Float -> Float
+    round_to_1_decimal x = fromIntegral @Int (round (x * 10)) / 10
 
 -- | Check for duplicates metric
 --

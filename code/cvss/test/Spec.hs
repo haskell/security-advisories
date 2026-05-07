@@ -26,7 +26,9 @@ main =
         testCase "CVSS v3.0 ND temporal metrics do not change score" testCVSS30NotDefinedNoScoreChange,
         testCase "CVSS v2.0 rating boundary tests" testCVSS20RatingBoundaries,
         testCase "CVSS v2.0 temporal score examples" testCVSS20TemporalScore,
-        testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange
+        testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange,
+        testCase "CVSS v2.0 environmental score examples" testCVSS20EnvironmentalScore,
+        testCase "CVSS v2.0 ND environmental metrics do not change score" testCVSS20EnvironmentalNotDefinedNoScoreChange
       ]
 
 testExamples :: Assertion
@@ -209,6 +211,57 @@ testCVSS20NotDefinedNoScoreChange :: Assertion
 testCVSS20NotDefinedNoScoreChange = do
   let baseVector = "AV:N/AC:L/Au:N/C:C/I:C/A:C"
       fullVector = baseVector <> "/E:ND/RL:ND/RC:ND"
+  case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
+    (Right baseCvss, Right fullCvss) ->
+      CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
+    _ -> assertFailure ("base or full vector parse failed")
+
+testCVSS20EnvironmentalScore :: Assertion
+testCVSS20EnvironmentalScore =
+  forM_ cvss20EnvironmentalExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS20, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss20EnvironmentalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+cvss20EnvironmentalExamples :: [(Text, Float, CVSS.Rating)]
+cvss20EnvironmentalExamples =
+  [ -- Base: AV:N/AC:L/Au:N/C:C/I:C/A:C = 10.0, all env metrics ND = 10.0
+    ( "AV:N/AC:L/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND/CDP:ND/TD:ND/CR:ND/IR:ND/AR:ND",
+      10.0,
+      CVSS.High
+    ),
+    -- High security requirements increase the adjusted impact
+    ( "AV:N/AC:L/Au:N/C:P/I:P/A:N/E:ND/RL:ND/RC:ND/CDP:ND/TD:H/CR:H/IR:H/AR:H",
+      7.7,
+      CVSS.High
+    ),
+    -- Low security requirements decrease the adjusted impact
+    ( "AV:N/AC:L/Au:N/C:P/I:P/A:N/E:ND/RL:ND/RC:ND/CDP:L/TD:H/CR:L/IR:L/AR:L",
+      5.3,
+      CVSS.Medium
+    ),
+    -- High CDP amplifies the score
+    ( "AV:N/AC:L/Au:N/C:P/I:P/A:N/E:F/RL:OF/RC:UC/CDP:H/TD:H/CR:M/IR:M/AR:M",
+      7.4,
+      CVSS.High
+    ),
+    -- TD:N (none) results in score 0
+    ( "AV:N/AC:L/Au:N/C:P/I:P/A:N/E:ND/RL:ND/RC:ND/CDP:H/TD:N/CR:M/IR:M/AR:M",
+      0,
+      CVSS.None
+    ),
+    -- TD:L (low) reduces the score
+    ( "AV:N/AC:L/Au:N/C:P/I:P/A:N/E:ND/RL:ND/RC:ND/CDP:H/TD:L/CR:M/IR:M/AR:M",
+      2.0,
+      CVSS.Low
+    )
+  ]
+
+testCVSS20EnvironmentalNotDefinedNoScoreChange :: Assertion
+testCVSS20EnvironmentalNotDefinedNoScoreChange = do
+  let baseVector = "AV:N/AC:L/Au:N/C:P/I:P/A:N"
+      fullVector = baseVector <> "/E:ND/RL:ND/RC:ND/CDP:ND/TD:ND/CR:ND/IR:ND/AR:ND"
   case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
     (Right baseCvss, Right fullCvss) ->
       CVSS.cvssScore fullCvss @?= CVSS.cvssScore baseCvss
