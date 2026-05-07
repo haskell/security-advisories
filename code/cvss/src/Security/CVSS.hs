@@ -1024,7 +1024,171 @@ validateCvss20 metrics = do
   pure metrics
 
 cvss40 :: CVSSDB
-cvss40 = CVSSDB []
+cvss40 =
+  CVSSDB
+    [ MetricGroup "Base" baseMetrics,
+      MetricGroup "Supplemental" supplementalMetrics,
+      MetricGroup "Environmental" environmentalMetrics,
+      MetricGroup "Threat" threatMetrics
+    ]
+  where
+    baseMetrics =
+      [ MetricInfo "Attack Vector" "AV" True avValues,
+        MetricInfo "Attack Complexity" "AC" True acValues,
+        MetricInfo "Attack Requirements" "AT" True atValues,
+        MetricInfo "Privileges Required" "PR" True prValues,
+        MetricInfo "User Interaction" "UI" True uiValues,
+        MetricInfo "Confidentiality Impact to the Vulnerable System" "VC" True vcValues,
+        MetricInfo "Integrity Impact to the Vulnerable System" "VI" True viValues,
+        MetricInfo "Availability Impact to the Vulnerable System" "VA" True vaValues,
+        MetricInfo "Subsequent System Confidentiality Impact" "SC" True scValues,
+        MetricInfo "Subsequent System Integrity Impact" "SI" True siValues,
+        MetricInfo "Subsequent System Availability Impact" "SA" True saValues
+      ]
+    avValues =
+      [ MetricValue "Network" (C "N") 0 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet.",
+        MetricValue "Adjacent" (C "A") 0 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology.",
+        MetricValue "Local" (C "L") 0 Nothing "The vulnerable component is not bound to the network stack and the attacker's path is via read/write/execute capabilities.",
+        MetricValue "Physical" (C "P") 0 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
+      ]
+    acValues =
+      [ MetricValue "Low" (C "L") 0 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
+        MetricValue "High" (C "H") 0 Nothing "A successful attack depends on conditions beyond the attacker's control."
+      ]
+    atValues =
+      [ MetricValue "Present" (C "P") 0 Nothing "The conditions described in Attack Vector, Attack Complexity, Privileges Required, and User Interaction exist in the environment.",
+        MetricValue "Absent" (C "N") 0 Nothing "The conditions described in Attack Vector, Attack Complexity, Privileges Required, and User Interaction do NOT exist in the environment."
+      ]
+    prValues =
+      [ MetricValue "None" (C "N") 0 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack.",
+        MetricValue "Low" (C "L") 0 Nothing "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
+        MetricValue "High" (C "H") 0 Nothing "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
+      ]
+    uiValues =
+      [ MetricValue "None" (C "N") 0 Nothing "The vulnerable system can be exploited without interaction from any user.",
+        MetricValue "Passive" (C "P") 0 Nothing "The human user must be engaged in some form of passive interaction (e.g., read an email, view a file).",
+        MetricValue "Active" (C "A") 0 Nothing "The human user must be engaged in some form of active interaction (e.g., click a link, run a program)."
+      ]
+    vcValues =
+      [ mkImpactHigh "There is a total loss of confidentiality, resulting in all resources within the impacted component being divulged to the attacker.",
+        mkImpactLow "There is some loss of confidentiality.",
+        mkImpactNone "There is no loss of confidentiality within the impacted component."
+      ]
+    viValues =
+      [ mkImpactHigh "There is a total loss of integrity, or a complete loss of protection.",
+        mkImpactLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.",
+        mkImpactNone "There is no loss of integrity within the impacted component."
+      ]
+    vaValues =
+      [ mkImpactHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the impacted component.",
+        mkImpactLow "Performance is reduced or there are interruptions in resource availability.",
+        mkImpactNone "There is no impact to availability within the impacted component."
+      ]
+    scValues =
+      [ mkImpactHigh "There is total loss of confidentiality, resulting in all resources within the Subsequent System being divulged to the attacker.",
+        mkImpactLow "There is some loss of confidentiality.",
+        mkImpactNone "There is no loss of confidentiality within the Subsequent System."
+      ]
+    siValues =
+      [ mkImpactHigh "There is a total loss of integrity, or a complete loss of protection.",
+        mkImpactLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.",
+        mkImpactNone "There is no loss of integrity within the Subsequent System."
+      ]
+    saValues =
+      [ mkImpactHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the Subsequent System.",
+        mkImpactLow "Performance is reduced or there are interruptions in resource availability.",
+        mkImpactNone "There is no impact to availability within the Subsequent System."
+      ]
+    mkImpactHigh = MetricValue "High" (C "H") 0 Nothing
+    mkImpactLow = MetricValue "Low" (C "L") 0 Nothing
+    mkImpactNone = MetricValue "None" (C "N") 0 Nothing
+    supplementalMetrics =
+      [ MetricInfo "Safety" "S" False sValues,
+        MetricInfo "Automatable" "AU" False auValues,
+        MetricInfo "Recovery" "R" False rValues,
+        MetricInfo "Value Density" "V" False vValues,
+        MetricInfo "Vulnerability Response Effort" "RE" False reValues,
+        MetricInfo "Provider Urgency" "U" False uValues
+      ]
+    sValues =
+      [ mkSuppUndef,
+        MetricValue "Negligible" (C "N") 0 Nothing "There is little to no safety impact to human life.",
+        MetricValue "Present" (C "P") 0 Nothing "There is a potential for non-trivial negative impact on human life."
+      ]
+    auValues =
+      [ mkSuppUndef,
+        MetricValue "No" (C "N") 0 Nothing "The attacker cannot reliably cause the specific impact or the effort required is beyond the attacker's capabilities.",
+        MetricValue "Yes" (C "Y") 0 Nothing "The attacker can reliably cause the specific impact using the available exploitation techniques and capabilities."
+      ]
+    rValues =
+      [ mkSuppUndef,
+        MetricValue "Automatic" (C "A") 0 Nothing "Recovery is performed by the system without human intervention.",
+        MetricValue "User" (C "U") 0 Nothing "Recovery is performed by a system administrator.",
+        MetricValue "Irreversible" (C "I") 0 Nothing "Recovery is impossible."
+      ]
+    vValues =
+      [ mkSuppUndef,
+        MetricValue "Diffuse" (C "D") 0 Nothing "The vulnerable component impacts a large number of organizations or users.",
+        MetricValue "Concentrated" (C "C") 0 Nothing "The vulnerable component impacts a small number of organizations or users."
+      ]
+    reValues =
+      [ mkSuppUndef,
+        MetricValue "Low" (C "L") 0 Nothing "The effort required to respond to the vulnerability is low.",
+        MetricValue "Moderate" (C "M") 0 Nothing "The effort required to respond to the vulnerability is moderate.",
+        MetricValue "High" (C "H") 0 Nothing "The effort required to respond to the vulnerability is high."
+      ]
+    uValues =
+      [ mkSuppUndef,
+        MetricValue "Clear" (C "C") 0 Nothing "The provider urges immediate action to resolve the vulnerability.",
+        MetricValue "Amber" (C "A") 0 Nothing "The provider urges action to resolve the vulnerability in a timely manner.",
+        MetricValue "Green" (C "G") 0 Nothing "The provider recommends the vulnerability be resolved, but the urgency is lower."
+      ]
+    mkSuppUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall score."
+    environmentalMetrics =
+      [ MetricInfo "Confidentiality Requirement" "CR" False crValues,
+        MetricInfo "Integrity Requirement" "IR" False irValues,
+        MetricInfo "Availability Requirement" "AR" False arValues,
+        MetricInfo "Modified Attack Vector" "MAV" False $ mkEnvUndef : avValues,
+        MetricInfo "Modified Attack Complexity" "MAC" False $ mkEnvUndef : acValues,
+        MetricInfo "Modified Attack Requirements" "MAT" False $ mkEnvUndef : atValues,
+        MetricInfo "Modified Privileges Required" "MPR" False $ mkEnvUndef : prValues,
+        MetricInfo "Modified User Interaction" "MUI" False $ mkEnvUndef : uiValues,
+        MetricInfo "Modified Confidentiality Impact to the Vulnerable System" "MVC" False $ mkEnvUndef : vcValues,
+        MetricInfo "Modified Integrity Impact to the Vulnerable System" "MVI" False $ mkEnvUndef : viValues,
+        MetricInfo "Modified Availability Impact to the Vulnerable System" "MVA" False $ mkEnvUndef : vaValues,
+        MetricInfo "Modified Subsequent System Confidentiality Impact" "MSC" False $ mkEnvUndef : scValues,
+        MetricInfo "Modified Subsequent System Integrity Impact" "MSI" False $ mkEnvUndef : siValues,
+        MetricInfo "Modified Subsequent System Availability Impact" "MSA" False $ mkEnvUndef : saValues
+      ]
+    crValues =
+      [ mkEnvUndef,
+        MetricValue "Low" (C "L") 0 Nothing "Loss of confidentiality is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "Medium" (C "M") 0 Nothing "Loss of confidentiality is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "High" (C "H") 0 Nothing "Loss of confidentiality is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
+      ]
+    irValues =
+      [ mkEnvUndef,
+        MetricValue "Low" (C "L") 0 Nothing "Loss of integrity is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "Medium" (C "M") 0 Nothing "Loss of integrity is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "High" (C "H") 0 Nothing "Loss of integrity is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
+      ]
+    arValues =
+      [ mkEnvUndef,
+        MetricValue "Low" (C "L") 0 Nothing "Loss of availability is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "Medium" (C "M") 0 Nothing "Loss of availability is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "High" (C "H") 0 Nothing "Loss of availability is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
+      ]
+    mkEnvUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium."
+    threatMetrics =
+      [ MetricInfo "Exploit Maturity" "E" False eValues
+      ]
+    eValues =
+      [ mkThreatUndef,
+        MetricValue "Unreported" (C "U") 0 Nothing "The vulnerability has not been reported to the vendor or the vendor has not been given the opportunity to respond.",
+        MetricValue "Proof of Concept" (C "P") 0 Nothing "Proof of concept code exists, or the vulnerability is theoretical.",
+        MetricValue "Attacked" (C "A") 0 Nothing "The vulnerability has been exploited in the wild."
+      ]
+    mkThreatUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Threat Score, i.e., it has the same effect on scoring as assigning Unreported."
 
 -- | Implementation of section 3.2.1. "Base Equation"
 cvss20score :: [Metric] -> (Rating, Float)
