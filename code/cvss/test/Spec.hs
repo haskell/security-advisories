@@ -30,7 +30,8 @@ main =
         testCase "CVSS v2.0 temporal score examples" testCVSS20TemporalScore,
         testCase "CVSS v2.0 ND temporal metrics do not change score" testCVSS20NotDefinedNoScoreChange,
         testCase "CVSS v2.0 environmental score examples" testCVSS20EnvironmentalScore,
-        testCase "CVSS v2.0 ND environmental metrics do not change score" testCVSS20EnvironmentalNotDefinedNoScoreChange
+        testCase "CVSS v2.0 ND environmental metrics do not change score" testCVSS20EnvironmentalNotDefinedNoScoreChange,
+        testCase "CVSS v4.0 parsing tests" testCVSS40Parsing
       ]
 
 testExamples :: Assertion
@@ -323,3 +324,34 @@ testCVSS30EnvironmentalNotDefinedNoScoreChange = do
     (Right temporalCvss, Right fullCvss) ->
       CVSS.cvssScore fullCvss @?= CVSS.cvssScore temporalCvss
     _ -> assertFailure ("temporal or full vector parse failed")
+
+testCVSS40Parsing :: Assertion
+testCVSS40Parsing = do
+  forM_ cvss40ValidVectors $ \(cvssString, expectedMetricsCount) ->
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = metrics} -> do
+        length metrics @?= expectedMetricsCount
+        CVSS.cvssVectorString (CVSS.CVSS CVSS.CVSS40 metrics) @?= cvssString
+      other -> assertFailure $ "Failed to parse valid CVSS 4.0: " <> show other <> " for " <> show cvssString
+  forM_ cvss40InvalidVectors $ \cvssString ->
+    case CVSS.parseCVSS cvssString of
+      Left _ -> pure ()
+      Right _ -> assertFailure $ "Should have failed to parse: " <> show cvssString
+  case CVSS.parseCVSS "AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N" of
+    Left _ -> pure ()
+    Right _ -> assertFailure "CVSS 4.0 should require CVSS:4.0/ prefix (no legacy format)"
+
+cvss40ValidVectors :: [(Text, Int)]
+cvss40ValidVectors =
+  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 11),
+    ("CVSS:4.0/AV:N/AC:H/AT:N/PR:H/UI:N/VC:L/VI:N/VA:N/SC:L/SI:N/SA:N/E:X", 12),
+    ("CVSS:4.0/AV:A/AC:L/AT:P/PR:L/UI:P/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 11)
+  ]
+
+cvss40InvalidVectors :: [Text]
+cvss40InvalidVectors =
+  [ "CVSS:4.0/AV:N/AC:L/PR:N/UI:N/VC:H/VI:H/VA:N",
+    "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N",
+    "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:INVALID",
+    "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/AV:N"
+  ]
