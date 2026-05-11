@@ -50,7 +50,7 @@
             (pkgs.haskellPackages.callCabal2nix
               "hsec-sync"
               ./code/hsec-sync
-              { inherit hsec-core; });
+              { });
 
         gitconfig =
           pkgs.writeTextFile {
