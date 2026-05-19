@@ -188,6 +188,35 @@ data SeverityGroups = SeverityGroups
   }
   deriving (Eq, Show)
 
+-- CVSS 4.0 Metric Value Types
+
+data CVSS40_AV = AV_Network | AV_Adjacent | AV_Local | AV_Physical
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_PR = PR_None | PR_Low | PR_High
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_UI = UI_None | UI_Passive | UI_Active
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_AC = AC_Low | AC_High
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_AT = AT_Absent | AT_Present
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_ImpactValue = Impact_High | Impact_Low | Impact_None
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_SubsequentImpactValue = SI_Safety | SI_High | SI_Low | SI_None
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_SecurityReqValue = SR_High | SR_Medium | SR_Low
+  deriving (Eq, Show, Enum, Bounded)
+
+data CVSS40_ExploitMaturity = EM_Attacked | EM_PoC | EM_Unreported
+  deriving (Eq, Show, Enum, Bounded)
+
 -- End CVSS 4.0 Data Types
 
 -- | Implementation of Section 5. "Qualitative Severity Rating Scale"
@@ -508,6 +537,8 @@ cvss31 =
 
 pattern C :: Text -> MetricValueChar
 pattern C c = MetricValueChar c
+
+{-# COMPLETE C #-}
 
 pattern Unchanged :: Float
 pattern Unchanged = 6.42
@@ -1440,6 +1471,140 @@ getChar40 :: [Metric] -> Text -> Char
 getChar40 metrics name = case getMetricValueChar40 metrics name of
   C c -> Text.head c
 
+-- CVSS 4.0 Per-Metric Accessors
+
+parseAV :: Char -> CVSS40_AV
+parseAV 'N' = AV_Network
+parseAV 'A' = AV_Adjacent
+parseAV 'L' = AV_Local
+parseAV 'P' = AV_Physical
+parseAV _ = AV_Physical
+
+parsePR :: Char -> CVSS40_PR
+parsePR 'N' = PR_None
+parsePR 'L' = PR_Low
+parsePR 'H' = PR_High
+parsePR _ = PR_High
+
+parseUI :: Char -> CVSS40_UI
+parseUI 'N' = UI_None
+parseUI 'P' = UI_Passive
+parseUI 'A' = UI_Active
+parseUI _ = UI_Active
+
+parseAC :: Char -> CVSS40_AC
+parseAC 'L' = AC_Low
+parseAC 'H' = AC_High
+parseAC _ = AC_High
+
+parseAT :: Char -> CVSS40_AT
+parseAT 'N' = AT_Absent
+parseAT 'P' = AT_Present
+parseAT _ = AT_Present
+
+parseImpactValue :: Char -> CVSS40_ImpactValue
+parseImpactValue 'H' = Impact_High
+parseImpactValue 'L' = Impact_Low
+parseImpactValue 'N' = Impact_None
+parseImpactValue _ = Impact_None
+
+parseSubsequentImpactValue :: Char -> CVSS40_SubsequentImpactValue
+parseSubsequentImpactValue 'S' = SI_Safety
+parseSubsequentImpactValue 'H' = SI_High
+parseSubsequentImpactValue 'L' = SI_Low
+parseSubsequentImpactValue 'N' = SI_None
+parseSubsequentImpactValue _ = SI_None
+
+parseSecurityReqValue :: Char -> CVSS40_SecurityReqValue
+parseSecurityReqValue 'H' = SR_High
+parseSecurityReqValue 'M' = SR_Medium
+parseSecurityReqValue 'L' = SR_Low
+parseSecurityReqValue _ = SR_High
+
+parseExploitMaturity :: Char -> CVSS40_ExploitMaturity
+parseExploitMaturity 'A' = EM_Attacked
+parseExploitMaturity 'P' = EM_PoC
+parseExploitMaturity 'U' = EM_Unreported
+parseExploitMaturity _ = EM_Attacked
+
+-- CVSS 4.0 Severity Functions
+
+avSeverity :: CVSS40_AV -> Severity
+avSeverity AV_Network = Severity 0.0
+avSeverity AV_Adjacent = Severity 0.1
+avSeverity AV_Local = Severity 0.2
+avSeverity AV_Physical = Severity 0.3
+
+prSeverity :: CVSS40_PR -> Severity
+prSeverity PR_None = Severity 0.0
+prSeverity PR_Low = Severity 0.1
+prSeverity PR_High = Severity 0.2
+
+uiSeverity :: CVSS40_UI -> Severity
+uiSeverity UI_None = Severity 0.0
+uiSeverity UI_Passive = Severity 0.1
+uiSeverity UI_Active = Severity 0.2
+
+acSeverity :: CVSS40_AC -> Severity
+acSeverity AC_Low = Severity 0.0
+acSeverity AC_High = Severity 0.1
+
+atSeverity :: CVSS40_AT -> Severity
+atSeverity AT_Absent = Severity 0.0
+atSeverity AT_Present = Severity 0.1
+
+vcSeverity :: CVSS40_ImpactValue -> Severity
+vcSeverity Impact_High = Severity 0.0
+vcSeverity Impact_Low = Severity 0.1
+vcSeverity Impact_None = Severity 0.2
+
+viSeverity :: CVSS40_ImpactValue -> Severity
+viSeverity Impact_High = Severity 0.0
+viSeverity Impact_Low = Severity 0.1
+viSeverity Impact_None = Severity 0.2
+
+vaSeverity :: CVSS40_ImpactValue -> Severity
+vaSeverity Impact_High = Severity 0.0
+vaSeverity Impact_Low = Severity 0.1
+vaSeverity Impact_None = Severity 0.2
+
+scSeverity :: CVSS40_ImpactValue -> Severity
+scSeverity Impact_High = Severity 0.1
+scSeverity Impact_Low = Severity 0.2
+scSeverity Impact_None = Severity 0.3
+
+siSeverity :: CVSS40_SubsequentImpactValue -> Severity
+siSeverity SI_Safety = Severity 0.0
+siSeverity SI_High = Severity 0.1
+siSeverity SI_Low = Severity 0.2
+siSeverity SI_None = Severity 0.3
+
+saSeverity :: CVSS40_SubsequentImpactValue -> Severity
+saSeverity SI_Safety = Severity 0.0
+saSeverity SI_High = Severity 0.1
+saSeverity SI_Low = Severity 0.2
+saSeverity SI_None = Severity 0.3
+
+crSeverity :: CVSS40_SecurityReqValue -> Severity
+crSeverity SR_High = Severity 0.0
+crSeverity SR_Medium = Severity 0.1
+crSeverity SR_Low = Severity 0.2
+
+irSeverity :: CVSS40_SecurityReqValue -> Severity
+irSeverity SR_High = Severity 0.0
+irSeverity SR_Medium = Severity 0.1
+irSeverity SR_Low = Severity 0.2
+
+arSeverity :: CVSS40_SecurityReqValue -> Severity
+arSeverity SR_High = Severity 0.0
+arSeverity SR_Medium = Severity 0.1
+arSeverity SR_Low = Severity 0.2
+
+eSeverity :: CVSS40_ExploitMaturity -> Severity
+eSeverity EM_Attacked = Severity 0.0
+eSeverity EM_PoC = Severity 1.0
+eSeverity EM_Unreported = Severity 2.0
+
 -- | CVSS 4.0 base score implementation
 cvss40BaseScore :: [Metric] -> (Rating, Float)
 cvss40BaseScore metrics = (toRating finalScore, finalScore)
@@ -1450,12 +1615,12 @@ cvss40BaseScore metrics = (toRating finalScore, finalScore)
     mv = macroVectorFromMetrics metrics
     lookupScore = macroVectorLookup mv
 
-    EQ1Result {eq1Level = eq1, eq1AV = avLevel, eq1PR = prLevel, eq1UI = uiLevel} = computeEQ1 metrics
-    EQ2Result {eq2Level = eq2, eq2AC = acLevel, eq2AT = atLevel} = computeEQ2 metrics
-    EQ3Result {eq3Level = eq3, eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3 metrics
-    EQ4Result {eq4Level = eq4, eq4SC = scLevel, eq4SI = siLevel, eq4SA = saLevel} = computeEQ4 metrics
-    EQ5Result {eq5Level = eq5, eq5E = eLevel} = computeEQ5 metrics
-    EQ6Result {eq6Level = eq6, eq6CR = crLevel, eq6IR = irLevel, eq6AR = arLevel} = computeEQ6 (vcLevel, viLevel, vaLevel) metrics
+    EQ1Result {eq1AV = avLevel, eq1PR = prLevel, eq1UI = uiLevel} = computeEQ1 metrics
+    EQ2Result {eq2AC = acLevel, eq2AT = atLevel} = computeEQ2 metrics
+    EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3 metrics
+    EQ4Result {eq4SC = scLevel, eq4SI = siLevel, eq4SA = saLevel} = computeEQ4 metrics
+    EQ5Result {eq5E = eLevel} = computeEQ5 metrics
+    EQ6Result {eq6CR = crLevel, eq6IR = irLevel, eq6AR = arLevel} = computeEQ6 (vcLevel, viLevel, vaLevel) metrics
 
     currentSeverities =
       SeverityGroups
@@ -1491,18 +1656,18 @@ macroVectorFromMetrics metrics =
 
 -- | Lookup score from MacroVector
 macroVectorLookup :: MacroVector -> Float
-macroVectorLookup mv = case Map.lookup (macroVectorToText mv) cvss40LookupTable of
+macroVectorLookup mv = case Map.lookup mv cvss40LookupTable of
   Nothing -> error $ "CVSS 4.0: invalid MacroVector: " <> show mv
   Just s -> s
 
--- | Convert MacroVector to Text for lookup table
-macroVectorToText :: MacroVector -> Text
-macroVectorToText MacroVector {..} =
-  Text.pack $ concat [eqLevelToChar mvEQ1, eqLevelToChar mvEQ2, eqLevelToChar mvEQ3, eqLevelToChar mvEQ4, eqLevelToChar mvEQ5, eqLevelToChar mvEQ6]
+-- | Convert Text to MacroVector
+textToMacroVector :: Text -> MacroVector
+textToMacroVector txt = MacroVector (charToEQ (Text.index txt 0)) (charToEQ (Text.index txt 1)) (charToEQ (Text.index txt 2)) (charToEQ (Text.index txt 3)) (charToEQ (Text.index txt 4)) (charToEQ (Text.index txt 5))
   where
-    eqLevelToChar EQ0 = "0"
-    eqLevelToChar EQ1 = "1"
-    eqLevelToChar EQ2 = "2"
+    charToEQ '0' = EQ0
+    charToEQ '1' = EQ1
+    charToEQ '2' = EQ2
+    charToEQ _ = EQ0
 
 -- | Compute EQ1 (AV/PR/UI) - 3 levels (EQ0, EQ1, EQ2)
 computeEQ1 :: [Metric] -> EQ1Result
@@ -1518,9 +1683,9 @@ computeEQ1 metrics =
     prChar = getChar40 metrics "PR"
     uiChar = getChar40 metrics "UI"
 
-    avLevel = Severity $ Map.findWithDefault 0.3 avChar avLevels
-    prLevel = Severity $ Map.findWithDefault 0.2 prChar prLevels
-    uiLevel = Severity $ Map.findWithDefault 0.2 uiChar uiLevels
+    avLevel = avSeverity (parseAV avChar)
+    prLevel = prSeverity (parsePR prChar)
+    uiLevel = uiSeverity (parseUI uiChar)
 
     eq1
       | avChar == 'N' && prChar == 'N' && uiChar == 'N' = EQ0
@@ -1540,8 +1705,8 @@ computeEQ2 metrics =
     acChar = getChar40 metrics "AC"
     atChar = getChar40 metrics "AT"
 
-    acLevel = Severity $ Map.findWithDefault 0.1 acChar acLevels
-    atLevel = Severity $ Map.findWithDefault 0.1 atChar atLevels
+    acLevel = acSeverity (parseAC acChar)
+    atLevel = atSeverity (parseAT atChar)
 
     eq2
       | acChar == 'L' && atChar == 'N' = EQ0
@@ -1561,9 +1726,9 @@ computeEQ3 metrics =
     viChar = getChar40 metrics "VI"
     vaChar = getChar40 metrics "VA"
 
-    vcLevel = Severity $ Map.findWithDefault 0.2 vcChar vcLevels
-    viLevel = Severity $ Map.findWithDefault 0.2 viChar viLevels
-    vaLevel = Severity $ Map.findWithDefault 0.2 vaChar vaLevels
+    vcLevel = vcSeverity (parseImpactValue vcChar)
+    viLevel = viSeverity (parseImpactValue viChar)
+    vaLevel = vaSeverity (parseImpactValue vaChar)
 
     eq3
       | vcChar == 'H' && viChar == 'H' = EQ0
@@ -1585,9 +1750,9 @@ computeEQ4 metrics =
     siChar = getChar40 metrics "SI"
     saChar = getChar40 metrics "SA"
 
-    scLevel = Severity $ Map.findWithDefault 0.3 scChar scLevels
-    siLevel = Severity $ Map.findWithDefault 0.3 siChar siLevels
-    saLevel = Severity $ Map.findWithDefault 0.3 saChar saLevels
+    scLevel = scSeverity (parseImpactValue scChar)
+    siLevel = siSeverity (parseSubsequentImpactValue siChar)
+    saLevel = saSeverity (parseSubsequentImpactValue saChar)
 
     eq4
       | siChar == 'S' || saChar == 'S' = EQ0
@@ -1605,7 +1770,7 @@ computeEQ5 metrics =
     }
   where
     eChar = getChar40 metrics "E"
-    eLevel = Severity $ Map.findWithDefault 0.0 eChar eLevels
+    eLevel = eSeverity (parseExploitMaturity eChar)
 
     eq5
       | eChar == 'A' = EQ0
@@ -1627,9 +1792,9 @@ computeEQ6 (Severity vcLevel, Severity viLevel, Severity vaLevel) metrics =
     irChar = getChar40 metrics "IR"
     arChar = getChar40 metrics "AR"
 
-    crLevel = Severity $ Map.findWithDefault 0.0 crChar crLevels
-    irLevel = Severity $ Map.findWithDefault 0.0 irChar irLevels
-    arLevel = Severity $ Map.findWithDefault 0.0 arChar arLevels
+    crLevel = crSeverity (parseSecurityReqValue crChar)
+    irLevel = irSeverity (parseSecurityReqValue irChar)
+    arLevel = arSeverity (parseSecurityReqValue arChar)
 
     eq6
       | (crChar == 'H' && vcLevel == 0.0) || (irChar == 'H' && viLevel == 0.0) || (arChar == 'H' && vaLevel == 0.0) = EQ0
@@ -1669,9 +1834,11 @@ getMaxSeverities MacroVector {..} =
     acMax = case mvEQ2 of
       EQ0 -> 0.0
       EQ1 -> 0.1
+      EQ2 -> 0.1
     atMax = case mvEQ2 of
       EQ0 -> 0.0
       EQ1 -> 0.1
+      EQ2 -> 0.1
     vcMax = case mvEQ3 of
       EQ0 -> 0.0
       EQ1 -> 0.1
@@ -1728,7 +1895,7 @@ getAvailableDistances score mv =
 
     getNextScore :: MacroVector -> Float -> Maybe Float
     getNextScore mv' s = do
-      ns <- Map.lookup (macroVectorToText mv') cvss40LookupTable
+      ns <- Map.lookup mv' cvss40LookupTable
       pure (s - ns)
 
 -- | Compute mean normalized distance for interpolation
@@ -1765,327 +1932,282 @@ computeMeanDistance currentSgs availableDists maxSvs = meanDist
           | Just a <- avail, a > 0 = True
           | otherwise = False
 
--- | Numeric level mappings for CVSS 4.0 metrics
-avLevels :: Map.Map Char Float
-avLevels = Map.fromList [('N', 0.0), ('A', 0.1), ('L', 0.2), ('P', 0.3)]
-
-prLevels :: Map.Map Char Float
-prLevels = Map.fromList [('N', 0.0), ('L', 0.1), ('H', 0.2)]
-
-uiLevels :: Map.Map Char Float
-uiLevels = Map.fromList [('N', 0.0), ('P', 0.1), ('A', 0.2)]
-
-acLevels :: Map.Map Char Float
-acLevels = Map.fromList [('L', 0.0), ('H', 0.1)]
-
-atLevels :: Map.Map Char Float
-atLevels = Map.fromList [('N', 0.0), ('P', 0.1)]
-
-vcLevels :: Map.Map Char Float
-vcLevels = Map.fromList [('H', 0.0), ('L', 0.1), ('N', 0.2)]
-
-viLevels :: Map.Map Char Float
-viLevels = Map.fromList [('H', 0.0), ('L', 0.1), ('N', 0.2)]
-
-vaLevels :: Map.Map Char Float
-vaLevels = Map.fromList [('H', 0.0), ('L', 0.1), ('N', 0.2)]
-
-scLevels :: Map.Map Char Float
-scLevels = Map.fromList [('H', 0.1), ('L', 0.2), ('N', 0.3)]
-
-siLevels :: Map.Map Char Float
-siLevels = Map.fromList [('S', 0.0), ('H', 0.1), ('L', 0.2), ('N', 0.3)]
-
-saLevels :: Map.Map Char Float
-saLevels = Map.fromList [('S', 0.0), ('H', 0.1), ('L', 0.2), ('N', 0.3)]
-
-crLevels :: Map.Map Char Float
-crLevels = Map.fromList [('H', 0.0), ('M', 0.1), ('L', 0.2)]
-
-irLevels :: Map.Map Char Float
-irLevels = Map.fromList [('H', 0.0), ('M', 0.1), ('L', 0.2)]
-
-arLevels :: Map.Map Char Float
-arLevels = Map.fromList [('H', 0.0), ('M', 0.1), ('L', 0.2)]
-
-eLevels :: Map.Map Char Float
-eLevels = Map.fromList [('A', 0.0), ('P', 1.0), ('U', 2.0)]
-
 -- | CVSS 4.0 lookup table - MacroVector to base score
-cvss40LookupTable :: Map.Map Text Float
-cvss40LookupTable =
-  Map.fromList
-    [ ("000000", 10.0),
-      ("000001", 9.9),
-      ("000010", 9.8),
-      ("000011", 9.5),
-      ("000020", 9.5),
-      ("000021", 9.2),
-      ("000100", 10.0),
-      ("000101", 9.6),
-      ("000110", 9.3),
-      ("000111", 8.7),
-      ("000120", 9.1),
-      ("000121", 8.1),
-      ("000200", 9.3),
-      ("000201", 9.0),
-      ("000210", 8.9),
-      ("000211", 8.0),
-      ("000220", 8.1),
-      ("000221", 6.8),
-      ("001000", 9.8),
-      ("001001", 9.5),
-      ("001010", 9.5),
-      ("001011", 9.2),
-      ("001020", 9.0),
-      ("001021", 8.4),
-      ("001100", 9.3),
-      ("001101", 9.2),
-      ("001110", 8.9),
-      ("001111", 8.1),
-      ("001120", 8.1),
-      ("001121", 6.5),
-      ("001200", 8.8),
-      ("001201", 8.0),
-      ("001210", 7.8),
-      ("001211", 7.0),
-      ("001220", 6.9),
-      ("001221", 4.8),
-      ("002001", 9.2),
-      ("002011", 8.2),
-      ("002021", 7.2),
-      ("002101", 7.9),
-      ("002111", 6.9),
-      ("002121", 5.0),
-      ("002201", 6.9),
-      ("002211", 5.5),
-      ("002221", 2.7),
-      ("010000", 9.9),
-      ("010001", 9.7),
-      ("010010", 9.5),
-      ("010011", 9.2),
-      ("010020", 9.2),
-      ("010021", 8.5),
-      ("010100", 9.5),
-      ("010101", 9.1),
-      ("010110", 9.0),
-      ("010111", 8.3),
-      ("010120", 8.4),
-      ("010121", 7.1),
-      ("010200", 9.2),
-      ("010201", 8.1),
-      ("010210", 8.2),
-      ("010211", 7.1),
-      ("010220", 7.2),
-      ("010221", 5.3),
-      ("011000", 9.5),
-      ("011001", 9.3),
-      ("011010", 9.2),
-      ("011011", 8.5),
-      ("011020", 8.5),
-      ("011021", 7.3),
-      ("011100", 9.2),
-      ("011101", 8.2),
-      ("011110", 8.0),
-      ("011111", 7.2),
-      ("011120", 7.0),
-      ("011121", 5.9),
-      ("011200", 8.4),
-      ("011201", 7.0),
-      ("011210", 7.1),
-      ("011211", 5.2),
-      ("011220", 5.0),
-      ("011221", 3.0),
-      ("012001", 8.6),
-      ("012011", 7.5),
-      ("012021", 5.2),
-      ("012101", 7.1),
-      ("012111", 5.2),
-      ("012121", 2.9),
-      ("012201", 6.3),
-      ("012211", 2.9),
-      ("012221", 1.7),
-      ("100000", 9.8),
-      ("100001", 9.5),
-      ("100010", 9.4),
-      ("100011", 8.7),
-      ("100020", 9.1),
-      ("100021", 8.1),
-      ("100100", 9.4),
-      ("100101", 8.9),
-      ("100110", 8.6),
-      ("100111", 7.4),
-      ("100120", 7.7),
-      ("100121", 6.4),
-      ("100200", 8.7),
-      ("100201", 7.5),
-      ("100210", 7.4),
-      ("100211", 6.3),
-      ("100220", 6.3),
-      ("100221", 4.9),
-      ("101000", 9.4),
-      ("101001", 8.9),
-      ("101010", 8.8),
-      ("101011", 7.7),
-      ("101020", 7.6),
-      ("101021", 6.7),
-      ("101100", 8.6),
-      ("101101", 7.6),
-      ("101110", 7.4),
-      ("101111", 5.8),
-      ("101120", 5.9),
-      ("101121", 5.0),
-      ("101200", 7.2),
-      ("101201", 5.7),
-      ("101210", 5.7),
-      ("101211", 5.2),
-      ("101220", 5.2),
-      ("101221", 2.5),
-      ("102001", 8.3),
-      ("102011", 7.0),
-      ("102021", 5.4),
-      ("102101", 6.5),
-      ("102111", 5.8),
-      ("102121", 2.6),
-      ("102201", 5.3),
-      ("102211", 2.1),
-      ("102221", 1.3),
-      ("110000", 9.5),
-      ("110001", 9.0),
-      ("110010", 8.8),
-      ("110011", 7.6),
-      ("110020", 7.6),
-      ("110021", 7.0),
-      ("110100", 9.0),
-      ("110101", 7.7),
-      ("110110", 7.5),
-      ("110111", 6.2),
-      ("110120", 6.1),
-      ("110121", 5.3),
-      ("110200", 7.7),
-      ("110201", 6.6),
-      ("110210", 6.8),
-      ("110211", 5.9),
-      ("110220", 5.2),
-      ("110221", 3.0),
-      ("111000", 8.9),
-      ("111001", 7.8),
-      ("111010", 7.6),
-      ("111011", 6.7),
-      ("111020", 6.2),
-      ("111021", 5.8),
-      ("111100", 7.4),
-      ("111101", 5.9),
-      ("111110", 5.7),
-      ("111111", 5.7),
-      ("111120", 4.7),
-      ("111121", 2.3),
-      ("111200", 6.1),
-      ("111201", 5.2),
-      ("111210", 5.7),
-      ("111211", 2.9),
-      ("111220", 2.4),
-      ("111221", 1.6),
-      ("112001", 7.1),
-      ("112011", 5.9),
-      ("112021", 3.0),
-      ("112101", 5.8),
-      ("112111", 2.6),
-      ("112121", 1.5),
-      ("112201", 2.3),
-      ("112211", 1.3),
-      ("112221", 0.6),
-      ("200000", 9.3),
-      ("200001", 8.7),
-      ("200010", 8.6),
-      ("200011", 7.2),
-      ("200020", 7.5),
-      ("200021", 5.8),
-      ("200100", 8.6),
-      ("200101", 7.4),
-      ("200110", 7.4),
-      ("200111", 6.1),
-      ("200120", 5.6),
-      ("200121", 3.4),
-      ("200200", 7.0),
-      ("200201", 5.4),
-      ("200210", 5.2),
-      ("200211", 4.0),
-      ("200220", 4.0),
-      ("200221", 2.2),
-      ("201000", 8.5),
-      ("201001", 7.5),
-      ("201010", 7.4),
-      ("201011", 5.5),
-      ("201020", 6.2),
-      ("201021", 5.1),
-      ("201100", 7.2),
-      ("201101", 5.7),
-      ("201110", 5.5),
-      ("201111", 4.1),
-      ("201120", 4.6),
-      ("201121", 1.9),
-      ("201200", 5.3),
-      ("201201", 3.6),
-      ("201210", 3.4),
-      ("201211", 1.9),
-      ("201220", 1.9),
-      ("201221", 0.8),
-      ("202001", 6.4),
-      ("202011", 5.1),
-      ("202021", 2.0),
-      ("202101", 4.7),
-      ("202111", 2.1),
-      ("202121", 1.1),
-      ("202201", 2.4),
-      ("202211", 0.9),
-      ("202221", 0.4),
-      ("210000", 8.8),
-      ("210001", 7.5),
-      ("210010", 7.3),
-      ("210011", 5.3),
-      ("210020", 6.0),
-      ("210021", 5.0),
-      ("210100", 7.3),
-      ("210101", 5.5),
-      ("210110", 5.9),
-      ("210111", 4.0),
-      ("210120", 4.1),
-      ("210121", 2.0),
-      ("210200", 5.4),
-      ("210201", 4.3),
-      ("210210", 4.5),
-      ("210211", 2.2),
-      ("210220", 2.0),
-      ("210221", 1.1),
-      ("211000", 7.5),
-      ("211001", 5.5),
-      ("211010", 5.8),
-      ("211011", 4.5),
-      ("211020", 4.0),
-      ("211021", 2.1),
-      ("211100", 6.1),
-      ("211101", 5.1),
-      ("211110", 4.8),
-      ("211111", 1.8),
-      ("211120", 2.0),
-      ("211121", 0.9),
-      ("211200", 4.6),
-      ("211201", 1.8),
-      ("211210", 1.7),
-      ("211211", 0.7),
-      ("211220", 0.8),
-      ("211221", 0.2),
-      ("212001", 5.3),
-      ("212011", 2.4),
-      ("212021", 1.4),
-      ("212101", 2.4),
-      ("212111", 1.2),
-      ("212121", 0.5),
-      ("212201", 1.0),
-      ("212211", 0.3),
-      ("212221", 0.1)
-    ]
+cvss40LookupTable :: Map.Map MacroVector Float
+cvss40LookupTable = Map.fromList [(textToMacroVector k, v) | (k, v) <- textTable]
+  where
+    textTable =
+      [ ("000000", 10.0),
+        ("000001", 9.9),
+        ("000010", 9.8),
+        ("000011", 9.5),
+        ("000020", 9.5),
+        ("000021", 9.2),
+        ("000100", 10.0),
+        ("000101", 9.6),
+        ("000110", 9.3),
+        ("000111", 8.7),
+        ("000120", 9.1),
+        ("000121", 8.1),
+        ("000200", 9.3),
+        ("000201", 9.0),
+        ("000210", 8.9),
+        ("000211", 8.0),
+        ("000220", 8.1),
+        ("000221", 6.8),
+        ("001000", 9.8),
+        ("001001", 9.5),
+        ("001010", 9.5),
+        ("001011", 9.2),
+        ("001020", 9.0),
+        ("001021", 8.4),
+        ("001100", 9.3),
+        ("001101", 9.2),
+        ("001110", 8.9),
+        ("001111", 8.1),
+        ("001120", 8.1),
+        ("001121", 6.5),
+        ("001200", 8.8),
+        ("001201", 8.0),
+        ("001210", 7.8),
+        ("001211", 7.0),
+        ("001220", 6.9),
+        ("001221", 4.8),
+        ("002001", 9.2),
+        ("002011", 8.2),
+        ("002021", 7.2),
+        ("002101", 7.9),
+        ("002111", 6.9),
+        ("002121", 5.0),
+        ("002201", 6.9),
+        ("002211", 5.5),
+        ("002221", 2.7),
+        ("010000", 9.9),
+        ("010001", 9.7),
+        ("010010", 9.5),
+        ("010011", 9.2),
+        ("010020", 9.2),
+        ("010021", 8.5),
+        ("010100", 9.5),
+        ("010101", 9.1),
+        ("010110", 9.0),
+        ("010111", 8.3),
+        ("010120", 8.4),
+        ("010121", 7.1),
+        ("010200", 9.2),
+        ("010201", 8.1),
+        ("010210", 8.2),
+        ("010211", 7.1),
+        ("010220", 7.2),
+        ("010221", 5.3),
+        ("011000", 9.5),
+        ("011001", 9.3),
+        ("011010", 9.2),
+        ("011011", 8.5),
+        ("011020", 8.5),
+        ("011021", 7.3),
+        ("011100", 9.2),
+        ("011101", 8.2),
+        ("011110", 8.0),
+        ("011111", 7.2),
+        ("011120", 7.0),
+        ("011121", 5.9),
+        ("011200", 8.4),
+        ("011201", 7.0),
+        ("011210", 7.1),
+        ("011211", 5.2),
+        ("011220", 5.0),
+        ("011221", 3.0),
+        ("012001", 8.6),
+        ("012011", 7.5),
+        ("012021", 5.2),
+        ("012101", 7.1),
+        ("012111", 5.2),
+        ("012121", 2.9),
+        ("012201", 6.3),
+        ("012211", 2.9),
+        ("012221", 1.7),
+        ("100000", 9.8),
+        ("100001", 9.5),
+        ("100010", 9.4),
+        ("100011", 8.7),
+        ("100020", 9.1),
+        ("100021", 8.1),
+        ("100100", 9.4),
+        ("100101", 8.9),
+        ("100110", 8.6),
+        ("100111", 7.4),
+        ("100120", 7.7),
+        ("100121", 6.4),
+        ("100200", 8.7),
+        ("100201", 7.5),
+        ("100210", 7.4),
+        ("100211", 6.3),
+        ("100220", 6.3),
+        ("100221", 4.9),
+        ("101000", 9.4),
+        ("101001", 8.9),
+        ("101010", 8.8),
+        ("101011", 7.7),
+        ("101020", 7.6),
+        ("101021", 6.7),
+        ("101100", 8.6),
+        ("101101", 7.6),
+        ("101110", 7.4),
+        ("101111", 5.8),
+        ("101120", 5.9),
+        ("101121", 5.0),
+        ("101200", 7.2),
+        ("101201", 5.7),
+        ("101210", 5.7),
+        ("101211", 5.2),
+        ("101220", 5.2),
+        ("101221", 2.5),
+        ("102001", 8.3),
+        ("102011", 7.0),
+        ("102021", 5.4),
+        ("102101", 6.5),
+        ("102111", 5.8),
+        ("102121", 2.6),
+        ("102201", 5.3),
+        ("102211", 2.1),
+        ("102221", 1.3),
+        ("110000", 9.5),
+        ("110001", 9.0),
+        ("110010", 8.8),
+        ("110011", 7.6),
+        ("110020", 7.6),
+        ("110021", 7.0),
+        ("110100", 9.0),
+        ("110101", 7.7),
+        ("110110", 7.5),
+        ("110111", 6.2),
+        ("110120", 6.1),
+        ("110121", 5.3),
+        ("110200", 7.7),
+        ("110201", 6.6),
+        ("110210", 6.8),
+        ("110211", 5.9),
+        ("110220", 5.2),
+        ("110221", 3.0),
+        ("111000", 8.9),
+        ("111001", 7.8),
+        ("111010", 7.6),
+        ("111011", 6.7),
+        ("111020", 6.2),
+        ("111021", 5.8),
+        ("111100", 7.4),
+        ("111101", 5.9),
+        ("111110", 5.7),
+        ("111111", 5.7),
+        ("111120", 4.7),
+        ("111121", 2.3),
+        ("111200", 6.1),
+        ("111201", 5.2),
+        ("111210", 5.7),
+        ("111211", 2.9),
+        ("111220", 2.4),
+        ("111221", 1.6),
+        ("112001", 7.1),
+        ("112011", 5.9),
+        ("112021", 3.0),
+        ("112101", 5.8),
+        ("112111", 2.6),
+        ("112121", 1.5),
+        ("112201", 2.3),
+        ("112211", 1.3),
+        ("112221", 0.6),
+        ("200000", 9.3),
+        ("200001", 8.7),
+        ("200010", 8.6),
+        ("200011", 7.2),
+        ("200020", 7.5),
+        ("200021", 5.8),
+        ("200100", 8.6),
+        ("200101", 7.4),
+        ("200110", 7.4),
+        ("200111", 6.1),
+        ("200120", 5.6),
+        ("200121", 3.4),
+        ("200200", 7.0),
+        ("200201", 5.4),
+        ("200210", 5.2),
+        ("200211", 4.0),
+        ("200220", 4.0),
+        ("200221", 2.2),
+        ("201000", 8.5),
+        ("201001", 7.5),
+        ("201010", 7.4),
+        ("201011", 5.5),
+        ("201020", 6.2),
+        ("201021", 5.1),
+        ("201100", 7.2),
+        ("201101", 5.7),
+        ("201110", 5.5),
+        ("201111", 4.1),
+        ("201120", 4.6),
+        ("201121", 1.9),
+        ("201200", 5.3),
+        ("201201", 3.6),
+        ("201210", 3.4),
+        ("201211", 1.9),
+        ("201220", 1.9),
+        ("201221", 0.8),
+        ("202001", 6.4),
+        ("202011", 5.1),
+        ("202021", 2.0),
+        ("202101", 4.7),
+        ("202111", 2.1),
+        ("202121", 1.1),
+        ("202201", 2.4),
+        ("202211", 0.9),
+        ("202221", 0.4),
+        ("210000", 8.8),
+        ("210001", 7.5),
+        ("210010", 7.3),
+        ("210011", 5.3),
+        ("210020", 6.0),
+        ("210021", 5.0),
+        ("210100", 7.3),
+        ("210101", 5.5),
+        ("210110", 5.9),
+        ("210111", 4.0),
+        ("210120", 4.1),
+        ("210121", 2.0),
+        ("210200", 5.4),
+        ("210201", 4.3),
+        ("210210", 4.5),
+        ("210211", 2.2),
+        ("210220", 2.0),
+        ("210221", 1.1),
+        ("211000", 7.5),
+        ("211001", 5.5),
+        ("211010", 5.8),
+        ("211011", 4.5),
+        ("211020", 4.0),
+        ("211021", 2.1),
+        ("211100", 6.1),
+        ("211101", 5.1),
+        ("211110", 4.8),
+        ("211111", 1.8),
+        ("211120", 2.0),
+        ("211121", 0.9),
+        ("211200", 4.6),
+        ("211201", 1.8),
+        ("211210", 1.7),
+        ("211211", 0.7),
+        ("211220", 0.8),
+        ("211221", 0.2),
+        ("212001", 5.3),
+        ("212011", 2.4),
+        ("212021", 1.4),
+        ("212101", 2.4),
+        ("212111", 1.2),
+        ("212121", 0.5),
+        ("212201", 1.0),
+        ("212211", 0.3),
+        ("212221", 0.1)
+      ]
 
 -- | Check for duplicates metric
 --
