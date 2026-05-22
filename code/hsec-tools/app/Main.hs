@@ -16,15 +16,17 @@ import Control.Exception (Exception(displayException))
 import Distribution.Parsec (eitherParsec)
 import Distribution.Types.VersionRange (VersionRange, anyVersion)
 import Network.URI (nullURI)
-import Options.Applicative
+import Options.Applicative hiding (Failure, Success)
 import Security.Advisories
+import Security.Advisories.Filesystem (forAdvisory, advisoryFromFile)
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Generate.HTML
 import Security.Advisories.Generate.Snapshot
 import Security.Advisories.Git
 import Security.Advisories.Queries (listVersionRangeAffectedBy)
 import System.Exit (die, exitFailure, exitSuccess)
-import System.FilePath (takeBaseName)
+import System.Directory (createDirectoryIfMissing)
+import System.FilePath ((</>), takeBaseName, (<.>))
 import System.IO (hPrint, hPutStrLn, stderr)
 import Validation (Validation (..))
 
@@ -85,23 +87,45 @@ commandNextID =
     <$> optional (argument str (metavar "REPO"))
 
 commandCheck :: Parser (IO ())
-commandCheck =
-  withAdvisory go
-    <$> optional (argument str (metavar "FILE"))
+commandCheck = go
+    <$> switch (long "all" <> help "Check all published advisories")
+    <*> optional (argument str (metavar "PATH"))
   where
-    go mPath advisory = do
-      for_ mPath $ \path -> do
-        let base = takeBaseName path
-        when ("HSEC-" `isPrefixOf` base && base /= printHsecId (advisoryId advisory)) $
-          die $
-            "Filename does not match advisory ID: " <> path
-      T.putStrLn "no error"
+    go True mPath = checkAll (fromMaybe "." mPath)
+    go False mPath = withAdvisory checkSingle mPath
+
+checkSingle :: Maybe FilePath -> Advisory -> IO ()
+checkSingle mPath advisory = do
+  for_ mPath $ \path -> do
+    let base = takeBaseName path
+    when ("HSEC-" `isPrefixOf` base && base /= printHsecId (advisoryId advisory)) $
+      die $
+        "Filename does not match advisory ID: " <> path
+  T.putStrLn "no error"
+
+checkAll :: FilePath -> IO ()
+checkAll root = do
+  errors <- forAdvisory root $ \path hsidFromFile -> do
+    parsed <- advisoryFromFile path
+    case parsed of
+      Failure err -> pure [(path, displayException err)]
+      Success advisory ->
+        if printHsecId hsidFromFile /= printHsecId (advisoryId advisory)
+          then pure [(path, "Filename does not match advisory ID")]
+          else pure []
+  case errors of
+    [] -> T.putStrLn "no error"
+    _ -> do
+      forM_ errors $ \(path, err) ->
+        hPutStrLn stderr $ path <> ": " <> err
+      exitFailure
 
 commandOsv :: Parser (IO ())
-commandOsv =
-  withAdvisory . go
-    <$> dbLinksParser
-    <*> optional (argument str (metavar "FILE"))
+commandOsv = go
+    <$> switch (long "all" <> help "Convert all published advisories to OSV")
+    <*> dbLinksParser
+    <*> optional (argument str (metavar "PATH"))
+    <*> optional (argument str (metavar "OUTPUT-DIR"))
   where
     dbLinksParser :: Parser OSV.DbLinks
     dbLinksParser =
@@ -117,10 +141,33 @@ commandOsv =
            <> help desc
            <> value (T.unpack def)
            <> showDefault
-            )
-    go links _ adv = do
-      L.putStr (Data.Aeson.encode (OSV.convertWithLinks links adv))
-      putChar '\n'
+             )
+    go False links (Just file) _ = osvSingle links file
+    go False _ Nothing _ = die "File required without --all"
+    go True links mPath mOutDir = osvAll links (fromMaybe "." mPath) (fromMaybe "osv" mOutDir)
+
+osvSingle :: OSV.DbLinks -> FilePath -> IO ()
+osvSingle links file = withAdvisory (\_ adv -> L.putStr (Data.Aeson.encode (OSV.convertWithLinks links adv)) >> putChar '\n') (Just file)
+
+osvAll :: OSV.DbLinks -> FilePath -> FilePath -> IO ()
+osvAll links root outputDir = do
+  errors <- forAdvisory root $ \path hsid -> do
+    parsed <- advisoryFromFile path
+    case parsed of
+      Failure err -> pure [(path, displayException err)]
+      Success advisory -> do
+        let year = show $ hsecIdYear hsid
+            idStr = printHsecId hsid
+            outPath = outputDir </> year </> idStr <.> "json"
+        createDirectoryIfMissing True (outputDir </> year)
+        L.writeFile outPath (Data.Aeson.encode (OSV.convertWithLinks links advisory))
+        pure []
+  case errors of
+    [] -> pure ()
+    _ -> do
+      forM_ errors $ \(path, err) ->
+        hPutStrLn stderr $ path <> ": " <> err
+      exitFailure
 
 commandRender :: Parser (IO ())
 commandRender =
