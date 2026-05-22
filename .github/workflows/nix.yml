@@ -35,14 +35,10 @@ jobs:
       - run: docker load -i ~/.local/dockerImages/hsec-tools
       - name: Run advisory syntax checks
         run: |
-          RESULT=0
-          # Remove the begining of the README to extract the example.
           (echo '```toml'; sed -e '1,/```toml/d' README.md) > EXAMPLE_README.md
-          while read FILE ; do
-            echo -n "$FILE: "
-            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check "$FILE" || RESULT=1
-          done < <(find advisories/published EXAMPLE_README.md EXAMPLE_ADVISORY.md -type f -name "*.md")
-          exit $RESULT
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check --all .
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check EXAMPLE_README.md
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools check EXAMPLE_ADVISORY.md
       - name: Run advisory uniqueness checks
         run: |
           ! find advisories/published -type f -name '*.md' \
@@ -50,15 +46,7 @@ jobs:
             | sort | uniq -c | grep -E -v '[[:space:]]*1 '
       - name: Generate OSV data
         run: |
-          DATA_DIR=$PWD/osv
-          mkdir "$DATA_DIR"
-          while read FILE ; do
-            echo "$FILE"
-            ID=$(basename "$FILE" .md)
-            YEAR=$(echo "$ID" | cut -d - -f 2)
-            mkdir -p $DATA_DIR/$YEAR
-            docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv "$FILE" > $DATA_DIR/$YEAR/$ID.json
-          done < <(find advisories/published -type f -name "*.md")
+          docker run --rm -v $PWD:/repo --workdir /repo haskell/hsec-tools:latest /bin/hsec-tools osv --all . osv
       - name: Validate OSV data
         run: |
           curl -OL https://raw.githubusercontent.com/ossf/osv-schema/refs/heads/main/validation/schema.json
