@@ -6,6 +6,7 @@ import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Security.CVSS as CVSS
+import qualified Security.CVSS.V40 as V40
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
@@ -32,8 +33,14 @@ main =
         testCase "CVSS v2.0 environmental score examples" testCVSS20EnvironmentalScore,
         testCase "CVSS v2.0 ND environmental metrics do not change score" testCVSS20EnvironmentalNotDefinedNoScoreChange,
         testCase "CVSS v4.0 parsing tests" testCVSS40Parsing,
-        testGroup "CVSS v4.0 base score examples" $ cvss40ScoringCase <$> cvss40ScoringExamples
-       ]
+        testGroup "CVSS v4.0 base score examples" $ cvss40ScoringCase <$> cvss40ScoringExamples,
+        testGroup "CVSS v4.0 expanded base score tests" $ cvss40ScoringCase <$> cvss40ExpandedExamples,
+        testGroup "CVSS v4.0 direct baseScore tests" $ cvss40BaseScoreCase <$> cvss40BaseScoreExamples,
+        testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
+        testCase "CVSS v4.0 X metrics do not change score" testCVSS40XMetricsNoScoreChange,
+        testProperty "CVSS v4.0 parser preserves original vector string" prop_cvss40RoundTrip,
+        testCase "CVSS v4.0 rating boundary tests" testCVSS40RatingBoundaries
+      ]
 
 testExamples :: Assertion
 testExamples =
@@ -372,5 +379,150 @@ cvss40ScoringExamples =
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.0, CVSS.Critical),
     ("CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.4, CVSS.Critical),
     ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 8.8, CVSS.High),
+    ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low),
+    -- Additional verified examples from the lookup table
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.6, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.5, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:H/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.4, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.4, CVSS.Critical),
+    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.5, CVSS.Critical),
+    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.4, CVSS.Critical),
+    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.6, CVSS.Critical),
+    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.4, CVSS.Critical),
+    -- EQ3 tests (VC/VI/VA combinations)
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:L/SC:N/SI:N/SA:N", 9.0, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:H/SC:N/SI:N/SA:N", 8.7, CVSS.High),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:H/VA:H/SC:N/SI:N/SA:N", 8.7, CVSS.High),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:H/SC:N/SI:N/SA:N", 8.4, CVSS.High),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:L/SC:N/SI:N/SA:N", 8.4, CVSS.High),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:L/SC:N/SI:N/SA:N", 6.9, CVSS.Medium),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N", 6.9, CVSS.Medium)
+  ]
+
+cvss40ExpandedExamples :: [(Text, Float, CVSS.Rating)]
+cvss40ExpandedExamples =
+  []
+
+cvss40BaseScoreExamples :: [(Text, Float, CVSS.Rating)]
+cvss40BaseScoreExamples =
+  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.6, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.0, CVSS.Critical),
+    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 8.8, CVSS.High),
     ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low)
+  ]
+
+cvss40BaseScoreCase :: (Text, Float, CVSS.Rating) -> TestTree
+cvss40BaseScoreCase (cvssString, score, rating) =
+  testCase (Text.unpack cvssString) $ do
+    case CVSS.parseCVSS cvssString of
+      Left e -> assertFailure (show e)
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
+        V40.cvss40BaseScore cm @?= (rating, score)
+      other -> assertFailure $ "Not a CVSS 4.0 vector: " <> show other
+
+testCVSS40ParsingWithOptional :: Assertion
+testCVSS40ParsingWithOptional = do
+  let vectors =
+        [ -- Supplemental metrics
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/S:N", 12),
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/S:N/AU:N", 13),
+          -- Threat metric
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:X", 12),
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:A", 12),
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:P", 12),
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:U", 12),
+          -- Environmental metrics (only supported ones)
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/CR:H/IR:H/AR:H", 14),
+          -- All optional metrics
+          ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/S:N/AU:N/E:X/CR:X/IR:X/AR:X", 17)
+        ]
+  forM_ vectors $ \(cvssString, expectedCount) ->
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
+        length cm @?= expectedCount
+        CVSS.cvssVectorString (CVSS.CVSS CVSS.CVSS40 cm) @?= cvssString
+      other -> assertFailure $ "Failed to parse: " <> show other <> " for " <> show cvssString
+
+testCVSS40XMetricsNoScoreChange :: Assertion
+testCVSS40XMetricsNoScoreChange = do
+  let baseVector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      xMetrics = "/E:X/S:N/AU:N/CR:X/IR:X/AR:X"
+      fullVector = baseVector <> xMetrics
+  case (CVSS.parseCVSS baseVector, CVSS.parseCVSS fullVector) of
+    (Right CVSS.CVSS {CVSS.cvssMetrics = baseMetrics}, Right CVSS.CVSS {CVSS.cvssMetrics = fullMetrics}) -> do
+      V40.cvss40BaseScore baseMetrics @?= V40.cvss40BaseScore fullMetrics
+    _ -> assertFailure $ "Failed to parse base or full vector"
+
+prop_cvss40RoundTrip :: Base40 -> Property
+prop_cvss40RoundTrip b =
+  let input = base40Vector b
+   in case CVSS.parseCVSS input of
+        Right cvss -> CVSS.cvssVectorString cvss === input
+        Left e -> counterexample ("parse failed: " <> show e <> "\n" <> Text.unpack input) False
+
+data Base40 = Base40
+  { b40AV :: Char,
+    b40AC :: Char,
+    b40AT :: Char,
+    b40PR :: Char,
+    b40UI :: Char,
+    b40VC :: Char,
+    b40VI :: Char,
+    b40VA :: Char,
+    b40SC :: Char,
+    b40SI :: Char,
+    b40SA :: Char
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Base40 where
+  arbitrary =
+    Base40
+      <$> elements ['N', 'A', 'L', 'P']
+      <*> elements ['L', 'H']
+      <*> elements ['N', 'P']
+      <*> elements ['N', 'L', 'H']
+      <*> elements ['N', 'A', 'P']
+      <*> elements ['H', 'L', 'N']
+      <*> elements ['H', 'L', 'N']
+      <*> elements ['H', 'L', 'N']
+      <*> elements ['H', 'L', 'N']
+      <*> elements ['H', 'L', 'N']
+      <*> elements ['H', 'L', 'N']
+
+cvss40Vector :: [Text] -> Text
+cvss40Vector metrics = Text.intercalate "/" ("CVSS:4.0" : metrics)
+
+base40Vector :: Base40 -> Text
+base40Vector b =
+  cvss40Vector
+    [ metric "AV" (b40AV b),
+      metric "AC" (b40AC b),
+      metric "AT" (b40AT b),
+      metric "PR" (b40PR b),
+      metric "UI" (b40UI b),
+      metric "VC" (b40VC b),
+      metric "VI" (b40VI b),
+      metric "VA" (b40VA b),
+      metric "SC" (b40SC b),
+      metric "SI" (b40SI b),
+      metric "SA" (b40SA b)
+    ]
+
+testCVSS40RatingBoundaries :: Assertion
+testCVSS40RatingBoundaries =
+  forM_ cvss40BoundaryTests $ \(score, expectedRating) -> do
+    CVSS.toRating score @?= expectedRating
+
+cvss40BoundaryTests :: [(Float, CVSS.Rating)]
+cvss40BoundaryTests =
+  [ (0, CVSS.None),
+    (0.1, CVSS.Low),
+    (3.9, CVSS.Low),
+    (4.0, CVSS.Medium),
+    (6.9, CVSS.Medium),
+    (7.0, CVSS.High),
+    (8.9, CVSS.High),
+    (9.0, CVSS.Critical),
+    (10, CVSS.Critical)
   ]

@@ -34,7 +34,7 @@ library
 
 test-suite spec
   type:             exitcode-stdio-1.0
-  hs-source-dirs:   test
+  hs-source-dirs:   test, src
   main-is:          Spec.hs
   build-depends:
     , base         <5
@@ -43,6 +43,7 @@ test-suite spec
     , tasty-hunit  <1.0
     , tasty-quickcheck
     , text
+    , containers
 
   default-language: Haskell2010
   ghc-options:
