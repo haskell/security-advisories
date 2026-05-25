@@ -31,6 +31,7 @@ module Security.CVSS
     cvss31EnvironmentalScore,
     cvss40score,
     cvss40BaseScore,
+    cvss40EnvironmentalScore,
     cvssInfo,
   )
 where
@@ -40,17 +41,12 @@ import Data.List (find, group, sort)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
-
 import Security.CVSS.Internal (CVSSDB (..), allMetrics, doCVSSInfo, miShortName)
-import Security.CVSS.Types (CVSS (..), CVSSVersion (..), CVSSError (..), Metric (..), MetricShortName (..), MetricValueChar (..), Rating (..), showCVSSError, toRating, toRating20)
-import Security.CVSS.V20 (cvss20score, validateCvss20, cvss20DB)
-import Security.CVSS.V30 (cvss30score, validateCvss30, cvss30DB)
-import Security.CVSS.V31 (cvss31score, validateCvss31, cvss31DB)
-import Security.CVSS.V40 (cvss40score, validateCvss40, cvss40DB)
-import Security.CVSS.V31 (cvss31TemporalScore, cvss31EnvironmentalScore)
-import Security.CVSS.V30 (cvss30TemporalScore, cvss30EnvironmentalScore)
-import Security.CVSS.V20 (cvss20TemporalScore, cvss20EnvironmentalScore)
-import Security.CVSS.V40 (cvss40BaseScore)
+import Security.CVSS.Types (CVSS (..), CVSSError (..), CVSSVersion (..), Metric (..), MetricShortName (..), MetricValueChar (..), Rating (..), showCVSSError, toRating, toRating20)
+import Security.CVSS.V20 (cvss20DB, cvss20EnvironmentalScore, cvss20TemporalScore, cvss20score, validateCvss20)
+import Security.CVSS.V30 (cvss30DB, cvss30EnvironmentalScore, cvss30TemporalScore, cvss30score, validateCvss30)
+import Security.CVSS.V31 (cvss31DB, cvss31EnvironmentalScore, cvss31TemporalScore, cvss31score, validateCvss31)
+import Security.CVSS.V40 (cvss40BaseScore, cvss40DB, cvss40EnvironmentalScore, cvss40score, validateCvss40)
 
 pattern C :: Text -> MetricValueChar
 pattern C c = MetricValueChar c

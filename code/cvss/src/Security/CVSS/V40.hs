@@ -11,6 +11,7 @@ module Security.CVSS.V40
     validateCvss40,
     cvss40score,
     cvss40BaseScore,
+    cvss40EnvironmentalScore,
   )
 where
 
@@ -21,7 +22,6 @@ import Data.Map qualified as Map
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
-
 import Security.CVSS.Internal
 import Security.CVSS.Types
 
@@ -497,9 +497,14 @@ eSeverity EM_Attacked = Severity 0.0
 eSeverity EM_PoC = Severity 1.0
 eSeverity EM_Unreported = Severity 2.0
 
+getModifiedChar40 :: [Metric] -> Text -> Text -> Char
+getModifiedChar40 metrics modifiedName baseName =
+  let modifiedChar = getChar40 metrics modifiedName
+   in if modifiedChar == 'X' then getChar40 metrics baseName else modifiedChar
+
 cvss40score :: [Metric] -> (Rating, Float)
 cvss40score metrics
-  | hasEnvironmentalMetrics40 metrics = error "CVSS 4.0 environmental scoring not yet implemented"
+  | hasEnvironmentalMetrics40 metrics = cvss40EnvironmentalScore metrics
   | hasThreatMetrics40 metrics = error "CVSS 4.0 threat scoring not yet implemented"
   | otherwise = cvss40BaseScore metrics
 
@@ -537,6 +542,40 @@ cvss40BaseScore metrics = (toRating finalScore, finalScore)
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
 
+cvss40EnvironmentalScore :: [Metric] -> (Rating, Float)
+cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
+  where
+    finalScore = round40 (max 0.0 (min 10.0 value))
+    value = lookupScore - meanDistance
+
+    mv = macroVectorFromMetricsEnv metrics
+    lookupScore = macroVectorLookup mv
+
+    EQ1Result {eq1AV = avLevel, eq1PR = prLevel, eq1UI = uiLevel} = computeEQ1Env metrics
+    EQ2Result {eq2AC = acLevel, eq2AT = atLevel} = computeEQ2Env metrics
+    EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3Env metrics
+    EQ4Result {eq4SC = scLevel, eq4SI = siLevel, eq4SA = saLevel} = computeEQ4Env metrics
+    EQ5Result {eq5E = eLevel} = computeEQ5 metrics
+    EQ6Result {eq6CR = crLevel, eq6IR = irLevel, eq6AR = arLevel} = computeEQ6 (vcLevel, viLevel, vaLevel) metrics
+
+    currentSeverities =
+      SeverityGroups
+        { sgEQ1 = [avLevel, prLevel, uiLevel],
+          sgEQ2 = [acLevel, atLevel],
+          sgEQ3 = [vcLevel, viLevel, vaLevel, crLevel, irLevel, arLevel],
+          sgEQ4 = [scLevel, siLevel, saLevel],
+          sgEQ5 = [eLevel]
+        }
+
+    maxSeverities = getMaxSeverities mv
+
+    availableDistances = getAvailableDistances lookupScore mv
+
+    meanDistance = computeMeanDistance currentSeverities availableDistances maxSeverities
+
+    round40 :: Float -> Float
+    round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
+
 macroVectorFromMetrics :: [Metric] -> MacroVector
 macroVectorFromMetrics metrics =
   MacroVector
@@ -549,6 +588,19 @@ macroVectorFromMetrics metrics =
     }
   where
     EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3 metrics
+
+macroVectorFromMetricsEnv :: [Metric] -> MacroVector
+macroVectorFromMetricsEnv metrics =
+  MacroVector
+    { mvEQ1 = eq1Level (computeEQ1Env metrics),
+      mvEQ2 = eq2Level (computeEQ2Env metrics),
+      mvEQ3 = eq3Level (computeEQ3Env metrics),
+      mvEQ4 = eq4Level (computeEQ4Env metrics),
+      mvEQ5 = eq5Level (computeEQ5 metrics),
+      mvEQ6 = eq6Level (computeEQ6 (vcLevel, viLevel, vaLevel) metrics)
+    }
+  where
+    EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3Env metrics
 
 macroVectorLookup :: MacroVector -> Float
 macroVectorLookup mv = case Map.lookup mv cvss40LookupTable of
@@ -686,6 +738,94 @@ computeEQ6 (Severity vcLevel, Severity viLevel, Severity vaLevel) metrics =
 
     eq6
       | (crChar == 'H' && vcLevel == 0.0) || (irChar == 'H' && viLevel == 0.0) || (arChar == 'H' && vaLevel == 0.0) = EQ0
+      | otherwise = EQ1
+
+computeEQ1Env :: [Metric] -> EQ1Result
+computeEQ1Env metrics =
+  EQ1Result
+    { eq1Level = eq1,
+      eq1AV = avLevel,
+      eq1PR = prLevel,
+      eq1UI = uiLevel
+    }
+  where
+    avChar = getModifiedChar40 metrics "MAV" "AV"
+    prChar = getModifiedChar40 metrics "MPR" "PR"
+    uiChar = getModifiedChar40 metrics "MUI" "UI"
+
+    avLevel = avSeverity (parseAV avChar)
+    prLevel = prSeverity (parsePR prChar)
+    uiLevel = uiSeverity (parseUI uiChar)
+
+    eq1
+      | avChar == 'N' && prChar == 'N' && uiChar == 'N' = EQ0
+      | (avChar == 'N' || prChar == 'N' || uiChar == 'N') && not (avChar == 'N' && prChar == 'N' && uiChar == 'N') && avChar /= 'P' = EQ1
+      | avChar == 'P' || not (avChar == 'N' || prChar == 'N' || uiChar == 'N') = EQ2
+      | otherwise = EQ1
+
+computeEQ2Env :: [Metric] -> EQ2Result
+computeEQ2Env metrics =
+  EQ2Result
+    { eq2Level = eq2,
+      eq2AC = acLevel,
+      eq2AT = atLevel
+    }
+  where
+    acChar = getModifiedChar40 metrics "MAC" "AC"
+    atChar = getModifiedChar40 metrics "MAT" "AT"
+
+    acLevel = acSeverity (parseAC acChar)
+    atLevel = atSeverity (parseAT atChar)
+
+    eq2
+      | acChar == 'L' && atChar == 'N' = EQ0
+      | otherwise = EQ1
+
+computeEQ3Env :: [Metric] -> EQ3Result
+computeEQ3Env metrics =
+  EQ3Result
+    { eq3Level = eq3,
+      eq3VC = vcLevel,
+      eq3VI = viLevel,
+      eq3VA = vaLevel
+    }
+  where
+    vcChar = getModifiedChar40 metrics "MVC" "VC"
+    viChar = getModifiedChar40 metrics "MVI" "VI"
+    vaChar = getModifiedChar40 metrics "MVA" "VA"
+
+    vcLevel = vcSeverity (parseImpactValue vcChar)
+    viLevel = viSeverity (parseImpactValue viChar)
+    vaLevel = vaSeverity (parseImpactValue vaChar)
+
+    eq3
+      | vcChar == 'H' && viChar == 'H' = EQ0
+      | not (vcChar == 'H' && viChar == 'H') && (vcChar == 'H' || viChar == 'H' || vaChar == 'H') = EQ1
+      | not (vcChar == 'H' || viChar == 'H' || vaChar == 'H') = EQ2
+      | otherwise = EQ1
+
+computeEQ4Env :: [Metric] -> EQ4Result
+computeEQ4Env metrics =
+  EQ4Result
+    { eq4Level = eq4,
+      eq4SC = scLevel,
+      eq4SI = siLevel,
+      eq4SA = saLevel
+    }
+  where
+    scChar = getModifiedChar40 metrics "MSC" "SC"
+    siChar = getModifiedChar40 metrics "MSI" "SI"
+    saChar = getModifiedChar40 metrics "MSA" "SA"
+
+    scLevel = scSeverity (parseImpactValue scChar)
+    siLevel = siSeverity (parseSubsequentImpactValue siChar)
+    saLevel = saSeverity (parseSubsequentImpactValue saChar)
+
+    eq4
+      | siChar == 'S' || saChar == 'S' = EQ0
+      | siChar == 'H' && saChar == 'N' && scChar == 'H' = EQ0
+      | not (siChar == 'S' || saChar == 'S') && (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ1
+      | not (siChar == 'S' || saChar == 'S') && not (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ2
       | otherwise = EQ1
 
 getMaxSeverities :: MacroVector -> MaxSeverities

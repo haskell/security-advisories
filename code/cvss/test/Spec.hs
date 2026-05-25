@@ -36,6 +36,7 @@ main =
         testGroup "CVSS v4.0 base score examples" $ cvss40ScoringCase <$> cvss40ScoringExamples,
         testGroup "CVSS v4.0 expanded base score tests" $ cvss40ScoringCase <$> cvss40ExpandedExamples,
         testGroup "CVSS v4.0 direct baseScore tests" $ cvss40BaseScoreCase <$> cvss40BaseScoreExamples,
+        testCase "CVSS v4.0 environmental score examples" testCVSS40EnvironmentalScore,
         testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
         testCase "CVSS v4.0 X metrics do not change score" testCVSS40XMetricsNoScoreChange,
         testProperty "CVSS v4.0 parser preserves original vector string" prop_cvss40RoundTrip,
@@ -411,6 +412,14 @@ cvss40BaseScoreExamples =
     ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low)
   ]
 
+cvss40EnvironmentalExamples :: [(Text, Float, CVSS.Rating)]
+cvss40EnvironmentalExamples =
+  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X", 9.6, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:H/IR:H/AR:H/MAV:L", 9.7, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:L/IR:L/AR:L", 9.6, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MVC:L", 9.6, CVSS.Critical)
+  ]
+
 cvss40BaseScoreCase :: (Text, Float, CVSS.Rating) -> TestTree
 cvss40BaseScoreCase (cvssString, score, rating) =
   testCase (Text.unpack cvssString) $ do
@@ -419,6 +428,14 @@ cvss40BaseScoreCase (cvssString, score, rating) =
       Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
         V40.cvss40BaseScore cm @?= (rating, score)
       other -> assertFailure $ "Not a CVSS 4.0 vector: " <> show other
+
+testCVSS40EnvironmentalScore :: Assertion
+testCVSS40EnvironmentalScore =
+  forM_ cvss40EnvironmentalExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
+        CVSS.cvss40EnvironmentalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
 
 testCVSS40ParsingWithOptional :: Assertion
 testCVSS40ParsingWithOptional = do
