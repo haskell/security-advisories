@@ -43,8 +43,13 @@ main =
         testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
         testCase "CVSS v4.0 X metrics do not change score" testCVSS40XMetricsNoScoreChange,
         testProperty "CVSS v4.0 parser preserves original vector string" prop_cvss40RoundTrip,
+        testProperty "CVSS v4.0 environmental parser preserves original vector string" prop_cvss40EnvRoundTrip,
+        testProperty "CVSS v4.0 all-X environmental metrics do not change score" prop_cvss40EnvXNoScoreChange,
+        testProperty "CVSS v4.0 environmental score is in [0, 10]" prop_cvss40EnvScoreBounds,
+        testProperty "CVSS v4.0 environmental rating is consistent with score" prop_cvss40EnvRatingConsistency,
         testCase "CVSS v4.0 rating boundary tests" testCVSS40RatingBoundaries,
-        testGroup "Official FIRST cross-validation"
+        testGroup
+          "Official FIRST cross-validation"
           [ testGroup "CVSS v2.0" $ officialTestCaseV20 <$> cvss20OfficialExamples,
             testGroup "CVSS v3.0" $ officialTestCaseV3X <$> cvss30OfficialExamples,
             testGroup "CVSS v3.1" $ officialTestCaseV3X <$> cvss31OfficialExamples,
@@ -536,6 +541,42 @@ instance Arbitrary Base40 where
       <*> elements ['H', 'L', 'N']
       <*> elements ['H', 'L', 'N']
 
+data Env40 = Env40
+  { e40CR :: Char,
+    e40IR :: Char,
+    e40AR :: Char,
+    e40MAV :: Char,
+    e40MAC :: Char,
+    e40MAT :: Char,
+    e40MPR :: Char,
+    e40MUI :: Char,
+    e40MVC :: Char,
+    e40MVI :: Char,
+    e40MVA :: Char,
+    e40MSC :: Char,
+    e40MSI :: Char,
+    e40MSA :: Char
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Env40 where
+  arbitrary =
+    Env40
+      <$> elements ['X', 'L', 'M', 'H']
+      <*> elements ['X', 'L', 'M', 'H']
+      <*> elements ['X', 'L', 'M', 'H']
+      <*> elements ['X', 'N', 'A', 'L', 'P']
+      <*> elements ['X', 'L', 'H']
+      <*> elements ['X', 'N', 'P']
+      <*> elements ['X', 'N', 'L', 'H']
+      <*> elements ['X', 'N', 'P', 'A']
+      <*> elements ['X', 'H', 'L', 'N']
+      <*> elements ['X', 'H', 'L', 'N']
+      <*> elements ['X', 'H', 'L', 'N']
+      <*> elements ['X', 'H', 'L', 'N']
+      <*> elements ['X', 'S', 'H', 'L', 'N']
+      <*> elements ['X', 'S', 'H', 'L', 'N']
+
 cvss40Vector :: [Text] -> Text
 cvss40Vector metrics = Text.intercalate "/" ("CVSS:4.0" : metrics)
 
@@ -555,6 +596,84 @@ base40Vector b =
       metric "SA" (b40SA b)
     ]
 
+env40Vector :: Env40 -> Text
+env40Vector e =
+  Text.intercalate
+    "/"
+    [ metric "CR" (e40CR e),
+      metric "IR" (e40IR e),
+      metric "AR" (e40AR e),
+      metric "MAV" (e40MAV e),
+      metric "MAC" (e40MAC e),
+      metric "MAT" (e40MAT e),
+      metric "MPR" (e40MPR e),
+      metric "MUI" (e40MUI e),
+      metric "MVC" (e40MVC e),
+      metric "MVI" (e40MVI e),
+      metric "MVA" (e40MVA e),
+      metric "MSC" (e40MSC e),
+      metric "MSI" (e40MSI e),
+      metric "MSA" (e40MSA e)
+    ]
+
+full40Vector :: Base40 -> Env40 -> Text
+full40Vector b e = base40Vector b <> "/" <> env40Vector e
+
+allXEnv :: Env40
+allXEnv =
+  Env40
+    { e40CR = 'X',
+      e40IR = 'X',
+      e40AR = 'X',
+      e40MAV = 'X',
+      e40MAC = 'X',
+      e40MAT = 'X',
+      e40MPR = 'X',
+      e40MUI = 'X',
+      e40MVC = 'X',
+      e40MVI = 'X',
+      e40MVA = 'X',
+      e40MSC = 'X',
+      e40MSI = 'X',
+      e40MSA = 'X'
+    }
+
+prop_cvss40EnvRoundTrip :: Base40 -> Env40 -> Property
+prop_cvss40EnvRoundTrip b e =
+  let input = full40Vector b e
+   in case CVSS.parseCVSS input of
+        Right cvss -> CVSS.cvssVectorString cvss === input
+        Left err -> counterexample ("parse failed: " <> show err <> "\n" <> Text.unpack input) False
+
+prop_cvss40EnvXNoScoreChange :: Base40 -> Property
+prop_cvss40EnvXNoScoreChange b =
+  let baseInput = base40Vector b
+      fullInput = full40Vector b allXEnv
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS fullInput) of
+        (Right baseCvss, Right fullCvss) ->
+          let (_, baseScore) = CVSS.cvssScore baseCvss
+              (_, fullScore) = CVSS.cvssScore fullCvss
+           in fullScore === baseScore
+        _ -> counterexample "parse failed for base or full vector" False
+
+prop_cvss40EnvScoreBounds :: Base40 -> Env40 -> Property
+prop_cvss40EnvScoreBounds b e =
+  let input = full40Vector b e
+   in case CVSS.parseCVSS input of
+        Right cvss ->
+          let (_, score) = CVSS.cvssScore cvss
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err <> "\n" <> Text.unpack input) False
+
+prop_cvss40EnvRatingConsistency :: Base40 -> Env40 -> Property
+prop_cvss40EnvRatingConsistency b e =
+  let input = full40Vector b e
+   in case CVSS.parseCVSS input of
+        Right CVSS.CVSS {CVSS.cvssMetrics = cm} ->
+          let (rating, score) = CVSS.cvss40EnvironmentalScore cm
+           in rating === CVSS.toRating score
+        Left err -> counterexample ("parse failed: " <> show err <> "\n" <> Text.unpack input) False
+
 testCVSS40RatingBoundaries :: Assertion
 testCVSS40RatingBoundaries =
   forM_ cvss40BoundaryTests $ \(score, expectedRating) -> do
@@ -572,6 +691,7 @@ cvss40BoundaryTests =
     (9.0, CVSS.Critical),
     (10, CVSS.Critical)
   ]
+
 officialTestCaseV20 :: OfficialExample -> TestTree
 officialTestCaseV20 ex =
   testCase (Text.unpack $ oeVector ex) $ do
