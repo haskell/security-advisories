@@ -47,6 +47,37 @@ main =
         testProperty "CVSS v4.0 all-X environmental metrics do not change score" prop_cvss40EnvXNoScoreChange,
         testProperty "CVSS v4.0 environmental score is in [0, 10]" prop_cvss40EnvScoreBounds,
         testProperty "CVSS v4.0 environmental rating is consistent with score" prop_cvss40EnvRatingConsistency,
+        testGroup
+          "QuickCheck Properties - CVSS v2.0"
+          [ testProperty "temporal ≤ base" prop_v20_temporalLEBase,
+            testProperty "ND temporal doesn't change score" prop_v20_ndTemporalNoChange,
+            testProperty "ND env doesn't change score" prop_v20_ndEnvNoChange,
+            testProperty "temporal score in [0, 10]" prop_v20_temporalScoreBounds,
+            testProperty "env score in [0, 10]" prop_v20_envScoreBounds,
+            testProperty "TD:N results in score 0" prop_v20_tdNoneZero,
+            testProperty "env ≤ temporal when CR/IR/AR=ND and CDP=ND" prop_v20_envLETemporal,
+            testProperty "full vector roundtrip" prop_v20_fullRoundTrip
+          ],
+        testGroup
+          "QuickCheck Properties - CVSS v3.0"
+          [ testProperty "temporal ≤ base" prop_v30_temporalLEBase,
+            testProperty "ND temporal doesn't change score" prop_v30_ndTemporalNoChange,
+            testProperty "ND env doesn't change score" prop_v30_ndEnvNoChange,
+            testProperty "temporal score in [0, 10]" prop_v30_temporalScoreBounds,
+            testProperty "env score in [0, 10]" prop_v30_envScoreBounds,
+            testProperty "env rating consistent with score" prop_v30_envRatingConsistency,
+            testProperty "full vector roundtrip" prop_v30_fullRoundTrip
+          ],
+        testGroup
+          "QuickCheck Properties - CVSS v3.1"
+          [ testProperty "temporal ≤ base" prop_v31_temporalLEBase,
+            testProperty "ND temporal doesn't change score" prop_v31_ndTemporalNoChange,
+            testProperty "ND env doesn't change score" prop_v31_ndEnvNoChange,
+            testProperty "temporal score in [0, 10]" prop_v31_temporalScoreBounds,
+            testProperty "env score in [0, 10]" prop_v31_envScoreBounds,
+            testProperty "env rating consistent with score" prop_v31_envRatingConsistency,
+            testProperty "temporal vector roundtrip" prop_v31_temporalRoundTrip
+          ],
         testCase "CVSS v4.0 rating boundary tests" testCVSS40RatingBoundaries,
         testGroup
           "Official FIRST cross-validation"
@@ -197,9 +228,428 @@ base31Vector b =
       metric "A" (bA b)
     ]
 
+metric20 :: Text -> Text -> Text
+metric20 name value = name <> ":" <> value
+
+base20Vector :: Base20 -> Text
+base20Vector b =
+  Text.intercalate
+    "/"
+    [ metric20 "AV" (b20AV b),
+      metric20 "AC" (b20AC b),
+      metric20 "Au" (b20Au b),
+      metric20 "C" (b20C b),
+      metric20 "I" (b20I b),
+      metric20 "A" (b20A b)
+    ]
+
+temporal20Vector :: Temporal20 -> Text
+temporal20Vector t =
+  Text.intercalate
+    "/"
+    [ metric20 "E" (t20E t),
+      metric20 "RL" (t20RL t),
+      metric20 "RC" (t20RC t)
+    ]
+
+env20Vector :: Env20 -> Text
+env20Vector e =
+  Text.intercalate
+    "/"
+    [ metric20 "CR" (e20CR e),
+      metric20 "IR" (e20IR e),
+      metric20 "AR" (e20AR e),
+      metric20 "CDP" (e20CDP e),
+      metric20 "TD" (e20TD e)
+    ]
+
 notDefinedTemporalEnv :: Text
 notDefinedTemporalEnv =
   "/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+
+data Base20 = Base20
+  { b20AV :: Text,
+    b20AC :: Text,
+    b20Au :: Text,
+    b20C :: Text,
+    b20I :: Text,
+    b20A :: Text
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Base20 where
+  arbitrary =
+    Base20
+      <$> elements ["L", "A", "N"]
+      <*> elements ["H", "M", "L"]
+      <*> elements ["M", "S", "N"]
+      <*> elements ["N", "P", "C"]
+      <*> elements ["N", "P", "C"]
+      <*> elements ["N", "P", "C"]
+
+data Temporal20 = Temporal20
+  { t20E :: Text,
+    t20RL :: Text,
+    t20RC :: Text
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Temporal20 where
+  arbitrary =
+    Temporal20
+      <$> elements ["ND", "U", "POC", "F", "H"]
+      <*> elements ["ND", "OF", "TF", "W", "U"]
+      <*> elements ["ND", "UC", "UR", "C"]
+
+data Env20 = Env20
+  { e20CR :: Text,
+    e20IR :: Text,
+    e20AR :: Text,
+    e20CDP :: Text,
+    e20TD :: Text
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Env20 where
+  arbitrary =
+    Env20
+      <$> elements ["ND", "L", "M", "H"]
+      <*> elements ["ND", "L", "M", "H"]
+      <*> elements ["ND", "L", "M", "H"]
+      <*> elements ["ND", "N", "L", "LM", "MH", "H"]
+      <*> elements ["ND", "N", "L", "M", "H"]
+
+data Temporal3x = Temporal3x
+  { t3xE :: Char,
+    t3xRL :: Char,
+    t3xRC :: Char
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Temporal3x where
+  arbitrary =
+    Temporal3x
+      <$> elements ['X', 'H', 'F', 'P', 'U']
+      <*> elements ['X', 'U', 'W', 'T', 'O']
+      <*> elements ['X', 'C', 'R', 'U']
+
+data Env3x = Env3x
+  { e3xCR :: Char,
+    e3xIR :: Char,
+    e3xAR :: Char,
+    e3xMAV :: Char,
+    e3xMAC :: Char,
+    e3xMPR :: Char,
+    e3xMUI :: Char,
+    e3xMS :: Char,
+    e3xMC :: Char,
+    e3xMI :: Char,
+    e3xMA :: Char
+  }
+  deriving (Eq, Show)
+
+instance Arbitrary Env3x where
+  arbitrary =
+    Env3x
+      <$> elements ['X', 'H', 'M', 'L']
+      <*> elements ['X', 'H', 'M', 'L']
+      <*> elements ['X', 'H', 'M', 'L']
+      <*> elements ['X', 'N', 'A', 'L', 'P']
+      <*> elements ['X', 'L', 'H']
+      <*> elements ['X', 'N', 'L', 'H']
+      <*> elements ['X', 'N', 'R']
+      <*> elements ['X', 'U', 'C']
+      <*> elements ['X', 'H', 'L', 'N']
+      <*> elements ['X', 'H', 'L', 'N']
+      <*> elements ['X', 'H', 'L', 'N']
+
+full20Vector :: Base20 -> Temporal20 -> Env20 -> Text
+full20Vector b t e =
+  base20Vector b <> "/" <> temporal20Vector t <> "/" <> env20Vector e
+
+base30Vector :: Base31 -> Text
+base30Vector b =
+  Text.intercalate
+    "/"
+    [ "CVSS:3.0",
+      metric "AV" (bAV b),
+      metric "AC" (bAC b),
+      metric "PR" (bPR b),
+      metric "UI" (bUI b),
+      metric "S" (bS b),
+      metric "C" (bC b),
+      metric "I" (bI b),
+      metric "A" (bA b)
+    ]
+
+temporal3xVector :: Temporal3x -> Text
+temporal3xVector t =
+  Text.intercalate
+    "/"
+    [ metric "E" (t3xE t),
+      metric "RL" (t3xRL t),
+      metric "RC" (t3xRC t)
+    ]
+
+env3xVector :: Env3x -> Text
+env3xVector e =
+  Text.intercalate
+    "/"
+    [ metric "CR" (e3xCR e),
+      metric "IR" (e3xIR e),
+      metric "AR" (e3xAR e),
+      metric "MAV" (e3xMAV e),
+      metric "MAC" (e3xMAC e),
+      metric "MPR" (e3xMPR e),
+      metric "MUI" (e3xMUI e),
+      metric "MS" (e3xMS e),
+      metric "MC" (e3xMC e),
+      metric "MI" (e3xMI e),
+      metric "MA" (e3xMA e)
+    ]
+
+full30Vector :: Base31 -> Temporal3x -> Env3x -> Text
+full30Vector b t e =
+  base30Vector b <> "/" <> temporal3xVector t <> "/" <> env3xVector e
+
+full31TemporalVector :: Base31 -> Temporal3x -> Text
+full31TemporalVector b t =
+  base31Vector b <> "/" <> temporal3xVector t
+
+full31EnvVector :: Base31 -> Temporal3x -> Env3x -> Text
+full31EnvVector b t e =
+  base31Vector b <> "/" <> temporal3xVector t <> "/" <> env3xVector e
+
+allNDEnv :: Env20
+allNDEnv =
+  Env20
+    { e20CR = "ND",
+      e20IR = "ND",
+      e20AR = "ND",
+      e20CDP = "ND",
+      e20TD = "H"
+    }
+
+allXEnv3x :: Env3x
+allXEnv3x =
+  Env3x
+    { e3xCR = 'X',
+      e3xIR = 'X',
+      e3xAR = 'X',
+      e3xMAV = 'X',
+      e3xMAC = 'X',
+      e3xMPR = 'X',
+      e3xMUI = 'X',
+      e3xMS = 'X',
+      e3xMC = 'X',
+      e3xMI = 'X',
+      e3xMA = 'X'
+    }
+
+prop_v20_temporalLEBase :: Base20 -> Temporal20 -> Property
+prop_v20_temporalLEBase b t =
+  let baseInput = base20Vector b
+      temporalInput = baseInput <> "/" <> temporal20Vector t
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS temporalInput) of
+        (Right baseCvss, Right temporalCvss) ->
+          let (_, baseScore) = CVSS.cvssScore baseCvss
+              (_, temporalScore) = CVSS.cvss20TemporalScore (CVSS.cvssMetrics temporalCvss)
+           in property $ temporalScore <= baseScore
+        _ -> counterexample "parse failed" False
+
+prop_v30_temporalLEBase :: Base31 -> Temporal3x -> Property
+prop_v30_temporalLEBase b t =
+  let baseInput = base30Vector b
+      temporalInput = baseInput <> "/" <> temporal3xVector t
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS temporalInput) of
+        (Right baseCvss, Right temporalCvss) ->
+          let (_, baseScore) = CVSS.cvssScore baseCvss
+              (_, temporalScore) = CVSS.cvss30TemporalScore (CVSS.cvssMetrics temporalCvss)
+           in property $ temporalScore <= baseScore
+        _ -> counterexample "parse failed" False
+
+prop_v31_temporalLEBase :: Base31 -> Temporal3x -> Property
+prop_v31_temporalLEBase b t =
+  let baseInput = base31Vector b
+      temporalInput = baseInput <> "/" <> temporal3xVector t
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS temporalInput) of
+        (Right baseCvss, Right temporalCvss) ->
+          let (_, baseScore) = CVSS.cvssScore baseCvss
+              (_, temporalScore) = CVSS.cvss31TemporalScore (CVSS.cvssMetrics temporalCvss)
+           in property $ temporalScore <= baseScore
+        _ -> counterexample "parse failed" False
+
+prop_v20_ndTemporalNoChange :: Base20 -> Property
+prop_v20_ndTemporalNoChange b =
+  let baseInput = base20Vector b
+      ndTemporal = "/E:ND/RL:ND/RC:ND"
+      temporalInput = baseInput <> ndTemporal
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS temporalInput) of
+        (Right baseCvss, Right temporalCvss) ->
+          CVSS.cvssScore baseCvss === CVSS.cvss20TemporalScore (CVSS.cvssMetrics temporalCvss)
+        _ -> counterexample "parse failed" False
+
+prop_v30_ndTemporalNoChange :: Base31 -> Property
+prop_v30_ndTemporalNoChange b =
+  let baseInput = base30Vector b
+      ndTemporal = "/E:X/RL:X/RC:X"
+      temporalInput = baseInput <> ndTemporal
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS temporalInput) of
+        (Right baseCvss, Right temporalCvss) ->
+          CVSS.cvssScore baseCvss === CVSS.cvss30TemporalScore (CVSS.cvssMetrics temporalCvss)
+        _ -> counterexample "parse failed" False
+
+prop_v31_ndTemporalNoChange :: Base31 -> Property
+prop_v31_ndTemporalNoChange b =
+  let baseInput = base31Vector b
+      ndTemporal = "/E:X/RL:X/RC:X"
+      temporalInput = baseInput <> ndTemporal
+   in case (CVSS.parseCVSS baseInput, CVSS.parseCVSS temporalInput) of
+        (Right baseCvss, Right temporalCvss) ->
+          CVSS.cvssScore baseCvss === CVSS.cvss31TemporalScore (CVSS.cvssMetrics temporalCvss)
+        _ -> counterexample "parse failed" False
+
+prop_v20_ndEnvNoChange :: Base20 -> Temporal20 -> Property
+prop_v20_ndEnvNoChange b t =
+  let temporalInput = base20Vector b <> "/" <> temporal20Vector t
+      ndEnv = "/CR:ND/IR:ND/AR:ND/CDP:ND/TD:ND"
+      envInput = temporalInput <> ndEnv
+   in case (CVSS.parseCVSS temporalInput, CVSS.parseCVSS envInput) of
+        (Right temporalCvss, Right envCvss) ->
+          CVSS.cvss20TemporalScore (CVSS.cvssMetrics temporalCvss) === CVSS.cvss20EnvironmentalScore (CVSS.cvssMetrics envCvss)
+        _ -> counterexample "parse failed" False
+
+prop_v30_ndEnvNoChange :: Base31 -> Temporal3x -> Property
+prop_v30_ndEnvNoChange b t =
+  let temporalInput = base30Vector b <> "/" <> temporal3xVector t
+      ndEnv = "/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+      envInput = temporalInput <> ndEnv
+   in case (CVSS.parseCVSS temporalInput, CVSS.parseCVSS envInput) of
+        (Right temporalCvss, Right envCvss) ->
+          CVSS.cvss30TemporalScore (CVSS.cvssMetrics temporalCvss) === CVSS.cvss30EnvironmentalScore (CVSS.cvssMetrics envCvss)
+        _ -> counterexample "parse failed" False
+
+prop_v31_ndEnvNoChange :: Base31 -> Temporal3x -> Property
+prop_v31_ndEnvNoChange b t =
+  let temporalInput = base31Vector b <> "/" <> temporal3xVector t
+      ndEnv = "/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X"
+      envInput = temporalInput <> ndEnv
+   in case (CVSS.parseCVSS temporalInput, CVSS.parseCVSS envInput) of
+        (Right temporalCvss, Right envCvss) ->
+          CVSS.cvss31TemporalScore (CVSS.cvssMetrics temporalCvss) === CVSS.cvss31EnvironmentalScore (CVSS.cvssMetrics envCvss)
+        _ -> counterexample "parse failed" False
+
+prop_v20_temporalScoreBounds :: Base20 -> Temporal20 -> Property
+prop_v20_temporalScoreBounds b t =
+  let temporalInput = base20Vector b <> "/" <> temporal20Vector t
+   in case CVSS.parseCVSS temporalInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss20TemporalScore (CVSS.cvssMetrics cvss)
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v30_temporalScoreBounds :: Base31 -> Temporal3x -> Property
+prop_v30_temporalScoreBounds b t =
+  let temporalInput = base30Vector b <> "/" <> temporal3xVector t
+   in case CVSS.parseCVSS temporalInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss30TemporalScore (CVSS.cvssMetrics cvss)
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v31_temporalScoreBounds :: Base31 -> Temporal3x -> Property
+prop_v31_temporalScoreBounds b t =
+  let temporalInput = base31Vector b <> "/" <> temporal3xVector t
+   in case CVSS.parseCVSS temporalInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss31TemporalScore (CVSS.cvssMetrics cvss)
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v20_envScoreBounds :: Base20 -> Temporal20 -> Env20 -> Property
+prop_v20_envScoreBounds b t e =
+  let envInput = full20Vector b t e
+   in case CVSS.parseCVSS envInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss20EnvironmentalScore (CVSS.cvssMetrics cvss)
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v30_envScoreBounds :: Base31 -> Temporal3x -> Env3x -> Property
+prop_v30_envScoreBounds b t e =
+  let envInput = full30Vector b t e
+   in case CVSS.parseCVSS envInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss30EnvironmentalScore (CVSS.cvssMetrics cvss)
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v31_envScoreBounds :: Base31 -> Temporal3x -> Env3x -> Property
+prop_v31_envScoreBounds b t e =
+  let envInput = full31EnvVector b t e
+   in case CVSS.parseCVSS envInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss31EnvironmentalScore (CVSS.cvssMetrics cvss)
+           in score >= 0.0 .&&. score <= 10.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v20_tdNoneZero :: Base20 -> Temporal20 -> Property
+prop_v20_tdNoneZero b t =
+  let envInput = base20Vector b <> "/" <> temporal20Vector t <> "/CR:ND/IR:ND/AR:ND/CDP:ND/TD:N"
+   in case CVSS.parseCVSS envInput of
+        Right cvss ->
+          let (_, score) = CVSS.cvss20EnvironmentalScore (CVSS.cvssMetrics cvss)
+           in score === 0.0
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v20_envLETemporal :: Base20 -> Temporal20 -> Property
+prop_v20_envLETemporal b t =
+  let envInput = base20Vector b <> "/" <> temporal20Vector t <> "/CR:ND/IR:ND/AR:ND/CDP:ND/TD:ND"
+   in case CVSS.parseCVSS envInput of
+        Right envCvss ->
+          let (_, envScore) = CVSS.cvss20EnvironmentalScore (CVSS.cvssMetrics envCvss)
+              (_, temporalScore) = CVSS.cvss20TemporalScore (CVSS.cvssMetrics envCvss)
+           in property $ envScore <= temporalScore
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v20_fullRoundTrip :: Base20 -> Temporal20 -> Env20 -> Property
+prop_v20_fullRoundTrip b t e =
+  let input = full20Vector b t e
+   in case CVSS.parseCVSS input of
+        Right cvss -> CVSS.cvssVectorString cvss === input
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v30_fullRoundTrip :: Base31 -> Temporal3x -> Env3x -> Property
+prop_v30_fullRoundTrip b t e =
+  let input = full30Vector b t e
+   in case CVSS.parseCVSS input of
+        Right cvss -> CVSS.cvssVectorString cvss === input
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v31_temporalRoundTrip :: Base31 -> Temporal3x -> Property
+prop_v31_temporalRoundTrip b t =
+  let input = full31TemporalVector b t
+   in case CVSS.parseCVSS input of
+        Right cvss -> CVSS.cvssVectorString cvss === input
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v31_envRatingConsistency :: Base31 -> Temporal3x -> Env3x -> Property
+prop_v31_envRatingConsistency b t e =
+  let envInput = full31EnvVector b t e
+   in case CVSS.parseCVSS envInput of
+        Right cvss ->
+          let (rating, score) = CVSS.cvss31EnvironmentalScore (CVSS.cvssMetrics cvss)
+           in rating === CVSS.toRating score
+        Left err -> counterexample ("parse failed: " <> show err) False
+
+prop_v30_envRatingConsistency :: Base31 -> Temporal3x -> Env3x -> Property
+prop_v30_envRatingConsistency b t e =
+  let envInput = full30Vector b t e
+   in case CVSS.parseCVSS envInput of
+        Right cvss ->
+          let (rating, score) = CVSS.cvss30EnvironmentalScore (CVSS.cvssMetrics cvss)
+           in rating === CVSS.toRating score
+        Left err -> counterexample ("parse failed: " <> show err) False
 
 testCVSS20RatingBoundaries :: Assertion
 testCVSS20RatingBoundaries =

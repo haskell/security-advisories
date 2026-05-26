@@ -16,7 +16,6 @@ where
 import Data.Foldable (traverse_)
 import Data.Text (Text)
 import GHC.Float (powerFloat)
-
 import Security.CVSS.Internal
 import Security.CVSS.Types
 
@@ -220,7 +219,7 @@ cvss31BaseScore metrics = (toRating score, score)
     iss = 1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact")
     impact
       | scope == unchanged = scope * iss
-      | otherwise = scope * (iss - 0.029) - 3.25 * powerFloat (iss - 0.02) 15
+      | otherwise = 7.52 * (iss - 0.029) - 3.25 * powerFloat (iss * 0.9731 - 0.02) 13
     exploitability = 8.22 * gm "Attack Vector" * gm "Attack Complexity" * gm "Privileges Required" * gm "User Interaction"
     score
       | impact <= 0 = 0
