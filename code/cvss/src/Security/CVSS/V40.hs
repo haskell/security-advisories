@@ -11,6 +11,7 @@ module Security.CVSS.V40
     validateCvss40,
     cvss40score,
     cvss40BaseScore,
+    cvss40ThreatScore,
     cvss40EnvironmentalScore,
   )
 where
@@ -323,7 +324,7 @@ cvss40DB =
         MetricValue "Proof of Concept" (C "P") 0 Nothing "Proof of concept code exists, or the vulnerability is theoretical.",
         MetricValue "Attacked" (C "A") 0 Nothing "The vulnerability has been exploited in the wild."
       ]
-    mkThreatUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Threat Score, i.e., it has the same effect on scoring as assigning Unreported."
+    mkThreatUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values. According to the CVSS 4.0 specification, this is the default value and is equivalent to Attacked (A) for scoring purposes (assuming the worst case)."
 
 validateCvss40 :: [Metric] -> Either CVSSError [Metric]
 validateCvss40 metrics = do
@@ -505,7 +506,7 @@ getModifiedChar40 metrics modifiedName baseName =
 cvss40score :: [Metric] -> (Rating, Float)
 cvss40score metrics
   | hasEnvironmentalMetrics40 metrics = cvss40EnvironmentalScore metrics
-  | hasThreatMetrics40 metrics = error "CVSS 4.0 threat scoring not yet implemented"
+  | hasThreatMetrics40 metrics = cvss40ThreatScore metrics
   | otherwise = cvss40BaseScore metrics
 
 cvss40BaseScore :: [Metric] -> (Rating, Float)
@@ -541,6 +542,9 @@ cvss40BaseScore metrics = (toRating finalScore, finalScore)
 
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
+
+cvss40ThreatScore :: [Metric] -> (Rating, Float)
+cvss40ThreatScore = cvss40BaseScore
 
 cvss40EnvironmentalScore :: [Metric] -> (Rating, Float)
 cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
