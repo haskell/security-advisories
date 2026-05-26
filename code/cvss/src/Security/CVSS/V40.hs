@@ -238,6 +238,7 @@ cvss40DB =
     mkImpactHigh = MetricValue "High" (C "H") 0 Nothing
     mkImpactLow = MetricValue "Low" (C "L") 0 Nothing
     mkImpactNone = MetricValue "None" (C "N") 0 Nothing
+    mkImpactSafety = MetricValue "Safety" (C "S") 0 Nothing "There is a predictable potential to cause injury categorized as Marginal or worse."
     supplementalMetrics =
       [ MetricInfo "Safety" "S" False sValues,
         MetricInfo "Automatable" "AU" False auValues,
@@ -293,8 +294,8 @@ cvss40DB =
         MetricInfo "Modified Integrity Impact to the Vulnerable System" "MVI" False $ mkEnvUndef : viValues,
         MetricInfo "Modified Availability Impact to the Vulnerable System" "MVA" False $ mkEnvUndef : vaValues,
         MetricInfo "Modified Subsequent System Confidentiality Impact" "MSC" False $ mkEnvUndef : scValues,
-        MetricInfo "Modified Subsequent System Integrity Impact" "MSI" False $ mkEnvUndef : siValues,
-        MetricInfo "Modified Subsequent System Availability Impact" "MSA" False $ mkEnvUndef : saValues
+        MetricInfo "Modified Subsequent System Integrity Impact" "MSI" False $ [MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.", mkImpactSafety, mkImpactHigh "There is a total loss of integrity, or a complete loss of protection.", mkImpactLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.", mkImpactNone "There is no loss of integrity within the Subsequent System."],
+        MetricInfo "Modified Subsequent System Availability Impact" "MSA" False $ [MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.", mkImpactSafety, mkImpactHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the Subsequent System.", mkImpactLow "Performance is reduced or there are interruptions in resource availability.", mkImpactNone "There is no impact to availability within the Subsequent System."]
       ]
     crValues =
       [ mkEnvUndef,
