@@ -37,6 +37,7 @@ main =
         testGroup "CVSS v4.0 expanded base score tests" $ cvss40ScoringCase <$> cvss40ExpandedExamples,
         testGroup "CVSS v4.0 direct baseScore tests" $ cvss40BaseScoreCase <$> cvss40BaseScoreExamples,
         testGroup "CVSS v4.0 threat score examples" $ cvss40BaseScoreCase <$> cvss40ThreatExamples,
+        testCase "CVSS v4.0 threat score examples" testCVSS40ThreatScore,
         testCase "CVSS v4.0 environmental score examples" testCVSS40EnvironmentalScore,
         testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
         testCase "CVSS v4.0 X metrics do not change score" testCVSS40XMetricsNoScoreChange,
