@@ -5,6 +5,7 @@ module Main where
 import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as Text
+import OfficialExamples (OfficialExample (..), cvss20OfficialExamples, cvss30OfficialExamples, cvss31OfficialExamples, cvss40OfficialExamples)
 import qualified Security.CVSS as CVSS
 import qualified Security.CVSS.V40 as V40
 import Test.Tasty
@@ -42,7 +43,13 @@ main =
         testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
         testCase "CVSS v4.0 X metrics do not change score" testCVSS40XMetricsNoScoreChange,
         testProperty "CVSS v4.0 parser preserves original vector string" prop_cvss40RoundTrip,
-        testCase "CVSS v4.0 rating boundary tests" testCVSS40RatingBoundaries
+        testCase "CVSS v4.0 rating boundary tests" testCVSS40RatingBoundaries,
+        testGroup "Official FIRST cross-validation"
+          [ testGroup "CVSS v2.0" $ officialTestCaseV20 <$> cvss20OfficialExamples,
+            testGroup "CVSS v3.0" $ officialTestCaseV3X <$> cvss30OfficialExamples,
+            testGroup "CVSS v3.1" $ officialTestCaseV3X <$> cvss31OfficialExamples,
+            testGroup "CVSS v4.0" $ officialTestCaseV40 <$> cvss40OfficialExamples
+          ]
       ]
 
 testExamples :: Assertion
@@ -565,3 +572,49 @@ cvss40BoundaryTests =
     (9.0, CVSS.Critical),
     (10, CVSS.Critical)
   ]
+officialTestCaseV20 :: OfficialExample -> TestTree
+officialTestCaseV20 ex =
+  testCase (Text.unpack $ oeVector ex) $ do
+    case CVSS.parseCVSS (oeVector ex) of
+      Left e -> assertFailure (show e)
+      Right cvss -> do
+        let (rating, score) = CVSS.cvssScore cvss
+        score @?= oeBaseScore ex
+        rating @?= oeBaseRating ex
+        case oeTemporalScore ex of
+          Just (expectedScore, expectedRating) ->
+            case cvss of
+              CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS20, CVSS.cvssMetrics = cm} -> CVSS.cvss20TemporalScore cm @?= (expectedRating, expectedScore)
+              _ -> assertFailure "Not a CVSS v2.0 vector"
+          Nothing -> pure ()
+        case oeEnvironmentalScore ex of
+          Just (expectedScore, expectedRating) ->
+            case cvss of
+              CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS20, CVSS.cvssMetrics = cm} -> CVSS.cvss20EnvironmentalScore cm @?= (expectedRating, expectedScore)
+              _ -> assertFailure "Not a CVSS v2.0 vector"
+          Nothing -> pure ()
+
+officialTestCaseV3X :: OfficialExample -> TestTree
+officialTestCaseV3X ex =
+  testCase (Text.unpack $ oeVector ex) $ do
+    case CVSS.parseCVSS (oeVector ex) of
+      Left e -> assertFailure (show e)
+      Right cvss -> do
+        let (rating, score) = CVSS.cvssScore cvss
+        score @?= oeBaseScore ex
+        rating @?= oeBaseRating ex
+
+officialTestCaseV40 :: OfficialExample -> TestTree
+officialTestCaseV40 ex =
+  testCase (Text.unpack $ oeVector ex) $ do
+    case CVSS.parseCVSS (oeVector ex) of
+      Left e -> assertFailure (show e)
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
+        V40.cvss40BaseScore cm @?= (oeBaseRating ex, oeBaseScore ex)
+        case oeThreatScore ex of
+          Just (expectedScore, expectedRating) -> V40.cvss40ThreatScore cm @?= (expectedRating, expectedScore)
+          Nothing -> pure ()
+        case oeEnvironmentalScore ex of
+          Just (expectedScore, expectedRating) -> CVSS.cvss40EnvironmentalScore cm @?= (expectedRating, expectedScore)
+          Nothing -> pure ()
+      other -> assertFailure $ "Not a CVSS 4.0 vector: " <> show other
