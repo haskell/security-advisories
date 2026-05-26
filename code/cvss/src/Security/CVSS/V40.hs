@@ -504,6 +504,11 @@ getModifiedChar40 metrics modifiedName baseName =
   let modifiedChar = getChar40 metrics modifiedName
    in if modifiedChar == 'X' then getChar40 metrics baseName else modifiedChar
 
+getSecurityReqChar40 :: [Metric] -> Text -> Char
+getSecurityReqChar40 metrics name =
+  let raw = getChar40 metrics name
+   in if raw == 'X' then 'H' else raw
+
 cvss40score :: [Metric] -> (Rating, Float)
 cvss40score metrics
   | hasEnvironmentalMetrics40 metrics = cvss40EnvironmentalScore metrics
@@ -703,7 +708,6 @@ computeEQ4 metrics =
 
     eq4
       | siChar == 'S' || saChar == 'S' = EQ0
-      | siChar == 'H' && saChar == 'N' && scChar == 'H' = EQ0
       | not (siChar == 'S' || saChar == 'S') && (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ1
       | not (siChar == 'S' || saChar == 'S') && not (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ2
       | otherwise = EQ1
@@ -733,9 +737,9 @@ computeEQ6 (Severity vcLevel, Severity viLevel, Severity vaLevel) metrics =
       eq6AR = arLevel
     }
   where
-    crChar = getChar40 metrics "CR"
-    irChar = getChar40 metrics "IR"
-    arChar = getChar40 metrics "AR"
+    crChar = getSecurityReqChar40 metrics "CR"
+    irChar = getSecurityReqChar40 metrics "IR"
+    arChar = getSecurityReqChar40 metrics "AR"
 
     crLevel = crSeverity (parseSecurityReqValue crChar)
     irLevel = irSeverity (parseSecurityReqValue irChar)
@@ -828,7 +832,6 @@ computeEQ4Env metrics =
 
     eq4
       | siChar == 'S' || saChar == 'S' = EQ0
-      | siChar == 'H' && saChar == 'N' && scChar == 'H' = EQ0
       | not (siChar == 'S' || saChar == 'S') && (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ1
       | not (siChar == 'S' || saChar == 'S') && not (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ2
       | otherwise = EQ1
