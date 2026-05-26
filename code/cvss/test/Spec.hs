@@ -254,7 +254,7 @@ cvss20EnvironmentalExamples =
     ),
     -- High security requirements increase the adjusted impact
     ( "AV:N/AC:L/Au:N/C:P/I:P/A:N/E:ND/RL:ND/RC:ND/CDP:ND/TD:H/CR:H/IR:H/AR:H",
-      7.7,
+      7.8,
       CVSS.High
     ),
     -- Low security requirements decrease the adjusted impact

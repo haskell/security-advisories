@@ -126,7 +126,7 @@ cvss20DB =
           [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.",
             MetricValue "Low" (C "L") 0.5 Nothing "Loss of the metric is likely to have only a limited adverse effect on the organization or individuals associated with the organization.",
             MetricValue "Medium" (C "M") 1 Nothing "Loss of the metric is likely to have a serious adverse effect on the organization or individuals associated with the organization.",
-            MetricValue "High" (C "H") 1.5 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+            MetricValue "High" (C "H") 1.51 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
           ],
         MetricInfo
           "Integrity Requirement"
@@ -135,7 +135,7 @@ cvss20DB =
           [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.",
             MetricValue "Low" (C "L") 0.5 Nothing "Loss of the metric is likely to have only a limited adverse effect on the organization or individuals associated with the organization.",
             MetricValue "Medium" (C "M") 1 Nothing "Loss of the metric is likely to have a serious adverse effect on the organization or individuals associated with the organization.",
-            MetricValue "High" (C "H") 1.5 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+            MetricValue "High" (C "H") 1.51 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
           ],
         MetricInfo
           "Availability Requirement"
@@ -144,7 +144,7 @@ cvss20DB =
           [ MetricValue "Not Defined" (C "ND") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.",
             MetricValue "Low" (C "L") 0.5 Nothing "Loss of the metric is likely to have only a limited adverse effect on the organization or individuals associated with the organization.",
             MetricValue "Medium" (C "M") 1 Nothing "Loss of the metric is likely to have a serious adverse effect on the organization or individuals associated with the organization.",
-            MetricValue "High" (C "H") 1.5 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
+            MetricValue "High" (C "H") 1.51 Nothing "Loss of the metric is likely to have a catastrophic adverse effect on the organization or individuals associated with the organization."
           ],
         MetricInfo
           "Collateral Damage Potential"
