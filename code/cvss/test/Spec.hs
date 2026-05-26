@@ -36,6 +36,7 @@ main =
         testGroup "CVSS v4.0 base score examples" $ cvss40ScoringCase <$> cvss40ScoringExamples,
         testGroup "CVSS v4.0 expanded base score tests" $ cvss40ScoringCase <$> cvss40ExpandedExamples,
         testGroup "CVSS v4.0 direct baseScore tests" $ cvss40BaseScoreCase <$> cvss40BaseScoreExamples,
+        testGroup "CVSS v4.0 threat score examples" $ cvss40BaseScoreCase <$> cvss40ThreatExamples,
         testCase "CVSS v4.0 environmental score examples" testCVSS40EnvironmentalScore,
         testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
         testCase "CVSS v4.0 X metrics do not change score" testCVSS40XMetricsNoScoreChange,
@@ -420,6 +421,13 @@ cvss40EnvironmentalExamples =
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MVC:L", 9.6, CVSS.Critical)
   ]
 
+cvss40ThreatExamples :: [(Text, Float, CVSS.Rating)]
+cvss40ThreatExamples =
+  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:A", 9.0, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:P", 8.0, CVSS.High),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:U", 6.8, CVSS.Medium)
+  ]
+
 cvss40BaseScoreCase :: (Text, Float, CVSS.Rating) -> TestTree
 cvss40BaseScoreCase (cvssString, score, rating) =
   testCase (Text.unpack cvssString) $ do
@@ -435,6 +443,14 @@ testCVSS40EnvironmentalScore =
     case CVSS.parseCVSS cvssString of
       Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
         CVSS.cvss40EnvironmentalScore cm @?= (rating, score)
+      other -> assertFailure (show other)
+
+testCVSS40ThreatScore :: Assertion
+testCVSS40ThreatScore =
+  forM_ cvss40ThreatExamples $ \(cvssString, score, rating) -> do
+    case CVSS.parseCVSS cvssString of
+      Right CVSS.CVSS {CVSS.cvssVersion = CVSS.CVSS40, CVSS.cvssMetrics = cm} -> do
+        V40.cvss40ThreatScore cm @?= (rating, score)
       other -> assertFailure (show other)
 
 testCVSS40ParsingWithOptional :: Assertion
