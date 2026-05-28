@@ -670,7 +670,7 @@ cvss40ComputeScore metrics = (toRating finalScore, finalScore)
       Nothing -> Nothing
 
     eq3eq6Available = case (eq3Available, eq6Available) of
-      (Just a, Just b) -> Just (max a b)
+      (Just a, Just b) -> Just (min a b)
       (Just a, Nothing) -> Just a
       (Nothing, Just b) -> Just b
       (Nothing, Nothing) -> Nothing
@@ -747,7 +747,7 @@ cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
       Nothing -> Nothing
 
     eq3eq6Available = case (eq3Available, eq6Available) of
-      (Just a, Just b) -> Just (max a b)
+      (Just a, Just b) -> Just (min a b)
       (Just a, Nothing) -> Just a
       (Nothing, Just b) -> Just b
       (Nothing, Nothing) -> Nothing
