@@ -3,6 +3,7 @@
 module Main where
 
 import Control.Monad
+import Data.Maybe (isJust)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import OfficialExamples (OfficialExample (..), cvss20OfficialExamples, cvss30OfficialExamples, cvss31OfficialExamples, cvss40OfficialExamples)
@@ -78,6 +79,8 @@ main =
             testProperty "temporal vector roundtrip" prop_v31_temporalRoundTrip
           ],
         testCase "CVSS v4.0 rating boundary tests" testCVSS40RatingBoundaries,
+        testGroup "Supplemental Metrics" testSupplementalMetrics,
+        testGroup "CVSS Nomenclature" testNomenclature,
         testGroup
           "Official FIRST cross-validation"
           [ testGroup "CVSS v2.0" $ officialTestCaseV20 <$> cvss20OfficialExamples,
@@ -1171,3 +1174,122 @@ officialTestCaseV40 ex =
           Just (expectedScore, expectedRating) -> CVSS.cvss40EnvironmentalScore cm @?= (expectedRating, expectedScore)
           Nothing -> pure ()
       other -> assertFailure $ "Not a CVSS 4.0 vector: " <> show other
+
+testSupplementalMetrics :: [TestTree]
+testSupplementalMetrics =
+  [ testCase "No supplemental metrics" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      case CVSS.parseCVSS vector of
+        Right cvss -> do
+          V40.hasSupplementalMetrics (CVSS.cvssMetrics cvss) @?= False
+          CVSS.cvssSupplementalInfo cvss @?= Nothing
+        Left e -> assertFailure $ show e,
+    testCase "Single supplemental metric" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/S:P"
+      case CVSS.parseCVSS vector of
+        Right cvss -> do
+          V40.hasSupplementalMetrics (CVSS.cvssMetrics cvss) @?= True
+          let info = CVSS.cvssSupplementalInfo cvss
+          isJust info @?= True
+          maybeInfo <- maybe (pure "") pure info
+          Text.isInfixOf "Safety" maybeInfo @?= True
+          Text.isInfixOf "Present" maybeInfo @?= True
+        Left e -> assertFailure $ show e,
+    testCase "All supplemental metrics" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/S:P/AU:Y/R:A/V:D/RE:H/U:C"
+      case CVSS.parseCVSS vector of
+        Right cvss -> do
+          V40.hasSupplementalMetrics (CVSS.cvssMetrics cvss) @?= True
+          let info = CVSS.cvssSupplementalInfo cvss
+          maybeInfo <- maybe (pure "") pure info
+          Text.isInfixOf "Safety" maybeInfo @?= True
+          Text.isInfixOf "Automatable" maybeInfo @?= True
+          Text.isInfixOf "Recovery" maybeInfo @?= True
+          Text.isInfixOf "Value Density" maybeInfo @?= True
+          Text.isInfixOf "Vulnerability Response Effort" maybeInfo @?= True
+          Text.isInfixOf "Provider Urgency" maybeInfo @?= True
+        Left e -> assertFailure $ show e,
+    testCase "Supplemental does not affect score" $ do
+      let baseVector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+          withSupplemental = baseVector <> "/S:P/AU:Y/R:A/V:D/RE:H/U:C"
+      case (CVSS.parseCVSS baseVector, CVSS.parseCVSS withSupplemental) of
+        (Right baseCvss, Right suppCvss) -> do
+          let (_, baseScore) = V40.cvss40BaseScore (CVSS.cvssMetrics baseCvss)
+              (_, suppScore) = V40.cvss40BaseScore (CVSS.cvssMetrics suppCvss)
+          suppScore @?= baseScore
+        _ -> assertFailure "Parse failed",
+    testCase "getSupplementalValue returns correct value" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/S:P/AU:Y/R:A/V:D/RE:H/U:C"
+      case CVSS.parseCVSS vector of
+        Right cvss -> do
+          V40.getSupplementalValue (CVSS.cvssMetrics cvss) "S" @?= Just "P"
+          V40.getSupplementalValue (CVSS.cvssMetrics cvss) "AU" @?= Just "Y"
+          V40.getSupplementalValue (CVSS.cvssMetrics cvss) "NOTEXIST" @?= Nothing
+        Left e -> assertFailure $ show e,
+    testCase "parseSupplementalValue returns correct descriptions" $ do
+      V40.parseSupplementalValue "S" "P" @?= Just "Present"
+      V40.parseSupplementalValue "S" "N" @?= Just "Negligible"
+      V40.parseSupplementalValue "AU" "Y" @?= Just "Yes"
+      V40.parseSupplementalValue "AU" "N" @?= Just "No"
+      V40.parseSupplementalValue "R" "A" @?= Just "Automatic"
+      V40.parseSupplementalValue "R" "U" @?= Just "User"
+      V40.parseSupplementalValue "R" "I" @?= Just "Irreversible"
+      V40.parseSupplementalValue "V" "D" @?= Just "Diffuse"
+      V40.parseSupplementalValue "V" "C" @?= Just "Concentrated"
+      V40.parseSupplementalValue "RE" "L" @?= Just "Low"
+      V40.parseSupplementalValue "RE" "M" @?= Just "Moderate"
+      V40.parseSupplementalValue "RE" "H" @?= Just "High"
+      V40.parseSupplementalValue "U" "C" @?= Just "Clear"
+      V40.parseSupplementalValue "U" "A" @?= Just "Amber"
+      V40.parseSupplementalValue "U" "G" @?= Just "Green",
+    testCase "cvssSupplementalInfo returns Nothing for non-CVSS40" $ do
+      let vector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.cvssSupplementalInfo cvss @?= Nothing
+        Left e -> assertFailure $ show e
+  ]
+
+testNomenclature :: [TestTree]
+testNomenclature =
+  [ testCase "Base only is CVSS-B" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_B
+        Left e -> assertFailure $ show e,
+    testCase "Base + Threat (E:A) is CVSS-BT" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:A"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_BT
+        Left e -> assertFailure $ show e,
+    testCase "Base + Threat (E:X) is CVSS-BT" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:X"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_BT
+        Left e -> assertFailure $ show e,
+    testCase "Base + Environmental (CR:H) is CVSS-BE" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/CR:H"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_BE
+        Left e -> assertFailure $ show e,
+    testCase "Base + Threat + Environmental is CVSS-BTE" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:A/CR:H"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_BTE
+        Left e -> assertFailure $ show e,
+    testCase "All X metrics is CVSS-BTE" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:X"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_BTE
+        Left e -> assertFailure $ show e,
+    testCase "CVSS 3.1 is always CVSS-B" $ do
+      let vector = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H/E:U/RL:O/RC:C/CR:H/IR:H/AR:H"
+      case CVSS.parseCVSS vector of
+        Right cvss -> CVSS.determineNomenclature cvss @?= CVSS.CVSS_B
+        Left e -> assertFailure $ show e,
+    testCase "showCVSSWithNomenclature format" $ do
+      let vector = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
+      case CVSS.parseCVSS vector of
+        Right cvss ->
+          CVSS.showCVSSWithNomenclature cvss @?= "CVSS-B:Critical/9.3"
+        Left e -> assertFailure $ show e
+  ]

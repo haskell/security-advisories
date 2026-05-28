@@ -7,6 +7,7 @@ module Security.CVSS
   ( -- * Types
     CVSS (..),
     CVSSVersion (..),
+    CVSSNomenclature (..),
     Rating (..),
     CVSSError (..),
     Metric (..),
@@ -33,6 +34,12 @@ module Security.CVSS
     cvss40BaseScore,
     cvss40EnvironmentalScore,
     cvssInfo,
+    cvssSupplementalInfo,
+
+    -- * Nomenclature
+    determineNomenclature,
+    cvssScoreWithNomenclature,
+    showCVSSWithNomenclature,
   )
 where
 
@@ -42,11 +49,11 @@ import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Security.CVSS.Internal (CVSSDB (..), allMetrics, doCVSSInfo, miShortName)
-import Security.CVSS.Types (CVSS (..), CVSSError (..), CVSSVersion (..), Metric (..), MetricShortName (..), MetricValueChar (..), Rating (..), showCVSSError, toRating, toRating20)
+import Security.CVSS.Types (CVSS (..), CVSSError (..), CVSSNomenclature (..), CVSSVersion (..), Metric (..), MetricShortName (..), MetricValueChar (..), Rating (..), showCVSSError, toRating, toRating20)
 import Security.CVSS.V20 (cvss20DB, cvss20EnvironmentalScore, cvss20TemporalScore, cvss20score, validateCvss20)
 import Security.CVSS.V30 (cvss30DB, cvss30EnvironmentalScore, cvss30TemporalScore, cvss30score, validateCvss30)
 import Security.CVSS.V31 (cvss31DB, cvss31EnvironmentalScore, cvss31TemporalScore, cvss31score, validateCvss31)
-import Security.CVSS.V40 (cvss40BaseScore, cvss40DB, cvss40EnvironmentalScore, cvss40score, validateCvss40)
+import Security.CVSS.V40 (cvss40BaseScore, cvss40DB, cvss40EnvironmentalScore, cvss40SupplementalInfo, cvss40score, hasEnvironmentalMetrics40, hasThreatMetrics40, validateCvss40)
 
 pattern C :: Text -> MetricValueChar
 pattern C c = MetricValueChar c
@@ -109,9 +116,43 @@ cvssShow ordered cvss = case cvssVersion cvss of
       where
         getMetric mi = find (\metric -> miShortName mi == mName metric) metrics
 
+cvssSupplementalInfo :: CVSS -> Maybe Text
+cvssSupplementalInfo cvss = case cvssVersion cvss of
+  CVSS40 -> Security.CVSS.V40.cvss40SupplementalInfo (cvssMetrics cvss)
+  _ -> Nothing
+
 cvssDB :: CVSSVersion -> CVSSDB
 cvssDB v = case v of
   CVSS40 -> cvss40DB
   CVSS31 -> cvss31DB
   CVSS30 -> cvss30DB
   CVSS20 -> cvss20DB
+
+determineNomenclature :: CVSS -> CVSSNomenclature
+determineNomenclature cvss = case cvssVersion cvss of
+  CVSS40 ->
+    let metrics = cvssMetrics cvss
+        hasT = hasThreatMetrics40 metrics
+        hasE = hasEnvironmentalMetrics40 metrics
+     in case (hasT, hasE) of
+          (False, False) -> CVSS_B
+          (True, False) -> CVSS_BT
+          (False, True) -> CVSS_BE
+          (True, True) -> CVSS_BTE
+  _ -> CVSS_B
+
+cvssScoreWithNomenclature :: CVSS -> (Rating, Float, CVSSNomenclature)
+cvssScoreWithNomenclature cvss =
+  let (rating, score) = cvssScore cvss
+      nomen = determineNomenclature cvss
+   in (rating, score, nomen)
+
+showCVSSWithNomenclature :: CVSS -> Text
+showCVSSWithNomenclature cvss =
+  let (rating, score, nomen) = cvssScoreWithNomenclature cvss
+      nomenStr = case nomen of
+        CVSS_B -> "CVSS-B"
+        CVSS_BT -> "CVSS-BT"
+        CVSS_BE -> "CVSS-BE"
+        CVSS_BTE -> "CVSS-BTE"
+   in nomenStr <> ":" <> Text.pack (show rating) <> "/" <> Text.pack (show score)
