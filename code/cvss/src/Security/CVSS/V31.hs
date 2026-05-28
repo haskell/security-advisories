@@ -219,7 +219,7 @@ cvss31BaseScore metrics = (toRating score, score)
     iss = 1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact")
     impact
       | scope == unchanged = scope * iss
-      | otherwise = 7.52 * (iss - 0.029) - 3.25 * powerFloat (iss * 0.9731 - 0.02) 13
+      | otherwise = 7.52 * (iss - 0.029) - 3.25 * powerFloat (iss - 0.02) 15
     exploitability = 8.22 * gm "Attack Vector" * gm "Attack Complexity" * gm "Privileges Required" * gm "User Interaction"
     score
       | impact <= 0 = 0
@@ -243,8 +243,35 @@ optionalMetric :: [Metric] -> Float -> Text -> Float
 optionalMetric metrics defaultValue =
   getMetricValueOr cvss31DB metrics defaultValue unchanged
 
+isMetricND :: [Metric] -> Text -> Bool
+isMetricND metrics name =
+  case lookupMetricValueChar cvss31DB metrics name of
+    Nothing -> True
+    Just (C "X") -> True
+    _ -> False
+
+allEnvMetricsND :: [Metric] -> Bool
+allEnvMetricsND metrics =
+  all (isMetricND metrics) envMetricNames
+  where
+    envMetricNames =
+      [ "Confidentiality Requirement",
+        "Integrity Requirement",
+        "Availability Requirement",
+        "Modified Attack Vector",
+        "Modified Attack Complexity",
+        "Modified Privileges Required",
+        "Modified User Interaction",
+        "Modified Scope",
+        "Modified Confidentiality",
+        "Modified Integrity",
+        "Modified Availability"
+      ]
+
 cvss31EnvironmentalScore :: [Metric] -> (Rating, Float)
-cvss31EnvironmentalScore metrics = (toRating score, score)
+cvss31EnvironmentalScore metrics
+  | allEnvMetricsND metrics = cvss31TemporalScore metrics
+  | otherwise = (toRating score, score)
   where
     {- MISS = Minimum (
       1 - [(1 - ConfidentialityRequirement × ModifiedConfidentiality)

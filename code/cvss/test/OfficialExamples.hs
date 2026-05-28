@@ -28,38 +28,38 @@ cvss20OfficialExamples =
       "AV:N/AC:L/Au:N/C:N/I:N/A:C"
       7.8
       High
-      (Just (6.4, High))
+      (Just (7.8, High))
       Nothing
       Nothing
       "CVE-2002-0392 Apache Chunked-Encoding Memory Corruption - Base",
     OfficialExample
       "AV:N/AC:L/Au:N/C:N/I:N/A:C/E:F/RL:OF/RC:C"
-      7.8
-      High
-      (Just (6.4, High))
+      6.4
+      Medium
+      (Just (6.4, Medium))
       Nothing
       Nothing
       "CVE-2002-0392 Apache Chunked-Encoding Memory Corruption - Temporal",
     OfficialExample
       "AV:N/AC:L/Au:N/C:N/I:N/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:H/CR:H/IR:H/AR:H"
-      7.8
+      10.0
       High
       Nothing
       Nothing
-      (Just (9.2, High))
+      (Just (10.0, High))
       "CVE-2002-0392 Apache Chunked-Encoding Memory Corruption - Environmental (High AR)",
     OfficialExample
       "AV:N/AC:L/Au:N/C:N/I:N/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:H/CR:L/IR:L/AR:L"
-      7.8
-      High
+      5.4
+      Medium
       Nothing
       Nothing
-      (Just (4.6, High))
+      (Just (5.4, Medium))
       "CVE-2002-0392 Apache Chunked-Encoding Memory Corruption - Environmental (Low AR)",
     OfficialExample
       "AV:N/AC:L/Au:N/C:N/I:N/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:N"
-      7.8
-      High
+      0.0
+      None
       Nothing
       Nothing
       (Just (0.0, None))
@@ -68,13 +68,13 @@ cvss20OfficialExamples =
       "AV:N/AC:L/Au:N/C:C/I:C/A:C"
       10.0
       High
-      (Just (8.3, High))
+      (Just (10.0, High))
       Nothing
       Nothing
       "CVE-2003-0818 Windows ASN.1 Library Integer Handling - Base",
     OfficialExample
       "AV:N/AC:L/Au:N/C:C/I:C/A:C/E:F/RL:OF/RC:C"
-      10.0
+      8.3
       High
       (Just (8.3, High))
       Nothing
@@ -86,20 +86,20 @@ cvss20OfficialExamples =
       High
       Nothing
       Nothing
-      (Just (9.0, High))
+      (Just (10.0, High))
       "CVE-2003-0818 Windows ASN.1 Library Integer Handling - Environmental (High AR)",
     OfficialExample
       "AV:N/AC:L/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:H/CR:L/IR:L/AR:L"
-      10.0
+      8.1
       High
       Nothing
       Nothing
-      (Just (6.4, High))
+      (Just (8.1, High))
       "CVE-2003-0818 Windows ASN.1 Library Integer Handling - Environmental (Low AR)",
     OfficialExample
       "AV:N/AC:L/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:N"
-      10.0
-      High
+      0.0
+      None
       Nothing
       Nothing
       (Just (0.0, None))
@@ -107,39 +107,39 @@ cvss20OfficialExamples =
     OfficialExample
       "AV:L/AC:H/Au:N/C:C/I:C/A:C"
       6.2
-      High
-      (Just (4.9, High))
+      Medium
+      (Just (6.2, Medium))
       Nothing
       Nothing
       "CVE-2003-0062 NOD32 Antivirus Buffer Overflow - Base",
     OfficialExample
       "AV:L/AC:H/Au:N/C:C/I:C/A:C/E:POC/RL:OF/RC:C"
-      6.2
-      High
-      (Just (4.9, High))
+      4.9
+      Medium
+      (Just (4.9, Medium))
       Nothing
       Nothing
       "CVE-2003-0062 NOD32 Antivirus Buffer Overflow - Temporal",
     OfficialExample
       "AV:L/AC:H/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:H/CR:M/IR:M/AR:M"
       6.2
-      High
+      Medium
       Nothing
       Nothing
-      (Just (7.5, High))
+      (Just (6.2, Medium))
       "CVE-2003-0062 NOD32 Antivirus Buffer Overflow - Environmental (Medium AR)",
     OfficialExample
       "AV:L/AC:H/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:H/CR:L/IR:L/AR:L"
-      6.2
-      High
+      4.3
+      Medium
       Nothing
       Nothing
-      (Just (5.6, High))
+      (Just (4.3, Medium))
       "CVE-2003-0062 NOD32 Antivirus Buffer Overflow - Environmental (Low AR)",
     OfficialExample
       "AV:L/AC:H/Au:N/C:C/I:C/A:C/E:ND/RL:ND/RC:ND/CDP:N/TD:N"
-      6.2
-      High
+      0.0
+      None
       Nothing
       Nothing
       (Just (0.0, None))
@@ -403,7 +403,7 @@ cvss31OfficialExamples =
     OfficialExample
       "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:H/A:H"
       9.0
-      High
+      Critical
       Nothing
       Nothing
       Nothing
@@ -465,7 +465,7 @@ cvss40OfficialExamples =
       7.7
       High
       Nothing
-      (Just (5.2, High))
+      (Just (5.2, Medium))
       Nothing
       "CVE-2020-3549 New Metric -- Attack Requirements (Threat)",
     OfficialExample
@@ -542,15 +542,15 @@ cvss40OfficialExamples =
       "CVE-2023-30560 Safety Metric",
     OfficialExample
       "CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N/E:A"
-      7.3
-      High
+      6.8
+      Medium
       Nothing
-      (Just (6.8, High))
+      (Just (6.8, Medium))
       Nothing
       "CVE-2026-20805 CISA KEV Examples",
     OfficialExample
       "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N/E:A"
-      7.5
+      8.7
       High
       Nothing
       (Just (8.7, High))
@@ -558,8 +558,8 @@ cvss40OfficialExamples =
       "CVE-2014-0160 Heartbleed Classic Example (Threat)",
     OfficialExample
       "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"
-      8.2
-      High
+      9.2
+      Critical
       Nothing
       Nothing
       Nothing
@@ -574,11 +574,11 @@ cvss40OfficialExamples =
       "CVE-2021-44228 log4shell Classic Example (Threat)",
     OfficialExample
       "CVSS:4.0/AV:N/AC:H/AT:P/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/E:P/MAC:L/MAT:N/MVC:N/MVI:N/MVA:L"
-      8.2
-      High
+      9.2
+      Critical
       Nothing
-      (Just (5.5, High))
       Nothing
+      (Just (5.5, Medium))
       "CVE-2021-44228 log4shell Classic Example (Environmental)",
     OfficialExample
       "CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:N/VI:L/VA:N/SC:H/SI:N/SA:H"

@@ -20,7 +20,6 @@ import Data.Coerce (coerce)
 import Data.Foldable (traverse_)
 import Data.List (find)
 import Data.Map qualified as Map
-import Data.Maybe (catMaybes, fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Security.CVSS.Internal
@@ -90,42 +89,13 @@ data EQ6Result = EQ6Result
   }
   deriving (Eq, Show)
 
-data MaxSeverities = MaxSeverities
-  { msAV :: Severity,
-    msPR :: Severity,
-    msUI :: Severity,
-    msAC :: Severity,
-    msAT :: Severity,
-    msVC :: Severity,
-    msVI :: Severity,
-    msVA :: Severity,
-    msSC :: Severity,
-    msSI :: Severity,
-    msSA :: Severity,
-    msE :: Severity,
-    msCR :: Severity,
-    msIR :: Severity,
-    msAR :: Severity
-  }
-  deriving (Eq, Show)
+type MaxComposedEQ1 = [(Severity, Severity, Severity)]
 
-data AvailableDistances = AvailableDistances
-  { adEQ1 :: Maybe Float,
-    adEQ2 :: Maybe Float,
-    adEQ3 :: Maybe Float,
-    adEQ4 :: Maybe Float,
-    adEQ5 :: Maybe Float
-  }
-  deriving (Eq, Show)
+type MaxComposedEQ2 = [(Severity, Severity, Severity)]
 
-data SeverityGroups = SeverityGroups
-  { sgEQ1 :: [Severity],
-    sgEQ2 :: [Severity],
-    sgEQ3 :: [Severity],
-    sgEQ4 :: [Severity],
-    sgEQ5 :: [Severity]
-  }
-  deriving (Eq, Show)
+type MaxComposedEQ3EQ6 = [(Severity, Severity, Severity, Severity, Severity, Severity)]
+
+type MaxComposedEQ4 = [(Severity, Severity, Severity)]
 
 data CVSS40_AV = AV_Network | AV_Adjacent | AV_Local | AV_Physical
   deriving (Eq, Show, Enum, Bounded)
@@ -509,79 +479,289 @@ getSecurityReqChar40 metrics name =
   let raw = getChar40 metrics name
    in if raw == 'X' then 'H' else raw
 
+maxComposedEQ1 :: EQLevel -> [(Severity, Severity, Severity)]
+maxComposedEQ1 EQ0 = [(Severity 0.0, Severity 0.0, Severity 0.0)]
+maxComposedEQ1 EQ1 = [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.1)]
+maxComposedEQ1 EQ2 = [(Severity 0.3, Severity 0.0, Severity 0.0), (Severity 0.1, Severity 0.1, Severity 0.1)]
+
+maxComposedEQ2 :: EQLevel -> [(Severity, Severity, Severity)]
+maxComposedEQ2 EQ0 = [(Severity 0.0, Severity 0.0, Severity 0.0)]
+maxComposedEQ2 EQ1 = [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0)]
+maxComposedEQ2 _ = []
+
+maxComposedEQ3EQ6 :: EQLevel -> EQLevel -> [(Severity, Severity, Severity, Severity, Severity, Severity)]
+maxComposedEQ3EQ6 EQ0 EQ0 = [(Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
+maxComposedEQ3EQ6 EQ0 EQ1 = [(Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1)]
+maxComposedEQ3EQ6 EQ1 EQ0 = [(Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
+maxComposedEQ3EQ6 EQ1 EQ1 =
+  [ (Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0),
+    (Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1),
+    (Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1),
+    (Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0),
+    (Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1)
+  ]
+maxComposedEQ3EQ6 EQ2 EQ1 = [(Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0)]
+maxComposedEQ3EQ6 _ _ = []
+
+maxComposedEQ4 :: EQLevel -> [(Severity, Severity, Severity)]
+maxComposedEQ4 EQ0 = [(Severity 0.1, Severity 0.0, Severity 0.0)]
+maxComposedEQ4 EQ1 = [(Severity 0.1, Severity 0.1, Severity 0.1)]
+maxComposedEQ4 EQ2 = [(Severity 0.2, Severity 0.2, Severity 0.2)]
+maxComposedEQ4 _ = []
+
+maxDepthEQ1 :: EQLevel -> Int
+maxDepthEQ1 EQ0 = 1
+maxDepthEQ1 EQ1 = 4
+maxDepthEQ1 EQ2 = 5
+
+maxDepthEQ2 :: EQLevel -> Int
+maxDepthEQ2 EQ0 = 1
+maxDepthEQ2 EQ1 = 2
+maxDepthEQ2 _ = 0
+
+maxDepthEQ3EQ6 :: EQLevel -> EQLevel -> Int
+maxDepthEQ3EQ6 EQ0 EQ0 = 7
+maxDepthEQ3EQ6 EQ0 EQ1 = 6
+maxDepthEQ3EQ6 EQ1 EQ0 = 8
+maxDepthEQ3EQ6 EQ1 EQ1 = 8
+maxDepthEQ3EQ6 EQ2 EQ1 = 10
+maxDepthEQ3EQ6 _ _ = 0
+
+maxDepthEQ4 :: EQLevel -> Int
+maxDepthEQ4 EQ0 = 6
+maxDepthEQ4 EQ1 = 5
+maxDepthEQ4 EQ2 = 4
+maxDepthEQ4 _ = 0
+
+maxDepthEQ5 :: EQLevel -> Int
+maxDepthEQ5 _ = 1
+
+severityDistance :: [Severity] -> [Severity] -> Int
+severityDistance current maxV =
+  sum [round (abs (cVal - mVal) * 10) | (cVal, mVal) <- zip cVals mVals]
+  where
+    cVals = map (\(Severity f) -> f) current
+    mVals = map (\(Severity f) -> f) maxV
+
+minSeverityDistance :: [Severity] -> [[Severity]] -> Int
+minSeverityDistance current maxVectors =
+  minimum [severityDistance current maxV | maxV <- maxVectors]
+
+minSeverityDistance6 :: [Severity] -> [(Severity, Severity, Severity, Severity, Severity, Severity)] -> Int
+minSeverityDistance6 current maxVectors =
+  minimum [severityDistance current [a, b, c, d, e, f] | (a, b, c, d, e, f) <- maxVectors]
+
+incrementEQ :: EQLevel -> EQLevel
+incrementEQ EQ0 = EQ1
+incrementEQ EQ1 = EQ2
+incrementEQ EQ2 = EQ2
+
+clamp :: Float -> Float -> Float -> Float
+clamp x lo hi = max lo (min hi x)
+
 cvss40score :: [Metric] -> (Rating, Float)
 cvss40score metrics
   | hasEnvironmentalMetrics40 metrics = cvss40EnvironmentalScore metrics
   | hasThreatMetrics40 metrics = cvss40ThreatScore metrics
   | otherwise = cvss40BaseScore metrics
 
-cvss40BaseScore :: [Metric] -> (Rating, Float)
-cvss40BaseScore metrics = (toRating finalScore, finalScore)
+filterBaseMetrics :: [Metric] -> [Metric]
+filterBaseMetrics = filter isBaseMetric
   where
-    finalScore = round40 (max 0.0 (min 10.0 value))
-    value = lookupScore - meanDistance
+    isBaseMetric m =
+      let n = coerce (mName m) :: Text
+       in n
+            `notElem` [ "E",
+                        "CR",
+                        "IR",
+                        "AR",
+                        "MAV",
+                        "MAC",
+                        "MAT",
+                        "MPR",
+                        "MUI",
+                        "MVC",
+                        "MVI",
+                        "MVA",
+                        "MSC",
+                        "MSI",
+                        "MSA",
+                        "S",
+                        "AU",
+                        "R",
+                        "V"
+                      ]
+
+filterThreatMetrics :: [Metric] -> [Metric]
+filterThreatMetrics = filter isThreatRelevant
+  where
+    isThreatRelevant m =
+      let n = coerce (mName m) :: Text
+       in n
+            `notElem` [ "CR",
+                        "IR",
+                        "AR",
+                        "MAV",
+                        "MAC",
+                        "MAT",
+                        "MPR",
+                        "MUI",
+                        "MVC",
+                        "MVI",
+                        "MVA",
+                        "MSC",
+                        "MSI",
+                        "MSA",
+                        "S",
+                        "AU",
+                        "R",
+                        "V"
+                      ]
+
+cvss40ComputeScore :: [Metric] -> (Rating, Float)
+cvss40ComputeScore metrics = (toRating finalScore, finalScore)
+  where
+    finalScore = round40 (clamp (lookupScore - meanDistance) 0.0 10.0)
 
     mv = macroVectorFromMetrics metrics
     lookupScore = macroVectorLookup mv
 
-    EQ1Result {eq1AV = avLevel, eq1PR = prLevel, eq1UI = uiLevel} = computeEQ1 metrics
-    EQ2Result {eq2AC = acLevel, eq2AT = atLevel} = computeEQ2 metrics
-    EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3 metrics
-    EQ4Result {eq4SC = scLevel, eq4SI = siLevel, eq4SA = saLevel} = computeEQ4 metrics
-    EQ5Result {eq5E = eLevel} = computeEQ5 metrics
-    EQ6Result {eq6CR = crLevel, eq6IR = irLevel, eq6AR = arLevel} = computeEQ6 (vcLevel, viLevel, vaLevel) metrics
+    EQ1Result {..} = computeEQ1 metrics
+    EQ2Result {..} = computeEQ2 metrics
+    EQ3Result {..} = computeEQ3 metrics
+    EQ4Result {..} = computeEQ4 metrics
+    EQ5Result {..} = computeEQ5 metrics
+    EQ6Result {..} = computeEQ6 (eq3VC, eq3VI, eq3VA) metrics
 
-    currentSeverities =
-      SeverityGroups
-        { sgEQ1 = [avLevel, prLevel, uiLevel],
-          sgEQ2 = [acLevel, atLevel],
-          sgEQ3 = [vcLevel, viLevel, vaLevel, crLevel, irLevel, arLevel],
-          sgEQ4 = [scLevel, siLevel, saLevel],
-          sgEQ5 = [eLevel]
-        }
+    eq1MaxVectors = maxComposedEQ1 eq1Level
+    eq2MaxVectors = maxComposedEQ2 eq2Level
+    eq3eq6MaxVectors = maxComposedEQ3EQ6 eq3Level eq6Level
+    eq4MaxVectors = maxComposedEQ4 eq4Level
 
-    maxSeverities = getMaxSeverities mv
+    eq1SeverityDist = if null eq1MaxVectors then 0 else minSeverityDistance [eq1AV, eq1PR, eq1UI] (map (\(a, b, c) -> [a, b, c]) eq1MaxVectors)
+    eq2SeverityDist = if null eq2MaxVectors then 0 else minSeverityDistance [eq2AC, eq2AT, Severity 0] (map (\(a, b, c) -> [a, b, c]) eq2MaxVectors)
+    eq3eq6SeverityDist = if null eq3eq6MaxVectors then 0 else minSeverityDistance6 [eq3VC, eq3VI, eq3VA, eq6CR, eq6IR, eq6AR] eq3eq6MaxVectors
+    eq4SeverityDist = if null eq4MaxVectors then 0 else minSeverityDistance [eq4SC, eq4SI, eq4SA] (map (\(a, b, c) -> [a, b, c]) eq4MaxVectors)
 
-    availableDistances = getAvailableDistances lookupScore mv
+    eq1Depth = maxDepthEQ1 eq1Level
+    eq2Depth = maxDepthEQ2 eq2Level
+    eq3eq6Depth = maxDepthEQ3EQ6 eq3Level eq6Level
+    eq4Depth = maxDepthEQ4 eq4Level
+    eq5Depth = maxDepthEQ5 eq5Level
 
-    meanDistance = computeMeanDistance currentSeverities availableDistances maxSeverities
+    eq1NextMv = mv {mvEQ1 = incrementEQ (mvEQ1 mv)}
+    eq2NextMv = mv {mvEQ2 = incrementEQ (mvEQ2 mv)}
+    eq3NextMv = mv {mvEQ3 = incrementEQ (mvEQ3 mv)}
+    eq4NextMv = mv {mvEQ4 = incrementEQ (mvEQ4 mv)}
+    eq5NextMv = mv {mvEQ5 = incrementEQ (mvEQ5 mv)}
+    eq6NextMv = mv {mvEQ6 = incrementEQ (mvEQ6 mv)}
+
+    eq1Available = positiveAvailable eq1NextMv
+    eq2Available = positiveAvailable eq2NextMv
+    eq3Available = positiveAvailable eq3NextMv
+    eq4Available = positiveAvailable eq4NextMv
+    eq5Available = positiveAvailable eq5NextMv
+    eq6Available = positiveAvailable eq6NextMv
+
+    positiveAvailable nextMv = case Map.lookup nextMv cvss40LookupTable of
+      Just next
+        | lookupScore - next > 0 -> Just (lookupScore - next)
+        | otherwise -> Nothing
+      Nothing -> Nothing
+
+    eq3eq6Available = case (eq3Available, eq6Available) of
+      (Just a, Just b) -> Just (max a b)
+      (Just a, Nothing) -> Just a
+      (Nothing, Just b) -> Just b
+      (Nothing, Nothing) -> Nothing
+
+    eq1Reduction = (\avail -> avail * fromIntegral eq1SeverityDist / fromIntegral eq1Depth) <$> eq1Available
+    eq2Reduction = (\avail -> avail * fromIntegral eq2SeverityDist / fromIntegral eq2Depth) <$> eq2Available
+    eq3eq6Reduction = (\avail -> avail * fromIntegral eq3eq6SeverityDist / fromIntegral eq3eq6Depth) <$> eq3eq6Available
+    eq4Reduction = (\avail -> avail * fromIntegral eq4SeverityDist / fromIntegral eq4Depth) <$> eq4Available
+    eq5Reduction = (\avail -> avail * 0 / fromIntegral eq5Depth) <$> eq5Available
+
+    allReductions = [eq1Reduction, eq2Reduction, eq3eq6Reduction, eq4Reduction, eq5Reduction]
+    validReductions = [r | Just r <- allReductions]
+    count = length validReductions
+    meanDistance = if count > 0 then sum validReductions / fromIntegral count else 0.0
 
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
 
+cvss40BaseScore :: [Metric] -> (Rating, Float)
+cvss40BaseScore = cvss40ComputeScore . filterBaseMetrics
+
 cvss40ThreatScore :: [Metric] -> (Rating, Float)
-cvss40ThreatScore = cvss40BaseScore
+cvss40ThreatScore = cvss40ComputeScore . filterThreatMetrics
 
 cvss40EnvironmentalScore :: [Metric] -> (Rating, Float)
 cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
   where
-    finalScore = round40 (max 0.0 (min 10.0 value))
-    value = lookupScore - meanDistance
+    finalScore = round40 (clamp (lookupScore - meanDistance) 0.0 10.0)
 
     mv = macroVectorFromMetricsEnv metrics
     lookupScore = macroVectorLookup mv
 
-    EQ1Result {eq1AV = avLevel, eq1PR = prLevel, eq1UI = uiLevel} = computeEQ1Env metrics
-    EQ2Result {eq2AC = acLevel, eq2AT = atLevel} = computeEQ2Env metrics
-    EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3Env metrics
-    EQ4Result {eq4SC = scLevel, eq4SI = siLevel, eq4SA = saLevel} = computeEQ4Env metrics
-    EQ5Result {eq5E = eLevel} = computeEQ5 metrics
-    EQ6Result {eq6CR = crLevel, eq6IR = irLevel, eq6AR = arLevel} = computeEQ6 (vcLevel, viLevel, vaLevel) metrics
+    EQ1Result {..} = computeEQ1Env metrics
+    EQ2Result {..} = computeEQ2Env metrics
+    EQ3Result {..} = computeEQ3Env metrics
+    EQ4Result {..} = computeEQ4Env metrics
+    EQ5Result {..} = computeEQ5 metrics
+    EQ6Result {..} = computeEQ6 (eq3VC, eq3VI, eq3VA) metrics
 
-    currentSeverities =
-      SeverityGroups
-        { sgEQ1 = [avLevel, prLevel, uiLevel],
-          sgEQ2 = [acLevel, atLevel],
-          sgEQ3 = [vcLevel, viLevel, vaLevel, crLevel, irLevel, arLevel],
-          sgEQ4 = [scLevel, siLevel, saLevel],
-          sgEQ5 = [eLevel]
-        }
+    eq1MaxVectors = maxComposedEQ1 eq1Level
+    eq2MaxVectors = maxComposedEQ2 eq2Level
+    eq3eq6MaxVectors = maxComposedEQ3EQ6 eq3Level eq6Level
+    eq4MaxVectors = maxComposedEQ4 eq4Level
 
-    maxSeverities = getMaxSeverities mv
+    eq1SeverityDist = if null eq1MaxVectors then 0 else minSeverityDistance [eq1AV, eq1PR, eq1UI] (map (\(a, b, c) -> [a, b, c]) eq1MaxVectors)
+    eq2SeverityDist = if null eq2MaxVectors then 0 else minSeverityDistance [eq2AC, eq2AT, Severity 0] (map (\(a, b, c) -> [a, b, c]) eq2MaxVectors)
+    eq3eq6SeverityDist = if null eq3eq6MaxVectors then 0 else minSeverityDistance6 [eq3VC, eq3VI, eq3VA, eq6CR, eq6IR, eq6AR] eq3eq6MaxVectors
+    eq4SeverityDist = if null eq4MaxVectors then 0 else minSeverityDistance [eq4SC, eq4SI, eq4SA] (map (\(a, b, c) -> [a, b, c]) eq4MaxVectors)
 
-    availableDistances = getAvailableDistances lookupScore mv
+    eq1Depth = maxDepthEQ1 eq1Level
+    eq2Depth = maxDepthEQ2 eq2Level
+    eq3eq6Depth = maxDepthEQ3EQ6 eq3Level eq6Level
+    eq4Depth = maxDepthEQ4 eq4Level
+    eq5Depth = maxDepthEQ5 eq5Level
 
-    meanDistance = computeMeanDistance currentSeverities availableDistances maxSeverities
+    eq1NextMv = mv {mvEQ1 = incrementEQ (mvEQ1 mv)}
+    eq2NextMv = mv {mvEQ2 = incrementEQ (mvEQ2 mv)}
+    eq3NextMv = mv {mvEQ3 = incrementEQ (mvEQ3 mv)}
+    eq4NextMv = mv {mvEQ4 = incrementEQ (mvEQ4 mv)}
+    eq5NextMv = mv {mvEQ5 = incrementEQ (mvEQ5 mv)}
+    eq6NextMv = mv {mvEQ6 = incrementEQ (mvEQ6 mv)}
+
+    eq1Available = positiveAvailable eq1NextMv
+    eq2Available = positiveAvailable eq2NextMv
+    eq3Available = positiveAvailable eq3NextMv
+    eq4Available = positiveAvailable eq4NextMv
+    eq5Available = positiveAvailable eq5NextMv
+    eq6Available = positiveAvailable eq6NextMv
+
+    positiveAvailable nextMv = case Map.lookup nextMv cvss40LookupTable of
+      Just next
+        | lookupScore - next > 0 -> Just (lookupScore - next)
+        | otherwise -> Nothing
+      Nothing -> Nothing
+
+    eq3eq6Available = case (eq3Available, eq6Available) of
+      (Just a, Just b) -> Just (max a b)
+      (Just a, Nothing) -> Just a
+      (Nothing, Just b) -> Just b
+      (Nothing, Nothing) -> Nothing
+
+    eq1Reduction = (\avail -> avail * fromIntegral eq1SeverityDist / fromIntegral eq1Depth) <$> eq1Available
+    eq2Reduction = (\avail -> avail * fromIntegral eq2SeverityDist / fromIntegral eq2Depth) <$> eq2Available
+    eq3eq6Reduction = (\avail -> avail * fromIntegral eq3eq6SeverityDist / fromIntegral eq3eq6Depth) <$> eq3eq6Available
+    eq4Reduction = (\avail -> avail * fromIntegral eq4SeverityDist / fromIntegral eq4Depth) <$> eq4Available
+    eq5Reduction = (\avail -> avail * 0 / fromIntegral eq5Depth) <$> eq5Available
+
+    allReductions = [eq1Reduction, eq2Reduction, eq3eq6Reduction, eq4Reduction, eq5Reduction]
+    validReductions = [r | Just r <- allReductions]
+    count = length validReductions
+    meanDistance = if count > 0 then sum validReductions / fromIntegral count else 0.0
 
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
@@ -835,135 +1015,6 @@ computeEQ4Env metrics =
       | not (siChar == 'S' || saChar == 'S') && (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ1
       | not (siChar == 'S' || saChar == 'S') && not (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ2
       | otherwise = EQ1
-
-getMaxSeverities :: MacroVector -> MaxSeverities
-getMaxSeverities MacroVector {..} =
-  MaxSeverities
-    { msAV = Severity avMax,
-      msPR = Severity prMax,
-      msUI = Severity uiMax,
-      msAC = Severity acMax,
-      msAT = Severity atMax,
-      msVC = Severity vcMax,
-      msVI = Severity viMax,
-      msVA = Severity vaMax,
-      msSC = Severity scMax,
-      msSI = Severity siMax,
-      msSA = Severity saMax,
-      msE = Severity eMax,
-      msCR = Severity crMax,
-      msIR = Severity irMax,
-      msAR = Severity arMax
-    }
-  where
-    avMax = case mvEQ1 of
-      EQ0 -> 0.0
-      EQ1 -> 0.3
-      EQ2 -> 0.4
-    prMax = case mvEQ1 of
-      EQ0 -> 0.0
-      _ -> 0.2
-    uiMax = case mvEQ1 of
-      EQ0 -> 0.0
-      _ -> 0.2
-    acMax = case mvEQ2 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.1
-    atMax = case mvEQ2 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.1
-    vcMax = case mvEQ3 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.2
-    viMax = case mvEQ3 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.2
-    vaMax = case mvEQ3 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.2
-    scMax = case mvEQ4 of
-      EQ0 -> 0.1
-      EQ1 -> 0.1
-      EQ2 -> 0.3
-    siMax = case mvEQ4 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.3
-    saMax = case mvEQ4 of
-      EQ0 -> 0.0
-      EQ1 -> 0.1
-      EQ2 -> 0.3
-    eMax = 0.0
-    crMax = 0.0
-    irMax = 0.0
-    arMax = 0.0
-
-getAvailableDistances :: Float -> MacroVector -> AvailableDistances
-getAvailableDistances score mv =
-  AvailableDistances
-    { adEQ1 = getNextScore (incEQ 0 mv) score,
-      adEQ2 = getNextScore (incEQ 1 mv) score,
-      adEQ3 = getNextScore (incEQ 2 mv) score,
-      adEQ4 = getNextScore (incEQ 3 mv) score,
-      adEQ5 = getNextScore (incEQ 4 mv) score
-    }
-  where
-    incEQ :: Int -> MacroVector -> MacroVector
-    incEQ idx MacroVector {..} = case idx of
-      0 -> mv {mvEQ1 = incrementEQ mvEQ1}
-      1 -> mv {mvEQ2 = incrementEQ mvEQ2}
-      2 -> mv {mvEQ3 = incrementEQ mvEQ3}
-      3 -> mv {mvEQ4 = incrementEQ mvEQ4}
-      4 -> mv {mvEQ5 = incrementEQ mvEQ5}
-      _ -> mv
-
-    incrementEQ :: EQLevel -> EQLevel
-    incrementEQ EQ0 = EQ1
-    incrementEQ EQ1 = EQ2
-    incrementEQ EQ2 = EQ2
-
-    getNextScore :: MacroVector -> Float -> Maybe Float
-    getNextScore mv' s = do
-      ns <- Map.lookup mv' cvss40LookupTable
-      pure (s - ns)
-
-computeMeanDistance :: SeverityGroups -> AvailableDistances -> MaxSeverities -> Float
-computeMeanDistance currentSgs availableDists maxSvs = meanDist
-  where
-    allNormalized =
-      [ normalize c d m
-        | (c, d, m) <- zip3WithGroups currentSgs (repeatDistances availableDists) maxSvs
-      ]
-    flattened = catMaybes allNormalized
-    count = fromIntegral @Int (length flattened)
-    meanDist = if count > 0 then sum flattened / count else 0.0
-
-    zip3WithGroups :: SeverityGroups -> [Maybe Float] -> MaxSeverities -> [(Severity, Maybe Float, Severity)]
-    zip3WithGroups SeverityGroups {..} dists MaxSeverities {..} =
-      concat
-        [ zip3 sgEQ1 (repeat $ dists !! 0) [msAV, msPR, msUI],
-          zip3 sgEQ2 (repeat $ dists !! 1) [msAC, msAT],
-          zip3 sgEQ3 (repeat $ dists !! 2) [msVC, msVI, msVA, msCR, msIR, msAR],
-          zip3 sgEQ4 (repeat $ dists !! 3) [msSC, msSI, msSA],
-          zip3 sgEQ5 (repeat $ dists !! 4) [msE]
-        ]
-
-    repeatDistances :: AvailableDistances -> [Maybe Float]
-    repeatDistances AvailableDistances {..} = [adEQ1, adEQ2, adEQ3, adEQ4, adEQ5]
-
-    normalize :: Severity -> Maybe Float -> Severity -> Maybe Float
-    normalize (Severity curr) avail (Severity maxSev)
-      | availJust && maxSev > 0 = Just ((curr - maxSev) / maxSev * fromMaybe 0 avail)
-      | otherwise = Nothing
-      where
-        availJust
-          | Just a <- avail, a > 0 = True
-          | otherwise = False
 
 cvss40LookupTable :: Map.Map MacroVector Float
 cvss40LookupTable = Map.fromList [(textToMacroVector k, v) | (k, v) <- textTable]
