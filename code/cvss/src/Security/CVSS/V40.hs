@@ -6,6 +6,13 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- |
+-- Module      : Security.CVSS.V40
+-- Description : CVSS v4.0 implementation targeting specification revision v4.0-r1.2
+--
+-- Implements CVSS v4.0 scoring per the FIRST specification (Document Version 1.2).
+-- Source: https:\/\/www.first.org\/cvss\/v4.0\/specification-document
+-- Reference implementation: https:\/\/github.com\/RedHatProductSecurity\/cvss-v4-calculator
 module Security.CVSS.V40
   ( cvss40DB,
     validateCvss40,
