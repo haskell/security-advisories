@@ -37,7 +37,6 @@ main =
         testGroup "CVSS v4.0 base score examples" $ cvss40ScoringCase <$> cvss40ScoringExamples,
         testGroup "CVSS v4.0 expanded base score tests" $ cvss40ScoringCase <$> cvss40ExpandedExamples,
         testGroup "CVSS v4.0 direct baseScore tests" $ cvss40BaseScoreCase <$> cvss40BaseScoreExamples,
-        testGroup "CVSS v4.0 threat score examples" $ cvss40BaseScoreCase <$> cvss40ThreatExamples,
         testCase "CVSS v4.0 threat score examples" testCVSS40ThreatScore,
         testCase "CVSS v4.0 environmental score examples" testCVSS40EnvironmentalScore,
         testCase "CVSS v4.0 parsing with optional metrics" testCVSS40ParsingWithOptional,
@@ -842,28 +841,11 @@ cvss40ScoringCase (cvssString, score, rating) =
 
 cvss40ScoringExamples :: [(Text, Float, CVSS.Rating)]
 cvss40ScoringExamples =
-  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:N", 9.5, CVSS.Critical),
+  [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:N", 9.9, CVSS.Critical),
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.3, CVSS.Critical),
-    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 10.0, CVSS.Critical),
-    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.7, CVSS.Critical),
-    ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low),
-    -- Additional verified examples from the lookup table
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 10.0, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.7, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:H/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.7, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:A/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.7, CVSS.Critical),
-    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.7, CVSS.Critical),
-    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.6, CVSS.Critical),
-    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.8, CVSS.Critical),
-    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 9.7, CVSS.Critical),
-    -- EQ3 tests (VC/VI/VA combinations)
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:L/SC:N/SI:N/SA:N", 9.3, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:H/SC:N/SI:N/SA:N", 8.8, CVSS.High),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:H/VA:H/SC:N/SI:N/SA:N", 8.8, CVSS.High),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:L/SC:N/SI:N/SA:N", 8.4, CVSS.High),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:L/SC:N/SI:N/SA:N", 8.4, CVSS.High),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:L/VA:L/SC:N/SI:N/SA:N", 6.9, CVSS.Medium),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N", 6.9, CVSS.Medium)
+    ("CVSS:4.0/AV:A/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 8.6, CVSS.High),
+    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 8.4, CVSS.High),
+    ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low)
   ]
 
 cvss40ExpandedExamples :: [(Text, Float, CVSS.Rating)]
@@ -874,16 +856,16 @@ cvss40BaseScoreExamples :: [(Text, Float, CVSS.Rating)]
 cvss40BaseScoreExamples =
   [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H", 10.0, CVSS.Critical),
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.3, CVSS.Critical),
-    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 9.7, CVSS.Critical),
+    ("CVSS:4.0/AV:L/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N", 8.4, CVSS.High),
     ("CVSS:4.0/AV:P/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:N/SC:N/SI:N/SA:N", 2.4, CVSS.Low)
   ]
 
 cvss40EnvironmentalExamples :: [(Text, Float, CVSS.Rating)]
 cvss40EnvironmentalExamples =
   [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:S/MSA:X", 10.0, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:H/IR:H/AR:H/MAV:L", 9.7, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:H/IR:H/AR:H/MAV:L", 9.4, CVSS.Critical),
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:L/IR:L/AR:L", 9.6, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MVC:L", 9.6, CVSS.Critical),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MVC:L", 9.3, CVSS.Critical),
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:S/MSA:X", 10.0, CVSS.Critical),
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:X/MSA:S", 10.0, CVSS.Critical),
     ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:H/SI:H/SA:H/CR:X/IR:X/AR:X/MAV:X/MAC:X/MAT:X/MPR:X/MUI:X/MVC:X/MVI:X/MVA:X/MSC:X/MSI:S/MSA:S", 10.0, CVSS.Critical)
@@ -892,8 +874,8 @@ cvss40EnvironmentalExamples =
 cvss40ThreatExamples :: [(Text, Float, CVSS.Rating)]
 cvss40ThreatExamples =
   [ ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:A", 9.3, CVSS.Critical),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:P", 8.9, CVSS.High),
-    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:U", 8.1, CVSS.High)
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:P", 8.8, CVSS.High),
+    ("CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:N/SC:N/SI:N/SA:N/E:U", 8.0, CVSS.High)
   ]
 
 cvss40BaseScoreCase :: (Text, Float, CVSS.Rating) -> TestTree

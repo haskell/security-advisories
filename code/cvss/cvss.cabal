@@ -9,22 +9,34 @@ license:         BSD-3-Clause
 author:          Tristan de Cacqueray
 maintainer:      tdecacqu@redhat.com
 category:        Data
-extra-doc-files: CHANGELOG.md, README.md
+extra-doc-files:
+  CHANGELOG.md
+  README.md
+
 tested-with:
-  GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.6 || ==9.8.3 || ==9.10.1 || ==9.12.1
+  GHC ==8.10.7
+   || ==9.0.2
+   || ==9.2.8
+   || ==9.4.8
+   || ==9.6.6
+   || ==9.8.3
+   || ==9.10.1
+   || ==9.12.1
 
 library
   exposed-modules:  Security.CVSS
-  other-modules:  Security.CVSS.Types
-                 , Security.CVSS.Internal
-                 , Security.CVSS.V20
-                 , Security.CVSS.V30
-                 , Security.CVSS.V31
-                 , Security.CVSS.V40
+  other-modules:
+    Security.CVSS.Internal
+    Security.CVSS.Types
+    Security.CVSS.V20
+    Security.CVSS.V30
+    Security.CVSS.V31
+    Security.CVSS.V40
+
   build-depends:
-    , base         >=4.14 && <5
-    , containers    >=0.6   && <0.8
-    , text         >=1.2   && <3
+    , base        >=4.14 && <5
+    , containers  >=0.6  && <0.8
+    , text        >=1.2  && <3
 
   hs-source-dirs:   src
   default-language: Haskell2010
@@ -34,16 +46,26 @@ library
 
 test-suite spec
   type:             exitcode-stdio-1.0
-  hs-source-dirs:   test, src
+  hs-source-dirs:   test src
   main-is:          Spec.hs
+  other-modules:
+    OfficialExamples
+    Security.CVSS
+    Security.CVSS.Internal
+    Security.CVSS.Types
+    Security.CVSS.V20
+    Security.CVSS.V30
+    Security.CVSS.V31
+    Security.CVSS.V40
+
   build-depends:
-    , base         <5
+    , base              <5
+    , containers
     , cvss
-    , tasty        <2
-    , tasty-hunit  <1.0
+    , tasty             <2
+    , tasty-hunit       <1.0
     , tasty-quickcheck
     , text
-    , containers
 
   default-language: Haskell2010
   ghc-options:
