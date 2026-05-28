@@ -7,6 +7,7 @@
 module Security.CVSS.Types
   ( CVSS (..),
     CVSSVersion (..),
+    CVSSNomenclature (..),
     Rating (..),
     CVSSError (..),
     Metric (..),
@@ -40,6 +41,13 @@ data CVSSVersion
   | CVSS30
   | CVSS20
   deriving (Eq, Show)
+
+data CVSSNomenclature
+  = CVSS_B
+  | CVSS_BT
+  | CVSS_BE
+  | CVSS_BTE
+  deriving stock (Eq, Show)
 
 data CVSS = CVSS
   { cvssVersion :: CVSSVersion,

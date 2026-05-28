@@ -20,6 +20,13 @@ module Security.CVSS.V40
     cvss40BaseScore,
     cvss40ThreatScore,
     cvss40EnvironmentalScore,
+    hasThreatMetrics40,
+    hasEnvironmentalMetrics40,
+    getSupplementalMetrics,
+    hasSupplementalMetrics,
+    cvss40SupplementalInfo,
+    getSupplementalValue,
+    parseSupplementalValue,
   )
 where
 
@@ -772,6 +779,40 @@ cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
 
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
+
+supplementalShortNames :: [Text]
+supplementalShortNames = ["S", "AU", "R", "V", "RE", "U"]
+
+getSupplementalMetrics :: [Metric] -> [Metric]
+getSupplementalMetrics =
+  filter (\metric -> coerce (mName metric) `elem` supplementalShortNames)
+
+hasSupplementalMetrics :: [Metric] -> Bool
+hasSupplementalMetrics = not . null . getSupplementalMetrics
+
+cvss40SupplementalInfo :: [Metric] -> Maybe Text
+cvss40SupplementalInfo metrics
+  | null supplemental = Nothing
+  | otherwise = Just $ Text.unlines $ map formatSupplemental supplemental
+  where
+    supplemental = getSupplementalMetrics metrics
+    formatSupplemental metric = case doSupplementalInfo metric of
+      Just txt -> txt
+      Nothing -> coerce (mName metric) <> ":" <> coerce (mChar metric) <> " (unknown)"
+    doSupplementalInfo (Metric name char) = do
+      mi <- find (\mi -> miShortName mi == name) $ allMetrics cvss40DB
+      mv <- find (\mv -> mvChar mv == char) $ miValues mi
+      pure $ Text.concat [miName mi, " (", coerce name, "): ", mvName mv, "\n  ", mvDesc mv]
+
+getSupplementalValue :: [Metric] -> Text -> Maybe MetricValueChar
+getSupplementalValue metrics metricName =
+  mChar <$> find (\metric -> coerce (mName metric) == metricName) (getSupplementalMetrics metrics)
+
+parseSupplementalValue :: Text -> MetricValueChar -> Maybe Text
+parseSupplementalValue metricName char = do
+  mi <- find (\mi -> miShortName mi == MetricShortName metricName) $ allMetrics cvss40DB
+  mv <- find (\mv -> mvChar mv == char) $ miValues mi
+  pure $ mvName mv
 
 macroVectorFromMetrics :: [Metric] -> MacroVector
 macroVectorFromMetrics metrics =
