@@ -55,6 +55,18 @@ data CVSS = CVSS
   }
   deriving stock (Eq)
 
+instance Show CVSS where
+  show = Text.unpack . cvssVectorString'
+    where
+      cvssVectorString' cvss = case cvssVersion cvss of
+        CVSS40 -> Text.intercalate "/" ("CVSS:4.0" : components)
+        CVSS31 -> Text.intercalate "/" ("CVSS:3.1" : components)
+        CVSS30 -> Text.intercalate "/" ("CVSS:3.0" : components)
+        CVSS20 -> Text.intercalate "/" components
+        where
+          components = map toComponent (cvssMetrics cvss)
+          toComponent (Metric (MetricShortName name) (MetricValueChar value)) = name <> ":" <> value
+
 data Rating = None | Low | Medium | High | Critical
   deriving (Enum, Eq, Ord, Show)
 

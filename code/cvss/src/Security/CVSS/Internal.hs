@@ -1,7 +1,5 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Security.CVSS.Internal
   ( CVSSDB (..),
@@ -9,7 +7,6 @@ module Security.CVSS.Internal
     MetricInfo (..),
     MetricValue (..),
     allMetrics,
-    cvssDB,
     lookupMetricInfo,
     lookupMetricValueChar,
     lookupMetricValue,
@@ -23,23 +20,18 @@ module Security.CVSS.Internal
     hasTemporalMetrics,
     hasEnvironmentalMetrics,
     getModifiedMetricValue,
+    changed,
+    unchanged,
   )
 where
 
 import Data.Coerce (coerce)
 import Data.Foldable (traverse_)
 import Data.List (find, group, sort)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (fromMaybe, mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
-import GHC.Float (powerFloat)
-
 import Security.CVSS.Types
-
-pattern C :: Text -> MetricValueChar
-pattern C c = MetricValueChar c
-
-{-# COMPLETE C #-}
 
 -- Constants used in place of Unchanged/Changed pattern synonyms
 unchanged :: Float
@@ -70,13 +62,6 @@ data MetricValue = MetricValue
     mvDesc :: Text
   }
 
-cvssDB :: CVSSVersion -> CVSSDB
-cvssDB v = case v of
-  CVSS40 -> error "cvss40 DB defined in Security.CVSS.V40"
-  CVSS31 -> error "cvss31 DB defined in Security.CVSS.V31"
-  CVSS30 -> error "cvss30 DB defined in Security.CVSS.V30"
-  CVSS20 -> error "cvss20 DB defined in Security.CVSS.V20"
-
 allMetrics :: CVSSDB -> [MetricInfo]
 allMetrics (CVSSDB db) = concatMap mgMetrics db
 
@@ -105,9 +90,7 @@ getMetricValue db metrics scope name = case lookupMetricValue db metrics scope n
   Just value -> value
 
 getMetricValueOr :: CVSSDB -> [Metric] -> Float -> Float -> Text -> Float
-getMetricValueOr db metrics defaultValue scope name = case lookupMetricValue db metrics scope name of
-  Nothing -> defaultValue
-  Just value -> value
+getMetricValueOr db metrics defaultValue scope name = fromMaybe defaultValue $ lookupMetricValue db metrics scope name
 
 doCVSSInfo :: CVSSDB -> [Metric] -> [Text]
 doCVSSInfo (CVSSDB db) = map showMetricInfo
@@ -173,6 +156,6 @@ hasEnvironmentalMetrics =
 getModifiedMetricValue :: CVSSDB -> [Metric] -> Text -> Text -> Float -> Float
 getModifiedMetricValue db ms modifiedName baseName scope =
   case lookupMetricValueChar db ms modifiedName of
-    Just (C "X") -> getMetricValue db ms scope baseName
+    Just (MetricValueChar "X") -> getMetricValue db ms scope baseName
     Just _ -> getMetricValue db ms scope modifiedName
     Nothing -> getMetricValue db ms scope baseName
