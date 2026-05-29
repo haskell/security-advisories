@@ -212,7 +212,7 @@ cvss20score metrics
 -- Impact  = 10.41 × (1 − (1−ConfImpact) × (1−IntegImpact) × (1−AvailImpact))
 -- Exploitability = 20 × AccessVector × AccessComplexity × Authentication
 -- f(Impact) = 0 if Impact=0, else 1.176
--- BaseScore = round_to_1_decimal( (0.6×Impact − 0.4×Exploitability − 1.5) × f(Impact) )
+-- BaseScore = round_to_1_decimal( (0.6×Impact + 0.4×Exploitability − 1.5) × f(Impact) )
 -- @
 cvss20BaseScore :: [Metric] -> (Rating, Float)
 cvss20BaseScore metrics = (toRating20 score, score)
@@ -286,7 +286,7 @@ cvss20EnvironmentalScore metrics = (toRating20 score, score)
       | adjustedImpact == 0 = 0
       | otherwise = 1.176
 
-    adjustedBase = round_to_1_decimal ((0.6 * adjustedImpact + 0.4 * exploitability - 1.5) * fAdj)
+    adjustedBase = max 0 $ round_to_1_decimal ((0.6 * adjustedImpact + 0.4 * exploitability - 1.5) * fAdj)
 
     exploitabilityTemporal = optionalMetric20 metrics 1.0 "Exploitability"
     remediationLevel = optionalMetric20 metrics 1.0 "Remediation Level"
