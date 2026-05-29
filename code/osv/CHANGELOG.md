@@ -1,3 +1,7 @@
+# 0.2.0.1
+
+* Update `cvss` dependency bounds
+
 # 0.2.0.0
 
 * Rely on `purl` for `Security.OSV.Package.packageUrl`
