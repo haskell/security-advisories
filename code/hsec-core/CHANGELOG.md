@@ -1,3 +1,7 @@
+## 0.4.0.0
+
+* Introduce `OsvId` and use it in `Advisory.{aliases,related}`
+
 ## 0.3.0.2
 
 * Update `cvss` dependency bounds
