@@ -1,6 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 
+-- |
+-- Module      : Security.CVSS.V20
+-- Description : CVSS v2.0 scoring implementation
+--
+-- Implements CVSS v2.0 scoring as defined by FIRST.
+--
+-- Specification: https:\/\/www.first.org\/cvss\/v2\/guide
+--
+-- CVSS v2.0 vector strings do __not__ use a @CVSS:2.0\/@ prefix;
+-- they consist of slash-separated metric pairs (e.g. @AV:N\/AC:L\/Au:N\/C:C\/I:C\/A:C@).
+--
+-- Scoring is organized into three metric groups:
+--
+-- * __Base__ — intrinsic qualities of the vulnerability (required).
+-- * __Temporal__ — qualities that change over time (optional).
+-- * __Environmental__ — qualities specific to a user's environment (optional).
+--
+-- When environmental metrics are present, the environmental score is returned;
+-- otherwise when temporal metrics are present, the temporal score is returned;
+-- otherwise the base score is returned.
 module Security.CVSS.V20
   ( cvss20DB,
     validateCvss20,
@@ -16,6 +36,9 @@ import Data.Text (Text)
 import Security.CVSS.Internal
 import Security.CVSS.Types
 
+-- | The complete CVSS v2.0 metric database.  Each 'MetricValue' carries
+-- the numeric weight specified by the standard (used in score computation)
+-- and a human-readable description.
 cvss20DB :: CVSSDB
 cvss20DB =
   CVSSDB
@@ -159,19 +182,38 @@ cvss20DB =
           ]
       ]
 
+-- | Validate a list of CVSS v2.0 metrics, checking that:
+--
+--   * No metric appears more than once.
+--   * All metrics are recognized for v2.0.
+--   * All required (Base) metrics are present.
 validateCvss20 :: [Metric] -> Either CVSSError ()
 validateCvss20 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss20DB, validateRequired cvss20DB]
 
+-- | Returns 'True' when any environmental metric (CDP, TD, CR, IR, AR) is present.
 hasEnvironmentalMetrics20 :: [Metric] -> Bool
 hasEnvironmentalMetrics20 = any (\metric -> mName metric `elem` ["CDP", "TD", "CR", "IR", "AR"])
 
+-- | Compute the CVSS v2.0 score for the given metrics.
+-- Returns the environmental score if environmental metrics are present,
+-- the temporal score if temporal metrics are present, or the base score otherwise.
 cvss20score :: [Metric] -> (Rating, Float)
 cvss20score metrics
   | hasEnvironmentalMetrics20 metrics = cvss20EnvironmentalScore metrics
   | hasTemporalMetrics metrics = cvss20TemporalScore metrics
   | otherwise = cvss20BaseScore metrics
 
+-- | Compute the CVSS v2.0 Base Score.
+--
+-- Per the specification:
+--
+-- @
+-- Impact  = 10.41 × (1 − (1−ConfImpact) × (1−IntegImpact) × (1−AvailImpact))
+-- Exploitability = 20 × AccessVector × AccessComplexity × Authentication
+-- f(Impact) = 0 if Impact=0, else 1.176
+-- BaseScore = round_to_1_decimal( (0.6×Impact − 0.4×Exploitability − 1.5) × f(Impact) )
+-- @
 cvss20BaseScore :: [Metric] -> (Rating, Float)
 cvss20BaseScore metrics = (toRating20 score, score)
   where
@@ -185,9 +227,17 @@ cvss20BaseScore metrics = (toRating20 score, score)
     round_to_1_decimal :: Float -> Float
     round_to_1_decimal x = fromIntegral @Int (round (x * 10)) / 10
 
+    -- \| Look up the numeric weight of a metric by its full name.
     gm :: Text -> Float
     gm = getMetricValue cvss20DB metrics 0
 
+-- | Compute the CVSS v2.0 Temporal Score.
+--
+-- @
+-- TemporalScore = round_to_1_decimal(BaseScore × Exploitability × RemediationLevel × ReportConfidence)
+-- @
+--
+-- Optional metrics default to 1.0 (no effect) when absent or \"Not Defined\".
 cvss20TemporalScore :: [Metric] -> (Rating, Float)
 cvss20TemporalScore metrics = (toRating20 score, score)
   where
@@ -200,10 +250,22 @@ cvss20TemporalScore metrics = (toRating20 score, score)
     round_to_1_decimal :: Float -> Float
     round_to_1_decimal x = fromIntegral @Int (round (x * 10)) / 10
 
+-- | Look up an optional (temporal) metric value, returning the default
+-- when the metric is absent.
 optionalMetric20 :: [Metric] -> Float -> Text -> Float
 optionalMetric20 metrics defaultValue =
   getMetricValueOr cvss20DB metrics defaultValue 0
 
+-- | Compute the CVSS v2.0 Environmental Score.
+--
+-- Per the specification:
+--
+-- @
+-- AdjustedImpact  = min(10.0, 10.41 × (1 − (1−ConfImpact×ConfReq) × (1−IntegImpact×IntegReq) × (1−AvailImpact×AvailReq)))
+-- AdjustedBase    = round_to_1_decimal((0.6×AdjustedImpact + 0.4×AdjustedExploitability − 1.5) × f(AdjustedImpact))
+-- AdjustedTemporal = round_to_1_decimal(AdjustedBase × Exploitability × RemediationLevel × ReportConfidence)
+-- EnvironmentalScore = round_to_1_decimal((AdjustedTemporal + (10 − AdjustedTemporal) × CollateralDamagePotential) × TargetDistribution)
+-- @
 cvss20EnvironmentalScore :: [Metric] -> (Rating, Float)
 cvss20EnvironmentalScore metrics = (toRating20 score, score)
   where

@@ -1,6 +1,25 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+-- |
+-- Module      : Security.CVSS
+-- Description : Main entry point for CVSS v2.0, v3.0, v3.1, and v4.0 scoring
+--
+-- Provides a unified interface for parsing, validating, and scoring
+-- Common Vulnerability Scoring System (CVSS) vector strings across
+-- all supported versions:
+--
+-- * __CVSS v2.0__ — https:\/\/www.first.org\/cvss\/v2\/guide
+-- * __CVSS v3.0__ — https:\/\/www.first.org\/cvss\/v3-0\/
+-- * __CVSS v3.1__ — https:\/\/www.first.org\/cvss\/v3-1\/
+-- * __CVSS v4.0__ — https:\/\/www.first.org\/cvss\/v4.0\/specification-document
+--
+-- Vector string formats:
+--
+-- * v4.0: @CVSS:4.0\/AV:N\/AC:L\/...@
+-- * v3.1: @CVSS:3.1\/AV:N\/AC:L\/...@
+-- * v3.0: @CVSS:3.0\/AV:N\/AC:L\/...@
+-- * v2.0: @AV:N\/AC:L\/Au:N\/...@ (no prefix)
 module Security.CVSS
   ( -- * Types
     CVSS (..),
@@ -52,6 +71,15 @@ import Security.CVSS.V30 (cvss30DB, cvss30EnvironmentalScore, cvss30TemporalScor
 import Security.CVSS.V31 (cvss31DB, cvss31EnvironmentalScore, cvss31TemporalScore, cvss31score, validateCvss31)
 import Security.CVSS.V40 (cvss40BaseScore, cvss40DB, cvss40EnvironmentalScore, cvss40SupplementalInfo, cvss40score, hasEnvironmentalMetrics40, hasThreatMetrics40, validateCvss40)
 
+-- | Parse a CVSS vector string into a 'CVSS' value.
+--
+-- The version is detected from the prefix:
+--
+-- * @CVSS:4.0\/...@ → CVSS40
+-- * @CVSS:3.1\/...@ → CVSS31
+-- * @CVSS:3.0\/...@ → CVSS30
+-- * Any other string without a @CVSS:@ prefix → CVSS20
+-- * @CVSS:@ with an unknown version → 'Left' 'UnknownVersion'
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
   | "CVSS:4.0/" `Text.isPrefixOf` txt = CVSS CVSS40 <$> validateComponents True validateCvss40
@@ -74,6 +102,8 @@ parseCVSS txt
         let name = Text.init nameWithColon
          in Right (Metric (MetricShortName name) (MetricValueChar valueText))
 
+-- | Compute the CVSS score for any supported version.
+-- Dispatches to the appropriate version-specific scorer.
 cvssScore :: CVSS -> (Rating, Float)
 cvssScore cvss = case cvssVersion cvss of
   CVSS40 -> cvss40score (cvssMetrics cvss)
@@ -81,15 +111,20 @@ cvssScore cvss = case cvssVersion cvss of
   CVSS30 -> cvss30score (cvssMetrics cvss)
   CVSS20 -> cvss20score (cvssMetrics cvss)
 
+-- | Look up human-readable descriptions for each metric in the vector.
 cvssInfo :: CVSS -> [Text]
 cvssInfo cvss = doCVSSInfo (cvssDB (cvssVersion cvss)) (cvssMetrics cvss)
 
+-- | Render the CVSS vector string preserving the original metric order.
 cvssVectorString :: CVSS -> Text
 cvssVectorString = cvssShow False
 
+-- | Render the CVSS vector string in canonical (specification-defined) metric order.
 cvssVectorStringOrdered :: CVSS -> Text
 cvssVectorStringOrdered = cvssShow True
 
+-- | Internal: render a CVSS vector string, optionally ordering metrics
+-- according to the specification.
 cvssShow :: Bool -> CVSS -> Text
 cvssShow ordered cvss = case cvssVersion cvss of
   CVSS40 -> Text.intercalate "/" ("CVSS:4.0" : components)
@@ -106,11 +141,14 @@ cvssShow ordered cvss = case cvssVersion cvss of
       where
         getMetric mi = find (\metric -> miShortName mi == mName metric) metrics
 
+-- | Retrieve supplemental metric info for CVSS v4.0 vectors.
+-- Returns 'Nothing' for all other CVSS versions.
 cvssSupplementalInfo :: CVSS -> Maybe Text
 cvssSupplementalInfo cvss = case cvssVersion cvss of
   CVSS40 -> Security.CVSS.V40.cvss40SupplementalInfo (cvssMetrics cvss)
   _ -> Nothing
 
+-- | Get the metric database for a given CVSS version.
 cvssDB :: CVSSVersion -> CVSSDB
 cvssDB v = case v of
   CVSS40 -> cvss40DB
@@ -118,6 +156,9 @@ cvssDB v = case v of
   CVSS30 -> cvss30DB
   CVSS20 -> cvss20DB
 
+-- | Determine the CVSS nomenclature (CVSS-B, CVSS-BT, CVSS-BE, CVSS-BTE)
+-- for a CVSS v4.0 vector based on which metric groups are present.
+-- For v2.x and v3.x, always returns 'CVSS_B'.
 determineNomenclature :: CVSS -> CVSSNomenclature
 determineNomenclature cvss = case cvssVersion cvss of
   CVSS40 ->
@@ -131,12 +172,15 @@ determineNomenclature cvss = case cvssVersion cvss of
           (True, True) -> CVSS_BTE
   _ -> CVSS_B
 
+-- | Compute the score along with the CVSS nomenclature.
 cvssScoreWithNomenclature :: CVSS -> (Rating, Float, CVSSNomenclature)
 cvssScoreWithNomenclature cvss =
   let (rating, score) = cvssScore cvss
       nomen = determineNomenclature cvss
    in (rating, score, nomen)
 
+-- | Render a CVSS vector with its nomenclature, rating, and score
+-- in the format @CVSS-B:Medium\/6.5@ (or CVSS-BT, CVSS-BE, CVSS-BTE).
 showCVSSWithNomenclature :: CVSS -> Text
 showCVSSWithNomenclature cvss =
   let (rating, score, nomen) = cvssScoreWithNomenclature cvss

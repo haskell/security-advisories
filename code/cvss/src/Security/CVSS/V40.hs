@@ -10,8 +10,35 @@
 -- Description : CVSS v4.0 implementation targeting specification revision v4.0-r1.2
 --
 -- Implements CVSS v4.0 scoring per the FIRST specification (Document Version 1.2).
--- Source: https:\/\/www.first.org\/cvss\/v4.0\/specification-document
+--
+-- Specification: https:\/\/www.first.org\/cvss\/v4.0\/specification-document
 -- Reference implementation: https:\/\/github.com\/RedHatProductSecurity\/cvss-v4-calculator
+--
+-- CVSS v4.0 uses a fundamentally different scoring approach from v2.x and v3.x.
+-- Instead of a multiplicative formula, it uses a __macrovector lookup table__
+-- combined with __severity distance__ calculations.
+--
+-- The scoring algorithm:
+--
+-- 1. Classify each metric into an __Equivalence Level__ (EQ0–EQ2) across six
+--    equivalence groups (EQ1–EQ6).
+-- 2. Combine these into a __MacroVector@ (six EQ levels).
+-- 3. Look up a __base score@ from the macrovector lookup table.
+-- 4. Compute __severity distances@ between the current metric values and the
+--    \"maximum\" values for each EQ level.
+-- 5. For each EQ group, calculate a __score reduction@ proportional to the
+--    severity distance and the available score gap to the next EQ level.
+-- 6. Subtract the __mean@ of all valid reductions from the looked-up score.
+--
+-- Metric groups in v4.0:
+--
+-- * __Base__ — 11 required metrics (includes Attack Requirements and separate
+--   Vulnerable System \/ Subsequent System impacts).
+-- * __Threat__ — Exploit Maturity (replaces Temporal).
+-- * __Environmental__ — Security Requirements + Modified Base Metrics.
+-- * __Supplemental__ — informational metrics that do not affect scoring
+--   (Safety, Automatable, Recovery, Value Density, Vulnerability Response Effort,
+--   Provider Urgency).
 module Security.CVSS.V40
   ( cvss40DB,
     validateCvss40,
@@ -39,9 +66,13 @@ import Data.Text qualified as Text
 import Security.CVSS.Internal
 import Security.CVSS.Types
 
+-- | Equivalence level used in the macrovector system.  EQ0 represents the
+-- most severe configuration within a group; EQ2 represents the least.
 data EQLevel = EQ0 | EQ1 | EQ2
   deriving (Eq, Ord, Show, Enum, Bounded)
 
+-- | A macrovector is a tuple of six EQ levels (EQ1–EQ6) that uniquely
+-- identifies a score in the lookup table.
 data MacroVector = MacroVector
   { mvEQ1 :: EQLevel,
     mvEQ2 :: EQLevel,
@@ -52,12 +83,19 @@ data MacroVector = MacroVector
   }
   deriving (Eq, Ord, Show)
 
+-- | A newtype wrapper around 'Float' representing a severity distance.
+-- Lower values indicate more severe configurations.
 newtype Severity = Severity Float
   deriving newtype (Eq, Ord, Num, Fractional, Real, RealFrac)
 
 instance Show Severity where
   show (Severity f) = show f
 
+-- | Result of computing EQ1: Exploitability metrics (AV, PR, UI).
+-- EQ1 classifies the ease of exploitation:
+--   EQ0 = AV:Network AND PR:None AND UI:None
+--   EQ1 = one of {AV:Network, PR:None, UI:None} but not all three, and AV != Physical
+--   EQ2 = AV:Physical OR none of {AV:Network, PR:None, UI:None}
 data EQ1Result = EQ1Result
   { eq1Level :: EQLevel,
     eq1AV :: Severity,
@@ -66,6 +104,10 @@ data EQ1Result = EQ1Result
   }
   deriving (Eq, Show)
 
+-- | Result of computing EQ2: Complexity bypass metrics (AC, AT).
+-- EQ2 classifies attack complexity:
+--   EQ0 = AC:Low AND AT:Absent
+--   EQ1 = all other combinations
 data EQ2Result = EQ2Result
   { eq2Level :: EQLevel,
     eq2AC :: Severity,
@@ -73,6 +115,11 @@ data EQ2Result = EQ2Result
   }
   deriving (Eq, Show)
 
+-- | Result of computing EQ3: Vulnerable system impact (VC, VI, VA).
+-- EQ3 classifies impact to the vulnerable system:
+--   EQ0 = VC:High AND VI:High
+--   EQ1 = at least one of VC/VI/VA is High (but not both VC and VI High)
+--   EQ2 = none of VC/VI/VA is High
 data EQ3Result = EQ3Result
   { eq3Level :: EQLevel,
     eq3VC :: Severity,
@@ -81,6 +128,11 @@ data EQ3Result = EQ3Result
   }
   deriving (Eq, Show)
 
+-- | Result of computing EQ4: Subsequent system impact (SC, SI, SA).
+-- EQ4 classifies impact to subsequent systems:
+--   EQ0 = SI:Safety OR SA:Safety
+--   EQ1 = at least one of SC/SI/SA is High (but no Safety)
+--   EQ2 = none of SC/SI/SA is High (and no Safety)
 data EQ4Result = EQ4Result
   { eq4Level :: EQLevel,
     eq4SC :: Severity,
@@ -89,12 +141,22 @@ data EQ4Result = EQ4Result
   }
   deriving (Eq, Show)
 
+-- | Result of computing EQ5: Exploit maturity (E).
+-- EQ5 classifies exploit maturity:
+--   EQ0 = Attacked
+--   EQ1 = Proof of Concept
+--   EQ2 = Unreported
 data EQ5Result = EQ5Result
   { eq5Level :: EQLevel,
     eq5E :: Severity
   }
   deriving (Eq, Show)
 
+-- | Result of computing EQ6: Security requirements (CR, IR, AR).
+-- EQ6 classifies the environment's security requirements:
+--   EQ0 = any high requirement matches a zero-impact metric
+--         (e.g. CR:High AND VC:None)
+--   EQ1 = all other cases
 data EQ6Result = EQ6Result
   { eq6Level :: EQLevel,
     eq6CR :: Severity,
@@ -103,33 +165,60 @@ data EQ6Result = EQ6Result
   }
   deriving (Eq, Show)
 
+-- | Attack Vector values for CVSS v4.0.
 data CVSS40_AV = AV_Network | AV_Adjacent | AV_Local | AV_Physical
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Privileges Required values for CVSS v4.0.
 data CVSS40_PR = PR_None | PR_Low | PR_High
   deriving (Eq, Show, Enum, Bounded)
 
+-- | User Interaction values for CVSS v4.0.
+-- Note: v4.0 adds \"Passive\" (user reads/views), unlike v3.x which only had None\/Required.
 data CVSS40_UI = UI_None | UI_Passive | UI_Active
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Attack Complexity values for CVSS v4.0.
 data CVSS40_AC = AC_Low | AC_High
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Attack Requirements values for CVSS v4.0.
+-- This is a new metric in v4.0 (absent in v3.x).
 data CVSS40_AT = AT_Absent | AT_Present
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Impact value for Vulnerable System metrics (VC, VI, VA, SC).
 data CVSS40_ImpactValue = Impact_High | Impact_Low | Impact_None
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Impact value for Subsequent System metrics (SI, SA).
+-- Extends 'CVSS40_ImpactValue' with the Safety level.
 data CVSS40_SubsequentImpactValue = SI_Safety | SI_High | SI_Low | SI_None
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Security Requirement values for environmental metrics (CR, IR, AR).
 data CVSS40_SecurityReqValue = SR_High | SR_Medium | SR_Low
   deriving (Eq, Show, Enum, Bounded)
 
+-- | Exploit Maturity values for the Threat metric.
 data CVSS40_ExploitMaturity = EM_Attacked | EM_PoC | EM_Unreported
   deriving (Eq, Show, Enum, Bounded)
 
+-- | The complete CVSS v4.0 metric database.  Each 'MetricValue' carries
+-- the numeric weight specified by the standard (used in score computation)
+-- and a human-readable description.
+--
+-- In v4.0, Base metric numeric weights are all 0 because scoring is done
+-- via the macrovector lookup table and severity distance calculations,
+-- not via multiplicative formulas.  The weights in the database are used
+-- for metric descriptions and validation only.
+--
+-- The database organizes metrics into four groups:
+--
+-- * __Base__ (required) — 11 metrics describing intrinsic vulnerability qualities.
+-- * __Supplemental__ (optional) — 6 informational metrics that do not affect scoring.
+-- * __Environmental__ (optional) — 3 security requirements + 11 modified base metrics.
+-- * __Threat__ (optional) — 1 Exploit Maturity metric.
 cvss40DB :: CVSSDB
 cvss40DB =
   CVSSDB
@@ -298,13 +387,21 @@ cvss40DB =
       ]
     mkThreatUndef = MetricValue "Not Defined" (MetricValueChar "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values. According to the CVSS 4.0 specification, this is the default value and is equivalent to Attacked (A) for scoring purposes (assuming the worst case)."
 
+-- | Validate a list of CVSS v4.0 metrics, checking that:
+--
+--   * No metric appears more than once.
+--   * All metrics are recognized for v4.0.
+--   * All required (Base) metrics are present.
 validateCvss40 :: [Metric] -> Either CVSSError ()
 validateCvss40 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss40DB, validateRequired cvss40DB]
 
+-- | Returns 'True' when the Exploit Maturity (E) threat metric is present.
 hasThreatMetrics40 :: [Metric] -> Bool
 hasThreatMetrics40 = any (\metric -> mName metric == "E")
 
+-- | Returns 'True' when any environmental metric is present
+-- (CR, IR, AR, MAV, MAC, MAT, MPR, MUI, MVC, MVI, MVA, MSC, MSI, MSA).
 hasEnvironmentalMetrics40 :: [Metric] -> Bool
 hasEnvironmentalMetrics40 metrics =
   any
@@ -339,6 +436,7 @@ getChar40 :: [Metric] -> Text -> Char
 getChar40 metrics name = case getMetricValueChar40 metrics name of
   MetricValueChar c -> Text.head c
 
+-- | Parse a character into a 'CVSS40_AV' value.
 parseAV :: Char -> CVSS40_AV
 parseAV c = case c of
   'N' -> AV_Network
@@ -503,18 +601,25 @@ getSecurityReqChar40 metrics name =
   let raw = getChar40 metrics name
    in if raw == 'X' then 'H' else raw
 
+-- | Maximum severity vector compositions for EQ1 at each EQ level.
+-- These represent the most severe configurations that achieve the given EQ level.
+-- Used to compute severity distances.
 maxComposedEQ1 :: EQLevel -> [(Severity, Severity, Severity)]
 maxComposedEQ1 eq = case eq of
   EQ0 -> [(Severity 0.0, Severity 0.0, Severity 0.0)]
   EQ1 -> [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.1)]
   EQ2 -> [(Severity 0.3, Severity 0.0, Severity 0.0), (Severity 0.1, Severity 0.1, Severity 0.1)]
 
+-- | Maximum severity vector compositions for EQ2 at each EQ level.
 maxComposedEQ2 :: EQLevel -> [(Severity, Severity, Severity)]
 maxComposedEQ2 eq = case eq of
   EQ0 -> [(Severity 0.0, Severity 0.0, Severity 0.0)]
   EQ1 -> [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0)]
   _ -> []
 
+-- | Maximum severity vector compositions for the combined EQ3+EQ6.
+-- These are paired because the severity distance calculation combines
+-- EQ3 (VC, VI, VA) and EQ6 (CR, IR, AR) into a single reduction.
 maxComposedEQ3EQ6 :: EQLevel -> EQLevel -> [(Severity, Severity, Severity, Severity, Severity, Severity)]
 maxComposedEQ3EQ6 eq3 eq6 = case (eq3, eq6) of
   (EQ0, EQ0) -> [(Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
@@ -530,24 +635,28 @@ maxComposedEQ3EQ6 eq3 eq6 = case (eq3, eq6) of
   (EQ2, EQ1) -> [(Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0)]
   (_, _) -> []
 
+-- | Maximum severity vector compositions for EQ4 at each EQ level.
 maxComposedEQ4 :: EQLevel -> [(Severity, Severity, Severity)]
 maxComposedEQ4 eq = case eq of
   EQ0 -> [(Severity 0.1, Severity 0.0, Severity 0.0)]
   EQ1 -> [(Severity 0.1, Severity 0.1, Severity 0.1)]
   EQ2 -> [(Severity 0.2, Severity 0.2, Severity 0.2)]
 
+-- | Maximum depth (number of severity steps) for EQ1 at each level.
 maxDepthEQ1 :: EQLevel -> Int
 maxDepthEQ1 eq = case eq of
   EQ0 -> 1
   EQ1 -> 4
   EQ2 -> 5
 
+-- | Maximum depth for EQ2 at each level.
 maxDepthEQ2 :: EQLevel -> Int
 maxDepthEQ2 eq = case eq of
   EQ0 -> 1
   EQ1 -> 2
   _ -> 0
 
+-- | Maximum depth for the combined EQ3+EQ6.
 maxDepthEQ3EQ6 :: EQLevel -> EQLevel -> Int
 maxDepthEQ3EQ6 eq3 eq6 = case (eq3, eq6) of
   (EQ0, EQ0) -> 7
@@ -557,15 +666,20 @@ maxDepthEQ3EQ6 eq3 eq6 = case (eq3, eq6) of
   (EQ2, EQ1) -> 10
   (_, _) -> 0
 
+-- | Maximum depth for EQ4 at each level.
 maxDepthEQ4 :: EQLevel -> Int
 maxDepthEQ4 eq = case eq of
   EQ0 -> 6
   EQ1 -> 5
   EQ2 -> 4
 
+-- | Maximum depth for EQ5 (always 1 since EQ5 is a single metric).
 maxDepthEQ5 :: EQLevel -> Int
 maxDepthEQ5 _ = 1
 
+-- | Compute the severity distance between a current metric configuration
+-- and a single maximum vector.  The distance is the sum of absolute
+-- differences across each severity component, scaled by 10.
 severityDistance :: [Severity] -> [Severity] -> Int
 severityDistance current maxV =
   sum [round (abs (cVal - mVal) * 10) | (cVal, mVal) <- zip cVals mVals]
@@ -573,14 +687,19 @@ severityDistance current maxV =
     cVals = map (\(Severity f) -> f) current
     mVals = map (\(Severity f) -> f) maxV
 
+-- | Find the minimum severity distance between the current configuration
+-- and all maximum vectors for a given EQ level.
 minSeverityDistance :: [Severity] -> [[Severity]] -> Int
 minSeverityDistance current maxVectors =
   minimum [severityDistance current maxV | maxV <- maxVectors]
 
+-- | Variant of 'minSeverityDistance' for 6-tuple maximum vectors
+-- (used for the combined EQ3+EQ6 distance calculation).
 minSeverityDistance6 :: [Severity] -> [(Severity, Severity, Severity, Severity, Severity, Severity)] -> Int
 minSeverityDistance6 current maxVectors =
   minimum [severityDistance current [a, b, c, d, e, f] | (a, b, c, d, e, f) <- maxVectors]
 
+-- | Advance an EQ level by one step.  EQ2 is the maximum and stays at EQ2.
 incrementEQ :: EQLevel -> EQLevel
 incrementEQ eq = case eq of
   EQ0 -> EQ1
@@ -590,12 +709,17 @@ incrementEQ eq = case eq of
 clamp :: Float -> Float -> Float -> Float
 clamp x lo hi = max lo (min hi x)
 
+-- | Compute the CVSS v4.0 score for the given metrics.
+-- Returns the environmental score if environmental metrics are present,
+-- the threat score if threat metrics are present, or the base score otherwise.
 cvss40score :: [Metric] -> (Rating, Float)
 cvss40score metrics
   | hasEnvironmentalMetrics40 metrics = cvss40EnvironmentalScore metrics
   | hasThreatMetrics40 metrics = cvss40ThreatScore metrics
   | otherwise = cvss40BaseScore metrics
 
+-- | Filter metrics to only those relevant for base score computation
+-- (removes threat, environmental, and supplemental metrics).
 filterBaseMetrics :: [Metric] -> [Metric]
 filterBaseMetrics = filter isBaseMetric
   where
@@ -623,6 +747,8 @@ filterBaseMetrics = filter isBaseMetric
                         "V"
                       ]
 
+-- | Filter metrics to those relevant for threat score computation
+-- (removes environmental and supplemental metrics, keeps threat + base).
 filterThreatMetrics :: [Metric] -> [Metric]
 filterThreatMetrics = filter isThreatRelevant
   where
@@ -649,6 +775,24 @@ filterThreatMetrics = filter isThreatRelevant
                         "V"
                       ]
 
+-- | Core CVSS v4.0 scoring algorithm.
+--
+-- The algorithm works as follows:
+--
+-- 1. Compute the macrovector (EQ1–EQ6 levels) from the given metrics.
+-- 2. Look up the base score from 'cvss40LookupTable' using the macrovector.
+-- 3. For each EQ group (1, 2, 3+6, 4, 5), compute:
+--      a. The severity distance between the current metrics and the
+--         \"maximum\" (worst-case) severity vectors for that EQ level.
+--      b. The available score gap (difference between the current lookup
+--         score and the score at the next higher EQ level).
+--      c. The score reduction: @available × severityDistance \/ maxDepth@.
+-- 4. Compute the mean of all valid (non-Nothing) reductions.
+-- 5. Subtract the mean reduction from the looked-up score.
+-- 6. Clamp the result to [0.0, 10.0] and round to one decimal place.
+--
+-- EQ3 and EQ6 are combined because they share the severity distance calculation
+-- (the available gap is the minimum of the EQ3 and EQ6 gaps).
 cvss40ComputeScore :: [Metric] -> (Rating, Float)
 cvss40ComputeScore metrics = (toRating finalScore, finalScore)
   where
@@ -720,12 +864,19 @@ cvss40ComputeScore metrics = (toRating finalScore, finalScore)
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
 
+-- | Compute the CVSS v4.0 Base Score (base metrics only).
 cvss40BaseScore :: [Metric] -> (Rating, Float)
 cvss40BaseScore = cvss40ComputeScore . filterBaseMetrics
 
+-- | Compute the CVSS v4.0 Threat Score (base + threat metrics).
 cvss40ThreatScore :: [Metric] -> (Rating, Float)
 cvss40ThreatScore = cvss40ComputeScore . filterThreatMetrics
 
+-- | Compute the CVSS v4.0 Environmental Score.
+--
+-- This uses modified base metrics and security requirements from the
+-- environmental group.  When a modified metric is \"Not Defined\" (X),
+-- the corresponding base metric value is used instead.
 cvss40EnvironmentalScore :: [Metric] -> (Rating, Float)
 cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
   where
@@ -797,16 +948,21 @@ cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
     round40 :: Float -> Float
     round40 x = fromIntegral @Int (round (x * 10 + 0.0001)) / 10
 
+-- | Short names of all supplemental metrics.
 supplementalShortNames :: [Text]
 supplementalShortNames = ["S", "AU", "R", "V", "RE", "U"]
 
+-- | Extract supplemental metrics from a metric list.
 getSupplementalMetrics :: [Metric] -> [Metric]
 getSupplementalMetrics =
   filter (\metric -> coerce (mName metric) `elem` supplementalShortNames)
 
+-- | Returns 'True' when any supplemental metric is present.
 hasSupplementalMetrics :: [Metric] -> Bool
 hasSupplementalMetrics = not . null . getSupplementalMetrics
 
+-- | Produce a human-readable description of all supplemental metrics.
+-- Returns 'Nothing' when no supplemental metrics are present.
 cvss40SupplementalInfo :: [Metric] -> Maybe Text
 cvss40SupplementalInfo metrics
   | null supplemental = Nothing
@@ -821,16 +977,19 @@ cvss40SupplementalInfo metrics
       mv <- find (\mv -> mvChar mv == char) $ miValues mi
       pure $ Text.concat [miName mi, " (", coerce name, "): ", mvName mv, "\n  ", mvDesc mv]
 
+-- | Look up the value of a specific supplemental metric by name.
 getSupplementalValue :: [Metric] -> Text -> Maybe MetricValueChar
 getSupplementalValue metrics metricName =
   mChar <$> find (\metric -> coerce (mName metric) == metricName) (getSupplementalMetrics metrics)
 
+-- | Parse a supplemental metric value character into its human-readable name.
 parseSupplementalValue :: Text -> MetricValueChar -> Maybe Text
 parseSupplementalValue metricName char = do
   mi <- find (\mi -> miShortName mi == MetricShortName metricName) $ allMetrics cvss40DB
   mv <- find (\mv -> mvChar mv == char) $ miValues mi
   pure $ mvName mv
 
+-- | Compute the macrovector from base metrics only (for base\/threat scores).
 macroVectorFromMetrics :: [Metric] -> MacroVector
 macroVectorFromMetrics metrics =
   MacroVector
@@ -844,6 +1003,9 @@ macroVectorFromMetrics metrics =
   where
     EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3 metrics
 
+-- | Compute the macrovector using modified environmental metrics (for
+-- environmental scores).  Uses the \"Env\" variants of EQ computation
+-- functions which substitute modified metrics for base metrics.
 macroVectorFromMetricsEnv :: [Metric] -> MacroVector
 macroVectorFromMetricsEnv metrics =
   MacroVector
@@ -857,11 +1019,14 @@ macroVectorFromMetricsEnv metrics =
   where
     EQ3Result {eq3VC = vcLevel, eq3VI = viLevel, eq3VA = vaLevel} = computeEQ3Env metrics
 
+-- | Look up the score for a macrovector from the lookup table.
+-- Throws an error for invalid macrovectors (should never happen with valid metrics).
 macroVectorLookup :: MacroVector -> Float
 macroVectorLookup mv = case Map.lookup mv cvss40LookupTable of
   Nothing -> error $ "CVSS 4.0: invalid MacroVector: " <> show mv
   Just s -> s
 
+-- | Parse a 6-character string (e.g. \"000000\") into a 'MacroVector'.
 textToMacroVector :: Text -> MacroVector
 textToMacroVector txt = MacroVector (charToEQ (Text.index txt 0)) (charToEQ (Text.index txt 1)) (charToEQ (Text.index txt 2)) (charToEQ (Text.index txt 3)) (charToEQ (Text.index txt 4)) (charToEQ (Text.index txt 5))
   where
@@ -870,6 +1035,7 @@ textToMacroVector txt = MacroVector (charToEQ (Text.index txt 0)) (charToEQ (Tex
     charToEQ '2' = EQ2
     charToEQ _ = EQ0
 
+-- | Compute EQ1 from base metrics (AV, PR, UI).
 computeEQ1 :: [Metric] -> EQ1Result
 computeEQ1 metrics =
   EQ1Result
@@ -893,6 +1059,7 @@ computeEQ1 metrics =
       | avChar == 'P' || not (avChar == 'N' || prChar == 'N' || uiChar == 'N') = EQ2
       | otherwise = EQ1
 
+-- | Compute EQ2 from base metrics (AC, AT).
 computeEQ2 :: [Metric] -> EQ2Result
 computeEQ2 metrics =
   EQ2Result
@@ -911,6 +1078,7 @@ computeEQ2 metrics =
       | acChar == 'L' && atChar == 'N' = EQ0
       | otherwise = EQ1
 
+-- | Compute EQ3 from base metrics (VC, VI, VA).
 computeEQ3 :: [Metric] -> EQ3Result
 computeEQ3 metrics =
   EQ3Result
@@ -934,6 +1102,7 @@ computeEQ3 metrics =
       | not (vcChar == 'H' || viChar == 'H' || vaChar == 'H') = EQ2
       | otherwise = EQ1
 
+-- | Compute EQ4 from base metrics (SC, SI, SA).
 computeEQ4 :: [Metric] -> EQ4Result
 computeEQ4 metrics =
   EQ4Result
@@ -957,6 +1126,7 @@ computeEQ4 metrics =
       | not (siChar == 'S' || saChar == 'S') && not (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ2
       | otherwise = EQ1
 
+-- | Compute EQ5 from the Exploit Maturity metric (E).
 computeEQ5 :: [Metric] -> EQ5Result
 computeEQ5 metrics =
   EQ5Result
@@ -973,6 +1143,8 @@ computeEQ5 metrics =
       | eChar == 'U' = EQ2
       | otherwise = EQ0
 
+-- | Compute EQ6 from security requirements (CR, IR, AR) and the
+-- previously computed EQ3 severity levels for VC, VI, VA.
 computeEQ6 :: (Severity, Severity, Severity) -> [Metric] -> EQ6Result
 computeEQ6 (Severity vcLevel, Severity viLevel, Severity vaLevel) metrics =
   EQ6Result
@@ -994,6 +1166,8 @@ computeEQ6 (Severity vcLevel, Severity viLevel, Severity vaLevel) metrics =
       | (crChar == 'H' && vcLevel == 0.0) || (irChar == 'H' && viLevel == 0.0) || (arChar == 'H' && vaLevel == 0.0) = EQ0
       | otherwise = EQ1
 
+-- | Compute EQ1 using modified environmental metrics (MAV, MPR, MUI),
+-- falling back to base metrics (AV, PR, UI) when the modified metric is X.
 computeEQ1Env :: [Metric] -> EQ1Result
 computeEQ1Env metrics =
   EQ1Result
@@ -1017,6 +1191,8 @@ computeEQ1Env metrics =
       | avChar == 'P' || not (avChar == 'N' || prChar == 'N' || uiChar == 'N') = EQ2
       | otherwise = EQ1
 
+-- | Compute EQ2 using modified environmental metrics (MAC, MAT),
+-- falling back to base metrics (AC, AT) when the modified metric is X.
 computeEQ2Env :: [Metric] -> EQ2Result
 computeEQ2Env metrics =
   EQ2Result
@@ -1035,6 +1211,8 @@ computeEQ2Env metrics =
       | acChar == 'L' && atChar == 'N' = EQ0
       | otherwise = EQ1
 
+-- | Compute EQ3 using modified environmental metrics (MVC, MVI, MVA),
+-- falling back to base metrics (VC, VI, VA) when the modified metric is X.
 computeEQ3Env :: [Metric] -> EQ3Result
 computeEQ3Env metrics =
   EQ3Result
@@ -1058,6 +1236,8 @@ computeEQ3Env metrics =
       | not (vcChar == 'H' || viChar == 'H' || vaChar == 'H') = EQ2
       | otherwise = EQ1
 
+-- | Compute EQ4 using modified environmental metrics (MSC, MSI, MSA),
+-- falling back to base metrics (SC, SI, SA) when the modified metric is X.
 computeEQ4Env :: [Metric] -> EQ4Result
 computeEQ4Env metrics =
   EQ4Result
@@ -1081,6 +1261,12 @@ computeEQ4Env metrics =
       | not (siChar == 'S' || saChar == 'S') && not (scChar == 'H' || siChar == 'H' || saChar == 'H') = EQ2
       | otherwise = EQ1
 
+-- | The complete CVSS v4.0 macrovector lookup table.
+-- Each key is a 6-character string representing EQ1–EQ6 levels (each 0, 1, or 2).
+-- The value is the corresponding score from the specification.
+--
+-- This table is derived directly from the FIRST CVSS v4.0 specification
+-- (Document Version 1.2, Section 7.1).
 cvss40LookupTable :: Map.Map MacroVector Float
 cvss40LookupTable = Map.fromList [(textToMacroVector k, v) | (k, v) <- textTable]
   where
