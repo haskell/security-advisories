@@ -1,5 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- |
+-- Module      : Security.CVSS.V31
+-- Description : CVSS v3.1 scoring implementation
+--
+-- Implements CVSS v3.1 scoring as defined by FIRST.
+--
+-- Specification: https:\/\/www.first.org\/cvss\/v3-1\/
+--
+-- CVSS v3.1 vector strings use the @CVSS:3.1\/@ prefix.
+--
+-- Key differences from v3.0 include:
+--
+-- * Adjusted weights for __Privileges Required__ when Scope is Changed
+--   (the \"changed scope\" override values in 'mvNumChangedScope').
+-- * Refined __Attack Complexity__ and __User Interaction__ descriptions.
+-- * \"Not Defined\" for temporal\/environmental metrics uses @X@ instead of @ND@.
+-- * The \"Roundup\" function is clarified to always round up to one decimal.
 module Security.CVSS.V31
   ( cvss31DB,
     validateCvss31,
@@ -16,6 +33,12 @@ import GHC.Float (powerFloat)
 import Security.CVSS.Internal
 import Security.CVSS.Types
 
+-- | The complete CVSS v3.1 metric database.  Each 'MetricValue' carries
+-- the numeric weight specified by the standard (used in score computation)
+-- and a human-readable description.
+--
+-- Note: 'Privileges Required' has an optional second weight ('mvNumChangedScope')
+-- that is used when Scope is Changed.
 cvss31DB :: CVSSDB
 cvss31DB =
   CVSSDB
@@ -187,16 +210,38 @@ cvss31DB =
     mkEnvLow m = MetricValue "Low" (MetricValueChar "L") 0.5 Nothing $ mkEnvLowMsg m
     mkModifiedUndef = MetricValue "Not Defined" (MetricValueChar "X") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score" -- Not Defined (X): mvNum is ignored in scoring; getModifiedMetricValue substitutes the base metric value
 
+-- | Validate a list of CVSS v3.1 metrics, checking that:
+--
+--   * No metric appears more than once.
+--   * All metrics are recognized for v3.1.
+--   * All required (Base) metrics are present.
 validateCvss31 :: [Metric] -> Either CVSSError ()
 validateCvss31 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss31DB, validateRequired cvss31DB]
 
+-- | Compute the CVSS v3.1 score for the given metrics.
+-- Returns the environmental score if environmental metrics are present,
+-- the temporal score if temporal metrics are present, or the base score otherwise.
 cvss31score :: [Metric] -> (Rating, Float)
 cvss31score metrics
   | hasEnvironmentalMetrics metrics = cvss31EnvironmentalScore metrics
   | hasTemporalMetrics metrics = cvss31TemporalScore metrics
   | otherwise = cvss31BaseScore metrics
 
+-- | Compute the CVSS v3.1 Base Score.
+--
+-- Per the specification (Section 7.1):
+--
+-- @
+-- ISS = 1 − (1−ConfImpact) × (1−IntegImpact) × (1−AvailImpact)
+-- Impact = 6.42 × ISS                                          , if Scope = Unchanged
+-- Impact = 7.52 × (ISS−0.029) − 3.25 × (ISS−0.02)^15         , if Scope = Changed
+-- Exploitability = 8.22 × AttackVector × AttackComplexity × PrivilegesRequired × UserInteraction
+-- BaseScore = Roundup(min(Impact + Exploitability, 10))        , if Scope = Unchanged
+-- BaseScore = Roundup(min(1.08 × (Impact + Exploitability), 10)), if Scope = Changed
+-- @
+--
+-- If Impact ≤ 0 the score is 0.
 cvss31BaseScore :: [Metric] -> (Rating, Float)
 cvss31BaseScore metrics = (toRating score, score)
   where
@@ -214,6 +259,13 @@ cvss31BaseScore metrics = (toRating score, score)
     gm :: Text -> Float
     gm = getMetricValue cvss31DB metrics scope
 
+-- | Compute the CVSS v3.1 Temporal Score.
+--
+-- @
+-- TemporalScore = Roundup(BaseScore × ExploitCodeMaturity × RemediationLevel × ReportConfidence)
+-- @
+--
+-- Optional metrics default to 1.0 (no effect) when absent or \"Not Defined\" (X).
 cvss31TemporalScore :: [Metric] -> (Rating, Float)
 cvss31TemporalScore metrics = (toRating score, score)
   where
@@ -223,10 +275,13 @@ cvss31TemporalScore metrics = (toRating score, score)
     reportConfidence = optionalMetric metrics 1.0 "Report Confidence"
     score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
 
+-- | Look up an optional (temporal) metric value, returning the default
+-- when the metric is absent.
 optionalMetric :: [Metric] -> Float -> Text -> Float
 optionalMetric metrics defaultValue =
   getMetricValueOr cvss31DB metrics defaultValue unchanged
 
+-- | Check whether a specific metric is absent or set to \"Not Defined\" (X).
 isMetricND :: [Metric] -> Text -> Bool
 isMetricND metrics name =
   case lookupMetricValueChar cvss31DB metrics name of
@@ -234,6 +289,9 @@ isMetricND metrics name =
     Just (MetricValueChar "X") -> True
     _ -> False
 
+-- | Returns 'True' when all environmental metrics (requirements + modified base metrics)
+-- are absent or set to \"Not Defined\" (X).  In this case the environmental score
+-- degenerates to the temporal score.
 allEnvMetricsND :: [Metric] -> Bool
 allEnvMetricsND metrics =
   all (isMetricND metrics) envMetricNames
@@ -252,6 +310,21 @@ allEnvMetricsND metrics =
         "Modified Availability"
       ]
 
+-- | Compute the CVSS v3.1 Environmental Score.
+--
+-- Per the specification (Section 7.3):
+--
+-- @
+-- MISS = min(1 − (1−ConfReq×ModifiedConf) × (1−IntegReq×ModifiedInteg) × (1−AvailReq×ModifiedAvail), 0.915)
+-- ModifiedImpact = 6.42 × MISS                                               , if ModifiedScope = Unchanged
+-- ModifiedImpact = 7.52 × (MISS−0.029) − 3.25 × (MISS × 0.9731 − 0.02)^13 , if ModifiedScope = Changed
+-- ModifiedExploitability = 8.22 × ModifiedAV × ModifiedAC × ModifiedPR × ModifiedUI
+-- @
+--
+-- If all environmental metrics are \"Not Defined\", this falls back to 'cvss31TemporalScore'.
+--
+-- Note the v3.1 spec uses @0.9731@ and exponent @13@ in the Changed scope formula,
+-- differing slightly from the v3.0 formula.
 cvss31EnvironmentalScore :: [Metric] -> (Rating, Float)
 cvss31EnvironmentalScore metrics
   | allEnvMetricsND metrics = cvss31TemporalScore metrics

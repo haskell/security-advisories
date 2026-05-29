@@ -1,5 +1,24 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- |
+-- Module      : Security.CVSS.V30
+-- Description : CVSS v3.0 scoring implementation
+--
+-- Implements CVSS v3.0 scoring as defined by FIRST.
+--
+-- Specification: https:\/\/www.first.org\/cvss\/v3-0\/
+--
+-- CVSS v3.0 vector strings use the @CVSS:3.0\/@ prefix.
+--
+-- Key differences from v2.0 include:
+--
+-- * Introduction of __Scope__ (Unchanged\/Changed), which bifurcates the
+--   impact sub-formula and applies a 1.08 multiplier for Changed scope.
+-- * __Privileges Required__ replaces Authentication, with different weights
+--   depending on Scope.
+-- * __User Interaction__ is a new metric (None\/Required).
+-- * Impact values are High\/Low\/None instead of Complete\/Partial\/None.
+-- * Rounding uses the \"Roundup\" function (ceiling to one decimal place).
 module Security.CVSS.V30
   ( cvss30DB,
     validateCvss30,
@@ -15,6 +34,12 @@ import GHC.Float (powerFloat)
 import Security.CVSS.Internal
 import Security.CVSS.Types
 
+-- | The complete CVSS v3.0 metric database.  Each 'MetricValue' carries
+-- the numeric weight specified by the standard (used in score computation)
+-- and a human-readable description.
+--
+-- Note: 'Privileges Required' has an optional second weight ('mvNumChangedScope')
+-- that is used when Scope is Changed.
 cvss30DB :: CVSSDB
 cvss30DB =
   CVSSDB
@@ -185,10 +210,29 @@ cvss30DB =
     mkEnvLow m = MetricValue "Low" (MetricValueChar "L") 0.5 Nothing $ mkEnvLowMsg m
     mkModifiedUndef = MetricValue "Not Defined" (MetricValueChar "X") 1 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Score"
 
+-- | Validate a list of CVSS v3.0 metrics, checking that:
+--
+--   * No metric appears more than once.
+--   * All metrics are recognized for v3.0.
+--   * All required (Base) metrics are present.
 validateCvss30 :: [Metric] -> Either CVSSError ()
 validateCvss30 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss30DB, validateRequired cvss30DB]
 
+-- | Compute the CVSS v3.0 Base Score.
+--
+-- Per the specification:
+--
+-- @
+-- ISCbase = 1 − (1−ConfImpact) × (1−IntegImpact) × (1−AvailImpact)
+-- Impact  = 6.42 × ISCbase                                    , if Scope = Unchanged
+-- Impact  = 7.52 × [ISCbase−0.029] − 3.25 × [ISCbase−0.02]^15, if Scope = Changed
+-- Exploitability = 8.22 × AttackVector × AttackComplexity × PrivilegesRequired × UserInteraction
+-- BaseScore = Roundup(min(Impact + Exploitability, 10))       , if Scope = Unchanged
+-- BaseScore = Roundup(min(1.08 × (Impact + Exploitability), 10)), if Scope = Changed
+-- @
+--
+-- If Impact ≤ 0 the score is 0.
 cvss30BaseScore :: [Metric] -> (Rating, Float)
 cvss30BaseScore metrics = (toRating score, score)
   where
@@ -205,12 +249,22 @@ cvss30BaseScore metrics = (toRating score, score)
     exploitability = 8.22 * gm "Attack Vector" * gm "Attack Complexity" * gm "Privileges Required" * gm "User Interaction"
     gm = getMetricValue cvss30DB metrics scope
 
+-- | Compute the CVSS v3.0 score for the given metrics.
+-- Returns the environmental score if environmental metrics are present,
+-- the temporal score if temporal metrics are present, or the base score otherwise.
 cvss30score :: [Metric] -> (Rating, Float)
 cvss30score metrics
   | hasEnvironmentalMetrics metrics = cvss30EnvironmentalScore metrics
   | hasTemporalMetrics metrics = cvss30TemporalScore metrics
   | otherwise = cvss30BaseScore metrics
 
+-- | Compute the CVSS v3.0 Temporal Score.
+--
+-- @
+-- TemporalScore = Roundup(BaseScore × ExploitCodeMaturity × RemediationLevel × ReportConfidence)
+-- @
+--
+-- Optional metrics default to 1.0 (no effect) when absent or \"Not Defined\" (X).
 cvss30TemporalScore :: [Metric] -> (Rating, Float)
 cvss30TemporalScore metrics = (toRating score, score)
   where
@@ -220,6 +274,21 @@ cvss30TemporalScore metrics = (toRating score, score)
     reportConfidence = getMetricValueOr cvss30DB metrics 1.0 unchanged "Report Confidence"
     score = roundup (baseScore * exploitCodeMaturity * remediationLevel * reportConfidence)
 
+-- | Compute the CVSS v3.0 Environmental Score.
+--
+-- Per the specification:
+--
+-- @
+-- MISS = min(1 − (1−ConfReq×ModifiedConf) × (1−IntegReq×ModifiedInteg) × (1−AvailReq×ModifiedAvail), 0.915)
+-- ModifiedImpact = 6.42 × MISS                                              , if ModifiedScope = Unchanged
+-- ModifiedImpact = 7.52 × (MISS−0.029) − 3.25 × (MISS−0.02)^15            , if ModifiedScope = Changed
+-- ModifiedExploitability = 8.22 × ModifiedAV × ModifiedAC × ModifiedPR × ModifiedUI
+-- EnvScoreHelper = Roundup(min(ModifiedImpact + ModifiedExploitability, 10))          , if ModifiedScope = Unchanged
+-- EnvScoreHelper = Roundup(min(1.08 × (ModifiedImpact + ModifiedExploitability), 10)) , if ModifiedScope = Changed
+-- EnvironmentalScore = Roundup(EnvScoreHelper × ExploitCodeMaturity × RemediationLevel × ReportConfidence)
+-- @
+--
+-- If ModifiedImpact ≤ 0 the score is 0.
 cvss30EnvironmentalScore :: [Metric] -> (Rating, Float)
 cvss30EnvironmentalScore metrics = (toRating score, score)
   where
