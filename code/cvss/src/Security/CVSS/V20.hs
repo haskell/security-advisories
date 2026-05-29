@@ -218,7 +218,7 @@ cvss20BaseScore :: [Metric] -> (Rating, Float)
 cvss20BaseScore metrics = (toRating20 score, score)
   where
     score = round_to_1_decimal ((0.6 * impact + 0.4 * exploitability - 1.5) * fImpact)
-    impact = 10.41 * (1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact"))
+    impact = min 10.0 $ 10.41 * (1 - (1 - gm "Confidentiality Impact") * (1 - gm "Integrity Impact") * (1 - gm "Availability Impact"))
     exploitability = 20 * gm "Access Vector" * gm "Access Complexity" * gm "Authentication"
     fImpact
       | impact == 0 = 0
