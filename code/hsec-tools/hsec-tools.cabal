@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hsec-tools
-version:            0.3.0.2
+version:            0.4.0.0
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -21,7 +21,10 @@ maintainer:         security-advisories@haskell.org
 -- A copyright notice.
 -- copyright:
 category:           Data
-extra-doc-files:    CHANGELOG.md, README.md
+extra-doc-files:
+  CHANGELOG.md
+  README.md
+
 extra-source-files:
   assets/css/*.css
   assets/images/*.png
@@ -29,26 +32,30 @@ extra-source-files:
   test/golden/*.md
 
 tested-with:
-  GHC ==8.10.7 || ==9.0.2 || ==9.2.8 || ==9.4.8 || ==9.6.6 || ==9.8.3 || ==9.10.1 || ==9.12.1
+  GHC ==8.10.7
+   || ==9.0.2
+   || ==9.2.8
+   || ==9.4.8
+   || ==9.6.6
+   || ==9.8.3
+   || ==9.10.1
+   || ==9.12.1
 
 library
   exposed-modules:
     Security.Advisories
     Security.Advisories.Convert.OSV
     Security.Advisories.Filesystem
+    Security.Advisories.Format
     Security.Advisories.Generate.HTML
     Security.Advisories.Generate.Snapshot
     Security.Advisories.Generate.TH
     Security.Advisories.Git
-    Security.Advisories.Format
     Security.Advisories.Parse
     Security.Advisories.Queries
 
-  other-modules:
-      Paths_hsec_tools
-  autogen-modules:
-      Paths_hsec_tools
-
+  other-modules:    Paths_hsec_tools
+  autogen-modules:  Paths_hsec_tools
   build-depends:
     , aeson                 >=2.0.1.0  && <3
     , atom-conduit          >=0.9      && <0.10
@@ -64,9 +71,9 @@ library
     , data-default          >=0.7      && <0.8
     , directory             <2
     , extra                 >=1.7      && <1.9
-    , filepath              >=1.4      && <1.6
-    , hsec-core             >= 0.3.0.0 && <0.4
     , file-embed            >=0.0.13.0 && <0.0.17
+    , filepath              >=1.4      && <1.6
+    , hsec-core             >=0.4.0.0  && <0.5
     , lens                  >=5.1.0    && <5.4
     , lucid                 >=2.9.0    && <3
     , mtl                   >=2.2      && <2.4
@@ -80,13 +87,13 @@ library
     , process               >=1.6      && <1.7
     , refined               >=0.7      && <0.9
     , resourcet             >=1.2      && <1.4
-    , text                  >=1.2      && <3
     , template-haskell      >=2.16.0.0 && <2.24
+    , text                  >=1.2      && <3
     , time                  >=1.9      && <1.15
     , toml-parser           >=2.0.0.0  && <2.1
     , uri-bytestring        >=0.3      && <0.5
-    , xml-conduit           >=1.9      && <1.11
     , validation-selective  >=0.1      && <1
+    , xml-conduit           >=1.9      && <1.11
 
   hs-source-dirs:   src
   default-language: Haskell2010
@@ -96,9 +103,10 @@ library
 
 executable hsec-tools
   main-is:          Main.hs
-  other-modules:    Command.Reserve
-                    , Command.NextID
-                    , Util
+  other-modules:
+    Command.NextID
+    Command.Reserve
+    Util
 
   -- Modules included in this executable, other than Main.
   -- other-modules:
@@ -106,19 +114,19 @@ executable hsec-tools
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions:
   build-depends:
-    , aeson                 >=2.0.1.0  && <3
-    , base                  >=4.14     && <5
-    , bytestring            >=0.10     && <0.13
-    , Cabal-syntax          >=3.8.1.0  && <3.15
+    , aeson                 >=2.0.1.0 && <3
+    , base                  >=4.14    && <5
+    , bytestring            >=0.10    && <0.13
+    , Cabal-syntax          >=3.8.1.0 && <3.15
     , directory             <2
-    , filepath              >=1.4      && <1.6
-    , hsec-core             >= 0.3.0.0 && <0.4
+    , filepath              >=1.4     && <1.6
+    , hsec-core             >=0.4.0.0 && <0.5
     , hsec-tools
-    , network-uri           >=2.6.3.0  && <2.8
-    , optparse-applicative  >=0.17     && <0.19
-    , text                  >=1.2      && <3
-    , transformers          >=0.5      && <0.7
-    , validation-selective  >=0.1      && <1
+    , network-uri           >=2.6.3.0 && <2.8
+    , optparse-applicative  >=0.17    && <0.19
+    , text                  >=1.2     && <3
+    , transformers          >=0.5     && <0.7
+    , validation-selective  >=0.1     && <1
 
   hs-source-dirs:   app
   default-language: Haskell2010
@@ -130,28 +138,28 @@ test-suite spec
   type:             exitcode-stdio-1.0
   hs-source-dirs:   test
   main-is:          Spec.hs
-  autogen-modules:
-    Paths_hsec_tools
+  autogen-modules:  Paths_hsec_tools
   other-modules:
     Paths_hsec_tools
     Spec.FormatSpec
+
   build-depends:
-    , aeson-pretty   <2
+    , aeson-pretty    <2
     , base
     , Cabal-syntax
     , containers
     , cvss
     , directory
-    , hedgehog       <2
+    , hedgehog        <2
     , hsec-core
     , hsec-tools
     , network-uri
     , osv
-    , pretty-simple  <5
+    , pretty-simple   <5
     , prettyprinter
-    , tasty          <2
-    , tasty-golden   <2.4
-    , tasty-hedgehog <2
+    , tasty           <2
+    , tasty-golden    <2.4
+    , tasty-hedgehog  <2
     , text
     , time
     , toml-parser
