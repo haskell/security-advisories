@@ -2,7 +2,6 @@
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -34,6 +33,7 @@ import Data.Coerce (coerce)
 import Data.Foldable (traverse_)
 import Data.List (find)
 import Data.Map qualified as Map
+import Data.Maybe (catMaybes)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Security.CVSS.Internal
@@ -103,14 +103,6 @@ data EQ6Result = EQ6Result
   }
   deriving (Eq, Show)
 
-type MaxComposedEQ1 = [(Severity, Severity, Severity)]
-
-type MaxComposedEQ2 = [(Severity, Severity, Severity)]
-
-type MaxComposedEQ3EQ6 = [(Severity, Severity, Severity, Severity, Severity, Severity)]
-
-type MaxComposedEQ4 = [(Severity, Severity, Severity)]
-
 data CVSS40_AV = AV_Network | AV_Adjacent | AV_Local | AV_Physical
   deriving (Eq, Show, Enum, Bounded)
 
@@ -138,11 +130,6 @@ data CVSS40_SecurityReqValue = SR_High | SR_Medium | SR_Low
 data CVSS40_ExploitMaturity = EM_Attacked | EM_PoC | EM_Unreported
   deriving (Eq, Show, Enum, Bounded)
 
-pattern C :: Text -> MetricValueChar
-pattern C c = MetricValueChar c
-
-{-# COMPLETE C #-}
-
 cvss40DB :: CVSSDB
 cvss40DB =
   CVSSDB
@@ -166,28 +153,28 @@ cvss40DB =
         MetricInfo "Subsequent System Availability Impact" "SA" True saValues
       ]
     avValues =
-      [ MetricValue "Network" (C "N") 0 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet.",
-        MetricValue "Adjacent" (C "A") 0 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology.",
-        MetricValue "Local" (C "L") 0 Nothing "The vulnerable component is not bound to the network stack and the attacker's path is via read/write/execute capabilities.",
-        MetricValue "Physical" (C "P") 0 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
+      [ MetricValue "Network" (MetricValueChar "N") 0 Nothing "The vulnerable component is bound to the network stack and the set of possible attackers extends beyond the other options listed below, up to and including the entire Internet.",
+        MetricValue "Adjacent" (MetricValueChar "A") 0 Nothing "The vulnerable component is bound to the network stack, but the attack is limited at the protocol level to a logically adjacent topology.",
+        MetricValue "Local" (MetricValueChar "L") 0 Nothing "The vulnerable component is not bound to the network stack and the attacker's path is via read/write/execute capabilities.",
+        MetricValue "Physical" (MetricValueChar "P") 0 Nothing "The attack requires the attacker to physically touch or manipulate the vulnerable component."
       ]
     acValues =
-      [ MetricValue "Low" (C "L") 0 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
-        MetricValue "High" (C "H") 0 Nothing "A successful attack depends on conditions beyond the attacker's control."
+      [ MetricValue "Low" (MetricValueChar "L") 0 Nothing "Specialized access conditions or extenuating circumstances do not exist.",
+        MetricValue "High" (MetricValueChar "H") 0 Nothing "A successful attack depends on conditions beyond the attacker's control."
       ]
     atValues =
-      [ MetricValue "Present" (C "P") 0 Nothing "The conditions described in Attack Vector, Attack Complexity, Privileges Required, and User Interaction exist in the environment.",
-        MetricValue "Absent" (C "N") 0 Nothing "The conditions described in Attack Vector, Attack Complexity, Privileges Required, and User Interaction do NOT exist in the environment."
+      [ MetricValue "Present" (MetricValueChar "P") 0 Nothing "The conditions described in Attack Vector, Attack Complexity, Privileges Required, and User Interaction exist in the environment.",
+        MetricValue "Absent" (MetricValueChar "N") 0 Nothing "The conditions described in Attack Vector, Attack Complexity, Privileges Required, and User Interaction do NOT exist in the environment."
       ]
     prValues =
-      [ MetricValue "None" (C "N") 0 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack.",
-        MetricValue "Low" (C "L") 0 Nothing "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
-        MetricValue "High" (C "H") 0 Nothing "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
+      [ MetricValue "None" (MetricValueChar "N") 0 Nothing "The attacker is unauthorized prior to attack, and therefore does not require any access to settings or files of the vulnerable system to carry out an attack.",
+        MetricValue "Low" (MetricValueChar "L") 0 Nothing "The attacker requires privileges that provide basic user capabilities that could normally affect only settings and files owned by a user.",
+        MetricValue "High" (MetricValueChar "H") 0 Nothing "The attacker requires privileges that provide significant (e.g., administrative) control over the vulnerable component allowing access to component-wide settings and files."
       ]
     uiValues =
-      [ MetricValue "None" (C "N") 0 Nothing "The vulnerable system can be exploited without interaction from any user.",
-        MetricValue "Passive" (C "P") 0 Nothing "The human user must be engaged in some form of passive interaction (e.g., read an email, view a file).",
-        MetricValue "Active" (C "A") 0 Nothing "The human user must be engaged in some form of active interaction (e.g., click a link, run a program)."
+      [ MetricValue "None" (MetricValueChar "N") 0 Nothing "The vulnerable system can be exploited without interaction from any user.",
+        MetricValue "Passive" (MetricValueChar "P") 0 Nothing "The human user must be engaged in some form of passive interaction (e.g., read an email, view a file).",
+        MetricValue "Active" (MetricValueChar "A") 0 Nothing "The human user must be engaged in some form of active interaction (e.g., click a link, run a program)."
       ]
     vcValues =
       [ mkImpactHigh "There is a total loss of confidentiality, resulting in all resources within the impacted component being divulged to the attacker.",
@@ -219,10 +206,10 @@ cvss40DB =
         mkImpactLow "Performance is reduced or there are interruptions in resource availability.",
         mkImpactNone "There is no impact to availability within the Subsequent System."
       ]
-    mkImpactHigh = MetricValue "High" (C "H") 0 Nothing
-    mkImpactLow = MetricValue "Low" (C "L") 0 Nothing
-    mkImpactNone = MetricValue "None" (C "N") 0 Nothing
-    mkImpactSafety = MetricValue "Safety" (C "S") 0 Nothing "There is a predictable potential to cause injury categorized as Marginal or worse."
+    mkImpactHigh = MetricValue "High" (MetricValueChar "H") 0 Nothing
+    mkImpactLow = MetricValue "Low" (MetricValueChar "L") 0 Nothing
+    mkImpactNone = MetricValue "None" (MetricValueChar "N") 0 Nothing
+    mkImpactSafety = MetricValue "Safety" (MetricValueChar "S") 0 Nothing "There is a predictable potential to cause injury categorized as Marginal or worse."
     supplementalMetrics =
       [ MetricInfo "Safety" "S" False sValues,
         MetricInfo "Automatable" "AU" False auValues,
@@ -233,38 +220,38 @@ cvss40DB =
       ]
     sValues =
       [ mkSuppUndef,
-        MetricValue "Negligible" (C "N") 0 Nothing "There is little to no safety impact to human life.",
-        MetricValue "Present" (C "P") 0 Nothing "There is a potential for non-trivial negative impact on human life."
+        MetricValue "Negligible" (MetricValueChar "N") 0 Nothing "There is little to no safety impact to human life.",
+        MetricValue "Present" (MetricValueChar "P") 0 Nothing "There is a potential for non-trivial negative impact on human life."
       ]
     auValues =
       [ mkSuppUndef,
-        MetricValue "No" (C "N") 0 Nothing "The attacker cannot reliably cause the specific impact or the effort required is beyond the attacker's capabilities.",
-        MetricValue "Yes" (C "Y") 0 Nothing "The attacker can reliably cause the specific impact using the available exploitation techniques and capabilities."
+        MetricValue "No" (MetricValueChar "N") 0 Nothing "The attacker cannot reliably cause the specific impact or the effort required is beyond the attacker's capabilities.",
+        MetricValue "Yes" (MetricValueChar "Y") 0 Nothing "The attacker can reliably cause the specific impact using the available exploitation techniques and capabilities."
       ]
     rValues =
       [ mkSuppUndef,
-        MetricValue "Automatic" (C "A") 0 Nothing "Recovery is performed by the system without human intervention.",
-        MetricValue "User" (C "U") 0 Nothing "Recovery is performed by a system administrator.",
-        MetricValue "Irreversible" (C "I") 0 Nothing "Recovery is impossible."
+        MetricValue "Automatic" (MetricValueChar "A") 0 Nothing "Recovery is performed by the system without human intervention.",
+        MetricValue "User" (MetricValueChar "U") 0 Nothing "Recovery is performed by a system administrator.",
+        MetricValue "Irreversible" (MetricValueChar "I") 0 Nothing "Recovery is impossible."
       ]
     vValues =
       [ mkSuppUndef,
-        MetricValue "Diffuse" (C "D") 0 Nothing "The vulnerable component impacts a large number of organizations or users.",
-        MetricValue "Concentrated" (C "C") 0 Nothing "The vulnerable component impacts a small number of organizations or users."
+        MetricValue "Diffuse" (MetricValueChar "D") 0 Nothing "The vulnerable component impacts a large number of organizations or users.",
+        MetricValue "Concentrated" (MetricValueChar "C") 0 Nothing "The vulnerable component impacts a small number of organizations or users."
       ]
     reValues =
       [ mkSuppUndef,
-        MetricValue "Low" (C "L") 0 Nothing "The effort required to respond to the vulnerability is low.",
-        MetricValue "Moderate" (C "M") 0 Nothing "The effort required to respond to the vulnerability is moderate.",
-        MetricValue "High" (C "H") 0 Nothing "The effort required to respond to the vulnerability is high."
+        MetricValue "Low" (MetricValueChar "L") 0 Nothing "The effort required to respond to the vulnerability is low.",
+        MetricValue "Moderate" (MetricValueChar "M") 0 Nothing "The effort required to respond to the vulnerability is moderate.",
+        MetricValue "High" (MetricValueChar "H") 0 Nothing "The effort required to respond to the vulnerability is high."
       ]
     uValues =
       [ mkSuppUndef,
-        MetricValue "Clear" (C "C") 0 Nothing "The provider urges immediate action to resolve the vulnerability.",
-        MetricValue "Amber" (C "A") 0 Nothing "The provider urges action to resolve the vulnerability in a timely manner.",
-        MetricValue "Green" (C "G") 0 Nothing "The provider recommends the vulnerability be resolved, but the urgency is lower."
+        MetricValue "Clear" (MetricValueChar "C") 0 Nothing "The provider urges immediate action to resolve the vulnerability.",
+        MetricValue "Amber" (MetricValueChar "A") 0 Nothing "The provider urges action to resolve the vulnerability in a timely manner.",
+        MetricValue "Green" (MetricValueChar "G") 0 Nothing "The provider recommends the vulnerability be resolved, but the urgency is lower."
       ]
-    mkSuppUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall score."
+    mkSuppUndef = MetricValue "Not Defined" (MetricValueChar "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall score."
     environmentalMetrics =
       [ MetricInfo "Confidentiality Requirement" "CR" False crValues,
         MetricInfo "Integrity Requirement" "IR" False irValues,
@@ -278,43 +265,42 @@ cvss40DB =
         MetricInfo "Modified Integrity Impact to the Vulnerable System" "MVI" False $ mkEnvUndef : viValues,
         MetricInfo "Modified Availability Impact to the Vulnerable System" "MVA" False $ mkEnvUndef : vaValues,
         MetricInfo "Modified Subsequent System Confidentiality Impact" "MSC" False $ mkEnvUndef : scValues,
-        MetricInfo "Modified Subsequent System Integrity Impact" "MSI" False $ [MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.", mkImpactSafety, mkImpactHigh "There is a total loss of integrity, or a complete loss of protection.", mkImpactLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.", mkImpactNone "There is no loss of integrity within the Subsequent System."],
-        MetricInfo "Modified Subsequent System Availability Impact" "MSA" False $ [MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.", mkImpactSafety, mkImpactHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the Subsequent System.", mkImpactLow "Performance is reduced or there are interruptions in resource availability.", mkImpactNone "There is no impact to availability within the Subsequent System."]
+        MetricInfo "Modified Subsequent System Integrity Impact" "MSI" False $ [MetricValue "Not Defined" (MetricValueChar "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.", mkImpactSafety, mkImpactHigh "There is a total loss of integrity, or a complete loss of protection.", mkImpactLow "Modification of data is possible, but the attacker does not have control over the consequence of a modification, or the amount of modification is limited.", mkImpactNone "There is no loss of integrity within the Subsequent System."],
+        MetricInfo "Modified Subsequent System Availability Impact" "MSA" False $ [MetricValue "Not Defined" (MetricValueChar "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium.", mkImpactSafety, mkImpactHigh "There is a total loss of availability, resulting in the attacker being able to fully deny access to resources in the Subsequent System.", mkImpactLow "Performance is reduced or there are interruptions in resource availability.", mkImpactNone "There is no impact to availability within the Subsequent System."]
       ]
     crValues =
       [ mkEnvUndef,
-        MetricValue "Low" (C "L") 0 Nothing "Loss of confidentiality is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
-        MetricValue "Medium" (C "M") 0 Nothing "Loss of confidentiality is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
-        MetricValue "High" (C "H") 0 Nothing "Loss of confidentiality is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
+        MetricValue "Low" (MetricValueChar "L") 0 Nothing "Loss of confidentiality is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "Medium" (MetricValueChar "M") 0 Nothing "Loss of confidentiality is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "High" (MetricValueChar "H") 0 Nothing "Loss of confidentiality is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
       ]
     irValues =
       [ mkEnvUndef,
-        MetricValue "Low" (C "L") 0 Nothing "Loss of integrity is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
-        MetricValue "Medium" (C "M") 0 Nothing "Loss of integrity is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
-        MetricValue "High" (C "H") 0 Nothing "Loss of integrity is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
+        MetricValue "Low" (MetricValueChar "L") 0 Nothing "Loss of integrity is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "Medium" (MetricValueChar "M") 0 Nothing "Loss of integrity is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "High" (MetricValueChar "H") 0 Nothing "Loss of integrity is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
       ]
     arValues =
       [ mkEnvUndef,
-        MetricValue "Low" (C "L") 0 Nothing "Loss of availability is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
-        MetricValue "Medium" (C "M") 0 Nothing "Loss of availability is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
-        MetricValue "High" (C "H") 0 Nothing "Loss of availability is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
+        MetricValue "Low" (MetricValueChar "L") 0 Nothing "Loss of availability is likely to have only a limited adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "Medium" (MetricValueChar "M") 0 Nothing "Loss of availability is likely to have a serious adverse effect on an organization or individuals associated with the organization (e.g., employees, customers).",
+        MetricValue "High" (MetricValueChar "H") 0 Nothing "Loss of availability is likely to have a catastrophic adverse effect on an organization or individuals associated with the organization (e.g., employees, customers)."
       ]
-    mkEnvUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium."
+    mkEnvUndef = MetricValue "Not Defined" (MetricValueChar "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values, and has no impact on the overall Environmental Score, i.e., it has the same effect on scoring as assigning Medium."
     threatMetrics =
       [ MetricInfo "Exploit Maturity" "E" False eValues
       ]
     eValues =
       [ mkThreatUndef,
-        MetricValue "Unreported" (C "U") 0 Nothing "The vulnerability has not been reported to the vendor or the vendor has not been given the opportunity to respond.",
-        MetricValue "Proof of Concept" (C "P") 0 Nothing "Proof of concept code exists, or the vulnerability is theoretical.",
-        MetricValue "Attacked" (C "A") 0 Nothing "The vulnerability has been exploited in the wild."
+        MetricValue "Unreported" (MetricValueChar "U") 0 Nothing "The vulnerability has not been reported to the vendor or the vendor has not been given the opportunity to respond.",
+        MetricValue "Proof of Concept" (MetricValueChar "P") 0 Nothing "Proof of concept code exists, or the vulnerability is theoretical.",
+        MetricValue "Attacked" (MetricValueChar "A") 0 Nothing "The vulnerability has been exploited in the wild."
       ]
-    mkThreatUndef = MetricValue "Not Defined" (C "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values. According to the CVSS 4.0 specification, this is the default value and is equivalent to Attacked (A) for scoring purposes (assuming the worst case)."
+    mkThreatUndef = MetricValue "Not Defined" (MetricValueChar "X") 0 Nothing "Assigning this value indicates there is insufficient information to choose one of the other values. According to the CVSS 4.0 specification, this is the default value and is equivalent to Attacked (A) for scoring purposes (assuming the worst case)."
 
-validateCvss40 :: [Metric] -> Either CVSSError [Metric]
+validateCvss40 :: [Metric] -> Either CVSSError ()
 validateCvss40 metrics = do
   traverse_ (\t -> t metrics) [validateUnique, validateKnown cvss40DB, validateRequired cvss40DB]
-  pure metrics
 
 hasThreatMetrics40 :: [Metric] -> Bool
 hasThreatMetrics40 = any (\metric -> mName metric == "E")
@@ -346,142 +332,166 @@ hasEnvironmentalMetrics40 metrics =
 getMetricValueChar40 :: [Metric] -> Text -> MetricValueChar
 getMetricValueChar40 metrics name =
   case find (\metric -> mName metric == MetricShortName name) metrics of
-    Nothing -> C "X"
+    Nothing -> MetricValueChar "X"
     Just (Metric _ char) -> char
 
 getChar40 :: [Metric] -> Text -> Char
 getChar40 metrics name = case getMetricValueChar40 metrics name of
-  C c -> Text.head c
+  MetricValueChar c -> Text.head c
 
 parseAV :: Char -> CVSS40_AV
-parseAV 'N' = AV_Network
-parseAV 'A' = AV_Adjacent
-parseAV 'L' = AV_Local
-parseAV 'P' = AV_Physical
-parseAV _ = AV_Physical
+parseAV c = case c of
+  'N' -> AV_Network
+  'A' -> AV_Adjacent
+  'L' -> AV_Local
+  'P' -> AV_Physical
+  _ -> AV_Physical
 
 parsePR :: Char -> CVSS40_PR
-parsePR 'N' = PR_None
-parsePR 'L' = PR_Low
-parsePR 'H' = PR_High
-parsePR _ = PR_High
+parsePR c = case c of
+  'N' -> PR_None
+  'L' -> PR_Low
+  'H' -> PR_High
+  _ -> PR_High
 
 parseUI :: Char -> CVSS40_UI
-parseUI 'N' = UI_None
-parseUI 'P' = UI_Passive
-parseUI 'A' = UI_Active
-parseUI _ = UI_Active
+parseUI c = case c of
+  'N' -> UI_None
+  'P' -> UI_Passive
+  'A' -> UI_Active
+  _ -> UI_Active
 
 parseAC :: Char -> CVSS40_AC
-parseAC 'L' = AC_Low
-parseAC 'H' = AC_High
-parseAC _ = AC_High
+parseAC c = case c of
+  'L' -> AC_Low
+  'H' -> AC_High
+  _ -> AC_High
 
 parseAT :: Char -> CVSS40_AT
-parseAT 'N' = AT_Absent
-parseAT 'P' = AT_Present
-parseAT _ = AT_Present
+parseAT c = case c of
+  'N' -> AT_Absent
+  'P' -> AT_Present
+  _ -> AT_Present
 
 parseImpactValue :: Char -> CVSS40_ImpactValue
-parseImpactValue 'H' = Impact_High
-parseImpactValue 'L' = Impact_Low
-parseImpactValue 'N' = Impact_None
-parseImpactValue _ = Impact_None
+parseImpactValue c = case c of
+  'H' -> Impact_High
+  'L' -> Impact_Low
+  'N' -> Impact_None
+  _ -> Impact_None
 
 parseSubsequentImpactValue :: Char -> CVSS40_SubsequentImpactValue
-parseSubsequentImpactValue 'S' = SI_Safety
-parseSubsequentImpactValue 'H' = SI_High
-parseSubsequentImpactValue 'L' = SI_Low
-parseSubsequentImpactValue 'N' = SI_None
-parseSubsequentImpactValue _ = SI_None
+parseSubsequentImpactValue c = case c of
+  'S' -> SI_Safety
+  'H' -> SI_High
+  'L' -> SI_Low
+  'N' -> SI_None
+  _ -> SI_None
 
 parseSecurityReqValue :: Char -> CVSS40_SecurityReqValue
-parseSecurityReqValue 'H' = SR_High
-parseSecurityReqValue 'M' = SR_Medium
-parseSecurityReqValue 'L' = SR_Low
-parseSecurityReqValue _ = SR_High
+parseSecurityReqValue c = case c of
+  'H' -> SR_High
+  'M' -> SR_Medium
+  'L' -> SR_Low
+  _ -> SR_High
 
 parseExploitMaturity :: Char -> CVSS40_ExploitMaturity
-parseExploitMaturity 'A' = EM_Attacked
-parseExploitMaturity 'P' = EM_PoC
-parseExploitMaturity 'U' = EM_Unreported
-parseExploitMaturity _ = EM_Attacked
+parseExploitMaturity c = case c of
+  'A' -> EM_Attacked
+  'P' -> EM_PoC
+  'U' -> EM_Unreported
+  _ -> EM_Attacked
 
 avSeverity :: CVSS40_AV -> Severity
-avSeverity AV_Network = Severity 0.0
-avSeverity AV_Adjacent = Severity 0.1
-avSeverity AV_Local = Severity 0.2
-avSeverity AV_Physical = Severity 0.3
+avSeverity v = case v of
+  AV_Network -> Severity 0.0
+  AV_Adjacent -> Severity 0.1
+  AV_Local -> Severity 0.2
+  AV_Physical -> Severity 0.3
 
 prSeverity :: CVSS40_PR -> Severity
-prSeverity PR_None = Severity 0.0
-prSeverity PR_Low = Severity 0.1
-prSeverity PR_High = Severity 0.2
+prSeverity v = case v of
+  PR_None -> Severity 0.0
+  PR_Low -> Severity 0.1
+  PR_High -> Severity 0.2
 
 uiSeverity :: CVSS40_UI -> Severity
-uiSeverity UI_None = Severity 0.0
-uiSeverity UI_Passive = Severity 0.1
-uiSeverity UI_Active = Severity 0.2
+uiSeverity v = case v of
+  UI_None -> Severity 0.0
+  UI_Passive -> Severity 0.1
+  UI_Active -> Severity 0.2
 
 acSeverity :: CVSS40_AC -> Severity
-acSeverity AC_Low = Severity 0.0
-acSeverity AC_High = Severity 0.1
+acSeverity v = case v of
+  AC_Low -> Severity 0.0
+  AC_High -> Severity 0.1
 
 atSeverity :: CVSS40_AT -> Severity
-atSeverity AT_Absent = Severity 0.0
-atSeverity AT_Present = Severity 0.1
+atSeverity v = case v of
+  AT_Absent -> Severity 0.0
+  AT_Present -> Severity 0.1
 
 vcSeverity :: CVSS40_ImpactValue -> Severity
-vcSeverity Impact_High = Severity 0.0
-vcSeverity Impact_Low = Severity 0.1
-vcSeverity Impact_None = Severity 0.2
+vcSeverity v = case v of
+  Impact_High -> Severity 0.0
+  Impact_Low -> Severity 0.1
+  Impact_None -> Severity 0.2
 
 viSeverity :: CVSS40_ImpactValue -> Severity
-viSeverity Impact_High = Severity 0.0
-viSeverity Impact_Low = Severity 0.1
-viSeverity Impact_None = Severity 0.2
+viSeverity v = case v of
+  Impact_High -> Severity 0.0
+  Impact_Low -> Severity 0.1
+  Impact_None -> Severity 0.2
 
 vaSeverity :: CVSS40_ImpactValue -> Severity
-vaSeverity Impact_High = Severity 0.0
-vaSeverity Impact_Low = Severity 0.1
-vaSeverity Impact_None = Severity 0.2
+vaSeverity v = case v of
+  Impact_High -> Severity 0.0
+  Impact_Low -> Severity 0.1
+  Impact_None -> Severity 0.2
 
 scSeverity :: CVSS40_ImpactValue -> Severity
-scSeverity Impact_High = Severity 0.1
-scSeverity Impact_Low = Severity 0.2
-scSeverity Impact_None = Severity 0.3
+scSeverity v = case v of
+  Impact_High -> Severity 0.1
+  Impact_Low -> Severity 0.2
+  Impact_None -> Severity 0.3
 
 siSeverity :: CVSS40_SubsequentImpactValue -> Severity
-siSeverity SI_Safety = Severity 0.0
-siSeverity SI_High = Severity 0.1
-siSeverity SI_Low = Severity 0.2
-siSeverity SI_None = Severity 0.3
+siSeverity v = case v of
+  SI_Safety -> Severity 0.0
+  SI_High -> Severity 0.1
+  SI_Low -> Severity 0.2
+  SI_None -> Severity 0.3
 
 saSeverity :: CVSS40_SubsequentImpactValue -> Severity
-saSeverity SI_Safety = Severity 0.0
-saSeverity SI_High = Severity 0.1
-saSeverity SI_Low = Severity 0.2
-saSeverity SI_None = Severity 0.3
+saSeverity v = case v of
+  SI_Safety -> Severity 0.0
+  SI_High -> Severity 0.1
+  SI_Low -> Severity 0.2
+  SI_None -> Severity 0.3
 
 crSeverity :: CVSS40_SecurityReqValue -> Severity
-crSeverity SR_High = Severity 0.0
-crSeverity SR_Medium = Severity 0.1
-crSeverity SR_Low = Severity 0.2
+crSeverity v = case v of
+  SR_High -> Severity 0.0
+  SR_Medium -> Severity 0.1
+  SR_Low -> Severity 0.2
 
 irSeverity :: CVSS40_SecurityReqValue -> Severity
-irSeverity SR_High = Severity 0.0
-irSeverity SR_Medium = Severity 0.1
-irSeverity SR_Low = Severity 0.2
+irSeverity v = case v of
+  SR_High -> Severity 0.0
+  SR_Medium -> Severity 0.1
+  SR_Low -> Severity 0.2
 
 arSeverity :: CVSS40_SecurityReqValue -> Severity
-arSeverity SR_High = Severity 0.0
-arSeverity SR_Medium = Severity 0.1
-arSeverity SR_Low = Severity 0.2
+arSeverity v = case v of
+  SR_High -> Severity 0.0
+  SR_Medium -> Severity 0.1
+  SR_Low -> Severity 0.2
 
 eSeverity :: CVSS40_ExploitMaturity -> Severity
-eSeverity EM_Attacked = Severity 0.0
-eSeverity EM_PoC = Severity 1.0
-eSeverity EM_Unreported = Severity 2.0
+eSeverity v = case v of
+  EM_Attacked -> Severity 0.0
+  EM_PoC -> Severity 1.0
+  EM_Unreported -> Severity 2.0
 
 getModifiedChar40 :: [Metric] -> Text -> Text -> Char
 getModifiedChar40 metrics modifiedName baseName =
@@ -494,58 +504,64 @@ getSecurityReqChar40 metrics name =
    in if raw == 'X' then 'H' else raw
 
 maxComposedEQ1 :: EQLevel -> [(Severity, Severity, Severity)]
-maxComposedEQ1 EQ0 = [(Severity 0.0, Severity 0.0, Severity 0.0)]
-maxComposedEQ1 EQ1 = [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.1)]
-maxComposedEQ1 EQ2 = [(Severity 0.3, Severity 0.0, Severity 0.0), (Severity 0.1, Severity 0.1, Severity 0.1)]
+maxComposedEQ1 eq = case eq of
+  EQ0 -> [(Severity 0.0, Severity 0.0, Severity 0.0)]
+  EQ1 -> [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.1)]
+  EQ2 -> [(Severity 0.3, Severity 0.0, Severity 0.0), (Severity 0.1, Severity 0.1, Severity 0.1)]
 
 maxComposedEQ2 :: EQLevel -> [(Severity, Severity, Severity)]
-maxComposedEQ2 EQ0 = [(Severity 0.0, Severity 0.0, Severity 0.0)]
-maxComposedEQ2 EQ1 = [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0)]
-maxComposedEQ2 _ = []
+maxComposedEQ2 eq = case eq of
+  EQ0 -> [(Severity 0.0, Severity 0.0, Severity 0.0)]
+  EQ1 -> [(Severity 0.1, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0)]
+  _ -> []
 
 maxComposedEQ3EQ6 :: EQLevel -> EQLevel -> [(Severity, Severity, Severity, Severity, Severity, Severity)]
-maxComposedEQ3EQ6 EQ0 EQ0 = [(Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
-maxComposedEQ3EQ6 EQ0 EQ1 = [(Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1)]
-maxComposedEQ3EQ6 EQ1 EQ0 = [(Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
-maxComposedEQ3EQ6 EQ1 EQ1 =
-  [ (Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0),
-    (Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1),
-    (Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1),
-    (Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0),
-    (Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1)
-  ]
-maxComposedEQ3EQ6 EQ2 EQ1 = [(Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0)]
-maxComposedEQ3EQ6 _ _ = []
+maxComposedEQ3EQ6 eq3 eq6 = case (eq3, eq6) of
+  (EQ0, EQ0) -> [(Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
+  (EQ0, EQ1) -> [(Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0), (Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1)]
+  (EQ1, EQ0) -> [(Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0), (Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.0)]
+  (EQ1, EQ1) ->
+    [ (Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0),
+      (Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1, Severity 0.1),
+      (Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1, Severity 0.0, Severity 0.1),
+      (Severity 0.0, Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0),
+      (Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0, Severity 0.1)
+    ]
+  (EQ2, EQ1) -> [(Severity 0.1, Severity 0.1, Severity 0.1, Severity 0.0, Severity 0.0, Severity 0.0)]
+  (_, _) -> []
 
 maxComposedEQ4 :: EQLevel -> [(Severity, Severity, Severity)]
-maxComposedEQ4 EQ0 = [(Severity 0.1, Severity 0.0, Severity 0.0)]
-maxComposedEQ4 EQ1 = [(Severity 0.1, Severity 0.1, Severity 0.1)]
-maxComposedEQ4 EQ2 = [(Severity 0.2, Severity 0.2, Severity 0.2)]
-maxComposedEQ4 _ = []
+maxComposedEQ4 eq = case eq of
+  EQ0 -> [(Severity 0.1, Severity 0.0, Severity 0.0)]
+  EQ1 -> [(Severity 0.1, Severity 0.1, Severity 0.1)]
+  EQ2 -> [(Severity 0.2, Severity 0.2, Severity 0.2)]
 
 maxDepthEQ1 :: EQLevel -> Int
-maxDepthEQ1 EQ0 = 1
-maxDepthEQ1 EQ1 = 4
-maxDepthEQ1 EQ2 = 5
+maxDepthEQ1 eq = case eq of
+  EQ0 -> 1
+  EQ1 -> 4
+  EQ2 -> 5
 
 maxDepthEQ2 :: EQLevel -> Int
-maxDepthEQ2 EQ0 = 1
-maxDepthEQ2 EQ1 = 2
-maxDepthEQ2 _ = 0
+maxDepthEQ2 eq = case eq of
+  EQ0 -> 1
+  EQ1 -> 2
+  _ -> 0
 
 maxDepthEQ3EQ6 :: EQLevel -> EQLevel -> Int
-maxDepthEQ3EQ6 EQ0 EQ0 = 7
-maxDepthEQ3EQ6 EQ0 EQ1 = 6
-maxDepthEQ3EQ6 EQ1 EQ0 = 8
-maxDepthEQ3EQ6 EQ1 EQ1 = 8
-maxDepthEQ3EQ6 EQ2 EQ1 = 10
-maxDepthEQ3EQ6 _ _ = 0
+maxDepthEQ3EQ6 eq3 eq6 = case (eq3, eq6) of
+  (EQ0, EQ0) -> 7
+  (EQ0, EQ1) -> 6
+  (EQ1, EQ0) -> 8
+  (EQ1, EQ1) -> 8
+  (EQ2, EQ1) -> 10
+  (_, _) -> 0
 
 maxDepthEQ4 :: EQLevel -> Int
-maxDepthEQ4 EQ0 = 6
-maxDepthEQ4 EQ1 = 5
-maxDepthEQ4 EQ2 = 4
-maxDepthEQ4 _ = 0
+maxDepthEQ4 eq = case eq of
+  EQ0 -> 6
+  EQ1 -> 5
+  EQ2 -> 4
 
 maxDepthEQ5 :: EQLevel -> Int
 maxDepthEQ5 _ = 1
@@ -566,9 +582,10 @@ minSeverityDistance6 current maxVectors =
   minimum [severityDistance current [a, b, c, d, e, f] | (a, b, c, d, e, f) <- maxVectors]
 
 incrementEQ :: EQLevel -> EQLevel
-incrementEQ EQ0 = EQ1
-incrementEQ EQ1 = EQ2
-incrementEQ EQ2 = EQ2
+incrementEQ eq = case eq of
+  EQ0 -> EQ1
+  EQ1 -> EQ2
+  EQ2 -> EQ2
 
 clamp :: Float -> Float -> Float -> Float
 clamp x lo hi = max lo (min hi x)
@@ -696,7 +713,7 @@ cvss40ComputeScore metrics = (toRating finalScore, finalScore)
     eq5Reduction = (\avail -> avail * 0 / fromIntegral eq5Depth) <$> eq5Available
 
     allReductions = [eq1Reduction, eq2Reduction, eq3eq6Reduction, eq4Reduction, eq5Reduction]
-    validReductions = [r | Just r <- allReductions]
+    validReductions = catMaybes allReductions
     count = length validReductions
     meanDistance = if count > 0 then sum validReductions / fromIntegral count else 0.0
 
@@ -773,7 +790,7 @@ cvss40EnvironmentalScore metrics = (toRating finalScore, finalScore)
     eq5Reduction = (\avail -> avail * 0 / fromIntegral eq5Depth) <$> eq5Available
 
     allReductions = [eq1Reduction, eq2Reduction, eq3eq6Reduction, eq4Reduction, eq5Reduction]
-    validReductions = [r | Just r <- allReductions]
+    validReductions = catMaybes allReductions
     count = length validReductions
     meanDistance = if count > 0 then sum validReductions / fromIntegral count else 0.0
 

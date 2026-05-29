@@ -1,7 +1,5 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module Security.CVSS
   ( -- * Types
@@ -43,8 +41,7 @@ module Security.CVSS
   )
 where
 
-import Data.Foldable (traverse_)
-import Data.List (find, group, sort)
+import Data.List (find)
 import Data.Maybe (mapMaybe)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -54,14 +51,6 @@ import Security.CVSS.V20 (cvss20DB, cvss20EnvironmentalScore, cvss20TemporalScor
 import Security.CVSS.V30 (cvss30DB, cvss30EnvironmentalScore, cvss30TemporalScore, cvss30score, validateCvss30)
 import Security.CVSS.V31 (cvss31DB, cvss31EnvironmentalScore, cvss31TemporalScore, cvss31score, validateCvss31)
 import Security.CVSS.V40 (cvss40BaseScore, cvss40DB, cvss40EnvironmentalScore, cvss40SupplementalInfo, cvss40score, hasEnvironmentalMetrics40, hasThreatMetrics40, validateCvss40)
-
-pattern C :: Text -> MetricValueChar
-pattern C c = MetricValueChar c
-
-{-# COMPLETE C #-}
-
-instance Show CVSS where
-  show = Text.unpack . cvssVectorString
 
 parseCVSS :: Text -> Either CVSSError CVSS
 parseCVSS txt
@@ -73,7 +62,8 @@ parseCVSS txt
   where
     validateComponents withPrefix validator = do
       metrics <- traverse splitComponent $ components withPrefix
-      validator metrics
+      _ <- validator metrics
+      pure metrics
 
     components withPrefix = (if withPrefix then drop 1 else id) $ Text.split (== '/') txt
     splitComponent :: Text -> Either CVSSError Metric
