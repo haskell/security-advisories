@@ -50,6 +50,11 @@ test-suite spec
   main-is:          Spec.hs
   other-modules:
     OfficialExamples
+    TestCVSS.Common
+    TestCVSS.V20
+    TestCVSS.V30
+    TestCVSS.V31
+    TestCVSS.V40
     Security.CVSS
     Security.CVSS.Internal
     Security.CVSS.Types
