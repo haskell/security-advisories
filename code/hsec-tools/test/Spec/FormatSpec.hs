@@ -7,6 +7,7 @@ module Spec.FormatSpec (spec) where
 import Control.Monad (replicateM)
 import Data.Function (on)
 import qualified Data.Map.Strict as Map
+import qualified Data.Maybe as Maybe
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time
@@ -15,11 +16,12 @@ import Distribution.Types.VersionRange
 import qualified Hedgehog as Gen
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-import Network.URI (URI(URI), URIAuth(URIAuth))
+import Network.URI (URI (URI), URIAuth (URIAuth))
 import qualified Prettyprinter as Pretty
 import qualified Prettyprinter.Render.Text as Pretty
 import Security.Advisories.Core.Advisory
 import Security.Advisories.Core.HsecId
+import Security.Advisories.Core.OsvId (OsvId, parseOsvId)
 import Security.Advisories.Format
 import Security.CVSS
 import Security.OSV (Reference (..), ReferenceType (..))
@@ -65,8 +67,8 @@ genAdvisoryMetadata =
     <*> Gen.list (Range.linear 0 5) genCAPEC
     <*> Gen.list (Range.linear 0 5) genCWE
     <*> Gen.list (Range.linear 0 5) genKeyword
-    <*> Gen.list (Range.linear 0 5) genText
-    <*> Gen.list (Range.linear 0 5) genText
+    <*> Gen.list (Range.linear 0 5) genOsvId
+    <*> Gen.list (Range.linear 0 5) genOsvId
 
 genAffected :: Gen.Gen Affected
 genAffected =
@@ -79,28 +81,30 @@ genAffected =
     <*> (Map.toList . Map.fromList <$> Gen.list (Range.linear 0 5) ((,) <$> genText <*> genVersionRange))
 
 genComponentIdentifier :: Gen.Gen ComponentIdentifier
-genComponentIdentifier = Gen.choice $
-  [ Repository
-      <$> (RepositoryURL <$> genURI)
-      <*> (RepositoryName <$> genText)
-      <*> (mkPackageName . T.unpack <$> genText)
-  , hackage . mkPackageName . T.unpack <$> genText
-  , GHC <$> Gen.enumBounded
-  ]
+genComponentIdentifier =
+  Gen.choice $
+    [ Repository
+        <$> (RepositoryURL <$> genURI)
+        <*> (RepositoryName <$> genText)
+        <*> (mkPackageName . T.unpack <$> genText),
+      hackage . mkPackageName . T.unpack <$> genText,
+      GHC <$> Gen.enumBounded
+    ]
 
 genURI :: Gen.Gen URI
 genURI = do
-  host   <- Gen.element ["example.com", "foo.org", "bar.net", "test.co"]
-  nPath  <- Gen.int (Range.linear 0 2)
-  parts  <- replicateM nPath (Gen.string (Range.linear 1 10) Gen.alphaNum)
-  let path = concatMap ('/':) parts
-  hasQ   <- Gen.bool
-  query  <- if not hasQ
-              then pure ""
-              else do
-                k <- Gen.string (Range.linear 1 6) Gen.alphaNum
-                v <- Gen.string (Range.linear 1 6) Gen.alphaNum
-                pure $ '?': k ++ "=" ++ v
+  host <- Gen.element ["example.com", "foo.org", "bar.net", "test.co"]
+  nPath <- Gen.int (Range.linear 0 2)
+  parts <- replicateM nPath (Gen.string (Range.linear 1 10) Gen.alphaNum)
+  let path = concatMap ('/' :) parts
+  hasQ <- Gen.bool
+  query <-
+    if not hasQ
+      then pure ""
+      else do
+        k <- Gen.string (Range.linear 1 6) Gen.alphaNum
+        v <- Gen.string (Range.linear 1 6) Gen.alphaNum
+        pure $ '?' : k ++ "=" ++ v
   pure $ URI "https:" (Just $ URIAuth "" host "") path query ""
 
 genCVSS :: Gen.Gen CVSS
@@ -135,7 +139,7 @@ genUTCTime :: Gen.Gen UTCTime
 genUTCTime =
   UTCTime
     <$> genDay
-    <*> fmap secondsToDiffTime (Gen.integral $ Range.constant 0 86401)
+    <*> fmap secondsToDiffTime (Gen.integral $ Range.constant 0 86399)
 
 genDay :: Gen.Gen Day
 genDay = do
@@ -186,3 +190,18 @@ genReference = Reference <$> genReferenceType <*> genText
 
 genReferenceType :: Gen.Gen ReferenceType
 genReferenceType = Gen.enumBounded
+
+genOsvId :: Gen.Gen OsvId
+genOsvId = do
+  prefix <-
+    Gen.element
+      [ "CVE",
+        "GHSA",
+        "HSEC",
+        "RUSTSEC",
+        "GO",
+        "OSV",
+        "PYSEC"
+      ]
+  entry <- Gen.text (Range.linear 4 10) Gen.alphaNum
+  pure . Maybe.fromJust . parseOsvId $ prefix <> "-" <> entry

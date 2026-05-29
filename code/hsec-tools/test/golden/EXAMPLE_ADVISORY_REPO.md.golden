@@ -10,10 +10,11 @@ Right
             , "freeform"
             , "keywords"
             ]
-        , advisoryAliases = [ "CVE-2022-XXXX" ]
+        , advisoryAliases =
+            [ OsvId "CVE-2022-1234" ]
         , advisoryRelated =
-            [ "CVE-2022-YYYY"
-            , "CVE-2022-ZZZZ"
+            [ OsvId "CVE-2022-5678"
+            , OsvId "CVE-2022-9012"
             ]
         , advisoryAffected =
             [ Affected
@@ -118,8 +119,8 @@ Right
           id = &quot;HSEC-0000-0000&quot;
           cwe = []
           keywords = [&quot;example&quot;, &quot;freeform&quot;, &quot;keywords&quot;]
-          aliases = [&quot;CVE-2022-XXXX&quot;]
-          related = [&quot;CVE-2022-YYYY&quot;, &quot;CVE-2022-ZZZZ&quot;]
+          aliases = [&quot;CVE-2022-1234&quot;]
+          related = [&quot;CVE-2022-5678&quot;, &quot;CVE-2022-9012&quot;]
 
           [[affected]]
           repository-url = &quot;https://hackage.example.org/&quot;
@@ -167,10 +168,10 @@ Model
     , modelModified = 1970-01-01 00:00:00 UTC
     , modelPublished = Just 1970-01-01 00:00:00 UTC
     , modelWithdrawn = Nothing
-    , modelAliases = [ "CVE-2022-XXXX" ]
+    , modelAliases = [ "CVE-2022-1234" ]
     , modelRelated =
-        [ "CVE-2022-YYYY"
-        , "CVE-2022-ZZZZ"
+        [ "CVE-2022-5678"
+        , "CVE-2022-9012"
         ]
     , modelSummary = Just "Advisory Template - Title Goes Here"
     , modelDetails = Just "# Advisory Template - Title Goes Here
@@ -244,7 +245,7 @@ Model
         }
     ],
     "aliases": [
-        "CVE-2022-XXXX"
+        "CVE-2022-1234"
     ],
     "details": "# Advisory Template - Title Goes Here\n\nThis is an example template.\n\n * Markdown\n * TOML \"front matter\".\n\n > Acme Broken.\n",
     "id": "HSEC-0000-0000",
@@ -257,8 +258,8 @@ Model
         }
     ],
     "related": [
-        "CVE-2022-YYYY",
-        "CVE-2022-ZZZZ"
+        "CVE-2022-5678",
+        "CVE-2022-9012"
     ],
     "schema_version": "1.5.0",
     "summary": "Advisory Template - Title Goes Here"

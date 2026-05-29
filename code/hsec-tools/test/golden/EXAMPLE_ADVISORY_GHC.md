@@ -4,8 +4,8 @@
 id = "HSEC-0000-0000"
 cwe = []
 keywords = ["example", "freeform", "keywords"]
-aliases = ["CVE-2022-XXXX"]
-related = ["CVE-2022-YYYY", "CVE-2022-ZZZZ"]
+aliases = ["CVE-2022-1234"]
+related = ["CVE-2022-5678", "CVE-2022-9012"]
 
 [[affected]]
 ghc-component = "ghci"
