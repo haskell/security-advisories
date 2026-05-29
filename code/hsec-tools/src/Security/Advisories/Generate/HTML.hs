@@ -33,6 +33,7 @@ import Network.URI.Lens (uriPathLens)
 import Refined (refineTH)
 import qualified Security.Advisories as Advisories
 import Security.Advisories.Core.Advisory (ComponentIdentifier (..), ghcComponentToText)
+import Security.Advisories.Core.OsvId (printOsvId)
 import Security.Advisories.Filesystem (listAdvisories)
 import Security.Advisories.Generate.TH (readDirFilesTH)
 import qualified Security.OSV as OSV
@@ -213,9 +214,9 @@ renderAdvisory advisory =
       dt_ "Keywords"
       placeholderWhenEmptyOr (Advisories.advisoryKeywords advisory) $ dd_ [] . toHtml . T.intercalate ", " . map Advisories.unKeyword
       dt_ "Aliases"
-      placeholderWhenEmptyOr (Advisories.advisoryAliases advisory) $ dd_ [] . toHtml . T.intercalate ", "
+      placeholderWhenEmptyOr (Advisories.advisoryAliases advisory) $ dd_ [] . toHtml . T.intercalate ", " . map printOsvId
       dt_ "Related"
-      placeholderWhenEmptyOr (Advisories.advisoryRelated advisory) $ dd_ [] . toHtml . T.intercalate ", "
+      placeholderWhenEmptyOr (Advisories.advisoryRelated advisory) $ dd_ [] . toHtml . T.intercalate ", " . map printOsvId
       dt_ "References"
       placeholderWhenEmptyOr (Advisories.advisoryReferences advisory) $ \references ->
         forM_ references $ \reference ->
@@ -228,10 +229,9 @@ renderAdvisory advisory =
               case Advisories.affectedComponentIdentifier affected of
                 Repository repoUrl repoName package ->
                   let name = Advisories.unPackageName package
-                  in
-                    ( T.pack $ show $ set uriPathLens ("package/" <> name) nullURI `relativeTo` Advisories.unRepositoryURL repoUrl,
-                      "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack name
-                    )
+                   in ( T.pack $ show $ set uriPathLens ("package/" <> name) nullURI `relativeTo` Advisories.unRepositoryURL repoUrl,
+                        "@" <> Advisories.unRepositoryName repoName <> "/" <> T.pack name
+                      )
                 GHC component ->
                   ( "https://gitlab.haskell.org/ghc/ghc",
                     Advisories.ghcComponentToText component

@@ -1,30 +1,34 @@
-{-# LANGUAGE DerivingVia, OverloadedStrings, QuasiQuotes #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Security.Advisories.Core.Advisory
-  ( Advisory(..)
+  ( Advisory (..),
+
     -- * Supporting types
-  , Affected(..)
-  , CAPEC(..)
-  , CWE(..)
-  , Architecture(..)
-  , AffectedVersionRange(..)
-  , OS(..)
-  , Keyword(..)
-  , ComponentIdentifier(..)
-  , GHCComponent(..)
-  , RepositoryURL(..)
-  , RepositoryName(..)
-  , PackageName
-  , mkPackageName
-  , unPackageName
-  , ghcComponentToText
-  , ghcComponentFromText
-  , hackage
+    Affected (..),
+    CAPEC (..),
+    CWE (..),
+    Architecture (..),
+    AffectedVersionRange (..),
+    OS (..),
+    Keyword (..),
+    ComponentIdentifier (..),
+    GHCComponent (..),
+    RepositoryURL (..),
+    RepositoryName (..),
+    PackageName,
+    mkPackageName,
+    unPackageName,
+    ghcComponentToText,
+    ghcComponentFromText,
+    hackage,
+
     -- * Queries
-  , isVersionAffectedBy
-  , isVersionRangeAffectedBy
+    isVersionAffectedBy,
+    isVersionRangeAffectedBy,
   )
-  where
+where
 
 import Data.Text (Text)
 import Data.Time (UTCTime)
@@ -34,30 +38,30 @@ import Distribution.Types.VersionInterval (asVersionIntervals)
 import Distribution.Types.VersionRange (VersionRange, anyVersion, earlierVersion, intersectVersionRanges, noVersion, orLaterVersion, unionVersionRanges, withinRange)
 import Network.URI (URI)
 import Network.URI.Static (uri)
-
-import Text.Pandoc.Definition (Pandoc)
-
 import Security.Advisories.Core.HsecId (HsecId)
+import Security.Advisories.Core.OsvId (OsvId)
 import qualified Security.CVSS as CVSS
 import Security.OSV (Reference)
+import Text.Pandoc.Definition (Pandoc)
 
 data Advisory = Advisory
-  { advisoryId :: HsecId
-  , advisoryModified :: UTCTime
-  , advisoryPublished :: UTCTime
-  , advisoryCAPECs :: [CAPEC]
-  , advisoryCWEs :: [CWE]
-  , advisoryKeywords :: [Keyword]
-  , advisoryAliases :: [Text]
-  , advisoryRelated :: [Text]
-  , advisoryAffected :: [Affected]
-  , advisoryReferences :: [Reference]
-  , advisoryPandoc :: Pandoc  -- ^ Parsed document, without TOML front matter
-  , advisoryHtml :: Text
-  , advisorySummary :: Text
-    -- ^ A one-line, English textual summary of the vulnerability
-  , advisoryDetails :: Text
-    -- ^ Details of the vulnerability (CommonMark), without TOML front matter
+  { advisoryId :: HsecId,
+    advisoryModified :: UTCTime,
+    advisoryPublished :: UTCTime,
+    advisoryCAPECs :: [CAPEC],
+    advisoryCWEs :: [CWE],
+    advisoryKeywords :: [Keyword],
+    advisoryAliases :: [OsvId],
+    advisoryRelated :: [OsvId],
+    advisoryAffected :: [Affected],
+    advisoryReferences :: [Reference],
+    -- | Parsed document, without TOML front matter
+    advisoryPandoc :: Pandoc,
+    advisoryHtml :: Text,
+    -- | A one-line, English textual summary of the vulnerability
+    advisorySummary :: Text,
+    -- | Details of the vulnerability (CommonMark), without TOML front matter
+    advisoryDetails :: Text
   }
   deriving stock (Show)
 
@@ -73,11 +77,11 @@ hackage =
     (RepositoryName "hackage")
 
 newtype RepositoryURL
-  = RepositoryURL { unRepositoryURL :: URI }
+  = RepositoryURL {unRepositoryURL :: URI}
   deriving stock (Eq, Ord, Show)
 
 newtype RepositoryName
-  = RepositoryName { unRepositoryName :: Text }
+  = RepositoryName {unRepositoryName :: Text}
   deriving stock (Eq, Ord, Show)
 
 -- Keep this list in sync with the 'ghcComponentFromText' below
@@ -114,12 +118,12 @@ ghcComponentFromText c = case c of
 -- | An affected package (or package component).  An 'Advisory' must
 -- mention one or more packages.
 data Affected = Affected
-  { affectedComponentIdentifier :: ComponentIdentifier
-  , affectedCVSS :: CVSS.CVSS
-  , affectedVersions :: [AffectedVersionRange]
-  , affectedArchitectures :: Maybe [Architecture]
-  , affectedOS :: Maybe [OS]
-  , affectedDeclarations :: [(Text, VersionRange)]
+  { affectedComponentIdentifier :: ComponentIdentifier,
+    affectedCVSS :: CVSS.CVSS,
+    affectedVersions :: [AffectedVersionRange],
+    affectedArchitectures :: Maybe [Architecture],
+    affectedOS :: Maybe [OS],
+    affectedDeclarations :: [(Text, VersionRange)]
   }
   deriving stock (Eq, Show)
 
@@ -201,17 +205,17 @@ isVersionRangeAffectedBy = isAffectedByHelper $
 -- | Helper function for 'isVersionAffectedBy' and 'isVersionRangeAffectedBy'
 isAffectedByHelper :: (a -> VersionRange -> Bool) -> ComponentIdentifier -> a -> Advisory -> Bool
 isAffectedByHelper checkWithRange queryComponent queryVersionish =
-    any checkAffected . advisoryAffected
-    where
-      checkAffected :: Affected -> Bool
-      checkAffected affected =
-        affectedComponentIdentifier affected == queryComponent && checkWithRange queryVersionish (fromAffected affected)
+  any checkAffected . advisoryAffected
+  where
+    checkAffected :: Affected -> Bool
+    checkAffected affected =
+      affectedComponentIdentifier affected == queryComponent && checkWithRange queryVersionish (fromAffected affected)
 
-      fromAffected :: Affected -> VersionRange
-      fromAffected = foldr (unionVersionRanges . fromAffectedVersionRange) noVersion . affectedVersions
+    fromAffected :: Affected -> VersionRange
+    fromAffected = foldr (unionVersionRanges . fromAffectedVersionRange) noVersion . affectedVersions
 
-      fromAffectedVersionRange :: AffectedVersionRange -> VersionRange
-      fromAffectedVersionRange avr = intersectVersionRanges
+    fromAffectedVersionRange :: AffectedVersionRange -> VersionRange
+    fromAffectedVersionRange avr =
+      intersectVersionRanges
         (orLaterVersion (affectedVersionRangeIntroduced avr))
         (maybe anyVersion earlierVersion (affectedVersionRangeFixed avr))
-

@@ -1,9 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Security.Advisories.Format
@@ -16,31 +16,30 @@ module Security.Advisories.Format
   )
 where
 
-import Control.Applicative ((<|>))
 import Commonmark.Types (HasAttributes (..), IsBlock (..), IsInline (..), Rangeable (..), SourceRange (..))
+import Control.Applicative ((<|>))
+import Data.List (intercalate)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (First (..))
-import Data.List (intercalate)
-import Data.Tuple (swap)
-import GHC.Generics (Generic)
-
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Time (utc, UTCTime(..), zonedTimeToUTC, localTimeToUTC)
+import Data.Time (UTCTime (..), localTimeToUTC, utc, zonedTimeToUTC)
+import Data.Tuple (swap)
 import Distribution.Parsec (eitherParsec)
 import Distribution.Pretty (pretty)
 import Distribution.Types.Version (Version)
 import Distribution.Types.VersionRange (VersionRange)
+import GHC.Generics (Generic)
 import Network.URI (parseAbsoluteURI)
+import Security.Advisories.Core.Advisory
+import Security.Advisories.Core.HsecId
+import Security.Advisories.Core.OsvId (OsvId, parseOsvId, printOsvId)
+import qualified Security.CVSS as CVSS
+import Security.OSV (Reference (..), ReferenceType, referenceTypes)
 import qualified Text.PrettyPrint as Pretty
 import qualified Toml
 import qualified Toml.Schema as Toml
-
-import Security.Advisories.Core.Advisory
-import Security.Advisories.Core.HsecId
-import qualified Security.CVSS as CVSS
-import Security.OSV (Reference (..), ReferenceType, referenceTypes)
 
 fromAdvisory :: Advisory -> FrontMatter
 fromAdvisory advisory =
@@ -61,171 +60,195 @@ fromAdvisory advisory =
     }
 
 -- advisory markdown file.
-data FrontMatter = FrontMatter {
-  frontMatterAdvisory :: AdvisoryMetadata,
-  frontMatterReferences :: [Reference],
-  frontMatterAffected :: [Affected]
-} deriving (Show, Generic)
+data FrontMatter = FrontMatter
+  { frontMatterAdvisory :: AdvisoryMetadata,
+    frontMatterReferences :: [Reference],
+    frontMatterAffected :: [Affected]
+  }
+  deriving (Show, Generic)
 
 instance Toml.FromValue FrontMatter where
   fromValue = Toml.parseTableFromValue $
-   do advisory   <- Toml.reqKey "advisory"
-      affected   <- Toml.reqKey "affected"
+    do
+      advisory <- Toml.reqKey "advisory"
+      affected <- Toml.reqKey "affected"
       references <- fromMaybe [] <$> Toml.optKey "references"
-      pure FrontMatter {
-        frontMatterAdvisory = advisory,
-        frontMatterAffected = affected,
-        frontMatterReferences = references
-        }
+      pure
+        FrontMatter
+          { frontMatterAdvisory = advisory,
+            frontMatterAffected = affected,
+            frontMatterReferences = references
+          }
 
 instance Toml.ToValue FrontMatter where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable FrontMatter where
-  toTable x = Toml.table
-    [ "advisory" Toml..= frontMatterAdvisory x
-    , "affected" Toml..= frontMatterAffected x
-    , "references" Toml..= frontMatterReferences x
-    ]
+  toTable x =
+    Toml.table
+      [ "advisory" Toml..= frontMatterAdvisory x,
+        "affected" Toml..= frontMatterAffected x,
+        "references" Toml..= frontMatterReferences x
+      ]
 
 -- | Internal type corresponding to the @[advisory]@ subsection of the
 -- TOML frontmatter in an advisory markdown file.
 data AdvisoryMetadata = AdvisoryMetadata
-  { amdId         :: HsecId
-  , amdModified   :: Maybe UTCTime
-  , amdPublished  :: Maybe UTCTime
-  , amdCAPECs     :: [CAPEC]
-  , amdCWEs       :: [CWE]
-  , amdKeywords   :: [Keyword]
-  , amdAliases    :: [T.Text]
-  , amdRelated    :: [T.Text]
+  { amdId :: HsecId,
+    amdModified :: Maybe UTCTime,
+    amdPublished :: Maybe UTCTime,
+    amdCAPECs :: [CAPEC],
+    amdCWEs :: [CWE],
+    amdKeywords :: [Keyword],
+    amdAliases :: [OsvId],
+    amdRelated :: [OsvId]
   }
   deriving (Show, Generic)
 
 instance Toml.FromValue AdvisoryMetadata where
   fromValue = Toml.parseTableFromValue $
-   do identifier  <- Toml.reqKey "id"
-      published   <- Toml.optKeyOf "date" getDefaultedZonedTime
-      modified    <- Toml.optKeyOf "modified"  getDefaultedZonedTime
+    do
+      identifier <- Toml.reqKey "id"
+      published <- Toml.optKeyOf "date" getDefaultedZonedTime
+      modified <- Toml.optKeyOf "modified" getDefaultedZonedTime
       let optList key = fromMaybe [] <$> Toml.optKey key
-      capecs      <- optList "capec"
-      cwes        <- optList "cwe"
-      kwds        <- optList "keywords"
-      aliases     <- optList "aliases"
-      related     <- optList "related"
-      pure AdvisoryMetadata
-        { amdId = identifier
-        , amdModified = modified
-        , amdPublished = published
-        , amdCAPECs = capecs
-        , amdCWEs = cwes
-        , amdKeywords = kwds
-        , amdAliases = aliases
-        , amdRelated = related
-        }
+      capecs <- optList "capec"
+      cwes <- optList "cwe"
+      kwds <- optList "keywords"
+      aliases <- optList "aliases"
+      related <- optList "related"
+      pure
+        AdvisoryMetadata
+          { amdId = identifier,
+            amdModified = modified,
+            amdPublished = published,
+            amdCAPECs = capecs,
+            amdCWEs = cwes,
+            amdKeywords = kwds,
+            amdAliases = aliases,
+            amdRelated = related
+          }
 
 instance Toml.ToValue AdvisoryMetadata where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable AdvisoryMetadata where
-  toTable x = Toml.table $
-    ["id"        Toml..= amdId x] ++
-    ["modified"  Toml..= y | Just y <- [amdModified x]] ++
-    ["date"      Toml..= y | Just y <- [amdPublished x]] ++
-    ["capec"     Toml..= amdCAPECs x | not (null (amdCAPECs x))] ++
-    ["cwe"       Toml..= amdCWEs x | not (null (amdCWEs x))] ++
-    ["keywords"  Toml..= amdKeywords x | not (null (amdKeywords x))] ++
-    ["aliases"   Toml..= amdAliases x | not (null (amdAliases x))] ++
-    ["related"   Toml..= amdRelated x | not (null (amdRelated x))]
+  toTable x =
+    Toml.table $
+      ["id" Toml..= amdId x]
+        ++ ["modified" Toml..= y | Just y <- [amdModified x]]
+        ++ ["date" Toml..= y | Just y <- [amdPublished x]]
+        ++ ["capec" Toml..= amdCAPECs x | not (null (amdCAPECs x))]
+        ++ ["cwe" Toml..= amdCWEs x | not (null (amdCWEs x))]
+        ++ ["keywords" Toml..= amdKeywords x | not (null (amdKeywords x))]
+        ++ ["aliases" Toml..= amdAliases x | not (null (amdAliases x))]
+        ++ ["related" Toml..= amdRelated x | not (null (amdRelated x))]
 
 instance Toml.FromValue GHCComponent where
   fromValue v = case v of
     Toml.Text' _ n
-      | Just c <- ghcComponentFromText n
-      -> pure c
-      | otherwise
-      -> Toml.failAt (Toml.valueAnn v) $
-          "Invalid ghc-component '"
-          <> T.unpack n
-          <> "', expected "
+      | Just c <- ghcComponentFromText n ->
+          pure c
+      | otherwise ->
+          Toml.failAt (Toml.valueAnn v) $
+            "Invalid ghc-component '"
+              <> T.unpack n
+              <> "', expected "
+              <> T.unpack (T.intercalate "|" componentNames)
+    _ ->
+      Toml.failAt (Toml.valueAnn v) $
+        "Non-text ghc-component, expected"
           <> T.unpack (T.intercalate "|" componentNames)
-    _ -> Toml.failAt (Toml.valueAnn v) $
-          "Non-text ghc-component, expected"
-          <> T.unpack (T.intercalate "|" componentNames)
-   where
-     componentNames = map ghcComponentToText [minBound..maxBound]
+    where
+      componentNames = map ghcComponentToText [minBound .. maxBound]
 
 instance Toml.ToValue GHCComponent where
   toValue = Toml.Text' () . ghcComponentToText
 
 instance Toml.FromValue Affected where
   fromValue =
-   Toml.parseTableFromValue $ do
-      ecosystem   <-
-        (Repository <$> Toml.reqKey "repository-url" <*> Toml.reqKey "repository-name" <*> Toml.reqKey "package" )
+    Toml.parseTableFromValue $ do
+      ecosystem <-
+        (Repository <$> Toml.reqKey "repository-url" <*> Toml.reqKey "repository-name" <*> Toml.reqKey "package")
           <|> (hackage <$> Toml.reqKey "package")
           <|> (GHC <$> Toml.reqKey "ghc-component")
-      cvss      <- Toml.reqKey "cvss"
-      os        <- Toml.optKey "os"
-      arch      <- Toml.optKey "arch"
-      decls     <- maybe [] Map.toList <$> Toml.optKey "declarations"
-      versions  <- Toml.reqKey "versions"
-      pure $ Affected
-        { affectedComponentIdentifier = ecosystem
-        , affectedCVSS = cvss
-        , affectedVersions = versions
-        , affectedArchitectures = arch
-        , affectedOS = os
-        , affectedDeclarations = decls
-        }
+      cvss <- Toml.reqKey "cvss"
+      os <- Toml.optKey "os"
+      arch <- Toml.optKey "arch"
+      decls <- maybe [] Map.toList <$> Toml.optKey "declarations"
+      versions <- Toml.reqKey "versions"
+      pure $
+        Affected
+          { affectedComponentIdentifier = ecosystem,
+            affectedCVSS = cvss,
+            affectedVersions = versions,
+            affectedArchitectures = arch,
+            affectedOS = os,
+            affectedDeclarations = decls
+          }
 
 instance Toml.ToValue Affected where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable Affected where
-  toTable x = Toml.table $
-    ecosystem ++
-    [ "cvss"    Toml..= affectedCVSS x
-    , "versions" Toml..= affectedVersions x
-    ] ++
-    [ "os"   Toml..= y | Just y <- [affectedOS x]] ++
-    [ "arch" Toml..= y | Just y <- [affectedArchitectures x]] ++
-    [ "declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
+  toTable x =
+    Toml.table $
+      ecosystem
+        ++ [ "cvss" Toml..= affectedCVSS x,
+             "versions" Toml..= affectedVersions x
+           ]
+        ++ ["os" Toml..= y | Just y <- [affectedOS x]]
+        ++ ["arch" Toml..= y | Just y <- [affectedArchitectures x]]
+        ++ ["declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
     where
       ecosystem = case affectedComponentIdentifier x of
         Repository repoUrl repoName pkg
           | affectedComponentIdentifier x == hackage pkg -> ["package" Toml..= pkg]
           | otherwise -> ["repository-url" Toml..= repoUrl, "repository-name" Toml..= repoName, "package" Toml..= pkg]
         GHC c -> ["ghc-component" Toml..= c]
-      asTable kvs = Map.fromList [(T.unpack k, v) | (k,v) <- kvs]
+      asTable kvs = Map.fromList [(T.unpack k, v) | (k, v) <- kvs]
 
 instance Toml.FromValue AffectedVersionRange where
   fromValue = Toml.parseTableFromValue $
-   do introduced <- Toml.reqKey "introduced"
-      fixed      <- Toml.optKey "fixed"
-      pure AffectedVersionRange {
-        affectedVersionRangeIntroduced = introduced,
-        affectedVersionRangeFixed = fixed
-        }
+    do
+      introduced <- Toml.reqKey "introduced"
+      fixed <- Toml.optKey "fixed"
+      pure
+        AffectedVersionRange
+          { affectedVersionRangeIntroduced = introduced,
+            affectedVersionRangeFixed = fixed
+          }
 
 instance Toml.ToValue AffectedVersionRange where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable AffectedVersionRange where
-  toTable x = Toml.table $
-    ("introduced" Toml..= affectedVersionRangeIntroduced x) :
-    ["fixed" Toml..= y | Just y <- [affectedVersionRangeFixed x]]
-
+  toTable x =
+    Toml.table $
+      ("introduced" Toml..= affectedVersionRangeIntroduced x)
+        : ["fixed" Toml..= y | Just y <- [affectedVersionRangeFixed x]]
 
 instance Toml.FromValue HsecId where
   fromValue v =
-   do s <- Toml.fromValue v
+    do
+      s <- Toml.fromValue v
       case parseHsecId s of
         Nothing -> Toml.failAt (Toml.valueAnn v) "invalid HSEC-ID: expected HSEC-[0-9]{4,}-[0-9]{4,}"
         Just x -> pure x
 
 instance Toml.ToValue HsecId where
   toValue = Toml.toValue . printHsecId
+
+instance Toml.FromValue OsvId where
+  fromValue v =
+    do
+      s <- Toml.fromValue v
+      case parseOsvId s of
+        Nothing -> Toml.failAt (Toml.valueAnn v) "invalid OSV ID: expected <KNOWN_PREFIX>-<ENTRYID>"
+        Just x -> pure x
+
+instance Toml.ToValue OsvId where
+  toValue = Toml.toValue . printOsvId
 
 instance Toml.FromValue CAPEC where
   fromValue v = CAPEC <$> Toml.fromValue v
@@ -249,13 +272,14 @@ instance Toml.ToValue Keyword where
 getDefaultedZonedTime :: Toml.Value' l -> Toml.Matcher l UTCTime
 getDefaultedZonedTime (Toml.ZonedTime' _ x) = pure (zonedTimeToUTC x)
 getDefaultedZonedTime (Toml.LocalTime' _ x) = pure (localTimeToUTC utc x)
-getDefaultedZonedTime (Toml.Day' _       x) = pure (UTCTime x 0)
-getDefaultedZonedTime v                     = Toml.failAt (Toml.valueAnn v) "expected a date with optional time and timezone"
+getDefaultedZonedTime (Toml.Day' _ x) = pure (UTCTime x 0)
+getDefaultedZonedTime v = Toml.failAt (Toml.valueAnn v) "expected a date with optional time and timezone"
 
 instance Toml.FromValue Reference where
   fromValue = Toml.parseTableFromValue $
-   do refType <- Toml.reqKey "type"
-      url     <- Toml.reqKey "url"
+    do
+      refType <- Toml.reqKey "type"
+      url <- Toml.reqKey "url"
       pure (Reference refType url)
 
 instance Toml.FromValue ReferenceType where
@@ -269,14 +293,16 @@ instance Toml.ToValue Reference where
   toValue = Toml.defaultTableToValue
 
 instance Toml.ToTable Reference where
-  toTable x = Toml.table
-    [ "type" Toml..= fromMaybe "UNKNOWN" (lookup (referencesType x) referenceTypes)
-    , "url" Toml..= referencesUrl x
-    ]
+  toTable x =
+    Toml.table
+      [ "type" Toml..= fromMaybe "UNKNOWN" (lookup (referencesType x) referenceTypes),
+        "url" Toml..= referencesUrl x
+      ]
 
 instance Toml.FromValue OS where
   fromValue v =
-   do s <- Toml.fromValue v
+    do
+      s <- Toml.fromValue v
       case s :: String of
         "darwin" -> pure MacOS
         "freebsd" -> pure FreeBSD
@@ -290,18 +316,19 @@ instance Toml.FromValue OS where
 instance Toml.ToValue OS where
   toValue x =
     Toml.toValue $
-    case x of
-      MacOS -> "darwin" :: String
-      FreeBSD -> "freebsd"
-      Linux -> "linux"
-      Android -> "linux-android"
-      Windows -> "mingw32"
-      NetBSD -> "netbsd"
-      OpenBSD -> "openbsd"
+      case x of
+        MacOS -> "darwin" :: String
+        FreeBSD -> "freebsd"
+        Linux -> "linux"
+        Android -> "linux-android"
+        Windows -> "mingw32"
+        NetBSD -> "netbsd"
+        OpenBSD -> "openbsd"
 
 instance Toml.FromValue Architecture where
   fromValue v =
-   do s <- Toml.fromValue v
+    do
+      s <- Toml.fromValue v
       case parseArchitecture s of
         Just a -> pure a
         Nothing -> Toml.failAt (Toml.valueAnn v) ("Invalid architecture: " ++ show s)
@@ -317,7 +344,8 @@ parseArchitecture = flip lookup [(printArchitecture arch, arch) | arch <- [minBo
 
 instance Toml.FromValue Version where
   fromValue v =
-   do s <- Toml.fromValue v
+    do
+      s <- Toml.fromValue v
       case eitherParsec s of
         Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in version: " ++ err)
         Right affected -> pure affected
@@ -327,7 +355,8 @@ instance Toml.ToValue Version where
 
 instance Toml.FromValue VersionRange where
   fromValue v =
-   do s <- Toml.fromValue v
+    do
+      s <- Toml.fromValue v
       case eitherParsec s of
         Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in version range: " ++ err)
         Right affected -> pure affected
@@ -337,10 +366,11 @@ instance Toml.ToValue VersionRange where
 
 instance Toml.FromValue CVSS.CVSS where
   fromValue v =
-    do s <- Toml.fromValue v
-       case CVSS.parseCVSS s of
-         Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in cvss: " ++ show err)
-         Right cvss -> pure cvss
+    do
+      s <- Toml.fromValue v
+      case CVSS.parseCVSS s of
+        Left err -> Toml.failAt (Toml.valueAnn v) ("parse error in cvss: " ++ show err)
+        Right cvss -> pure cvss
 
 instance Toml.ToValue CVSS.CVSS where
   toValue = Toml.toValue . CVSS.cvssVectorString
@@ -369,7 +399,6 @@ deriving newtype instance Toml.FromValue RepositoryName
 -- block.  We parse into this type to get the source range of
 -- the first block element.  We can use it to delete the lines
 -- from the input.
---
 newtype FirstSourceRange = FirstSourceRange (First SourceRange)
   deriving (Show, Semigroup, Monoid)
 
