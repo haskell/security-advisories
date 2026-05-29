@@ -1,3 +1,7 @@
+## 0.3.0.2
+
+* Update `cvss` dependency bounds
+
 ## 0.3.0.0
 
 * Add `Repository` and `ComponentIdentifier` in `Security.Advisories.Core.Advisory`
