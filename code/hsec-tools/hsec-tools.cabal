@@ -142,10 +142,13 @@ test-suite spec
   other-modules:
     Paths_hsec_tools
     Spec.FormatSpec
+    Spec.OsvSpec
 
   build-depends:
+    , aeson           >=2.0.1.0 && <3
     , aeson-pretty    <2
     , base
+    , bytestring      >=0.10     && <0.14
     , Cabal-syntax
     , containers
     , cvss

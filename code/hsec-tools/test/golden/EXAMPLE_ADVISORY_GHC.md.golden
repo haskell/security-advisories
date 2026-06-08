@@ -46,6 +46,7 @@ Right
                 , affectedArchitectures = Nothing
                 , affectedOS = Nothing
                 , affectedDeclarations = []
+                , affectedApi = []
                 }
             ]
         , advisoryReferences =

@@ -73,8 +73,8 @@ type = "FIX"
 url = "https://github.com/username/package/pull/139"
 
 # Affected package(s).  You can declare one or more packages.
-# Sub-fields are `package`, `cvss`, `arch`, `os`, `declarations`
-# and the `versions` table.
+# Sub-fields are `package`, `cvss`, `arch`, `os`, `declarations`,
+# `api` and the `versions` table.
 [[affected]]
 
 # Mandatory package component identifier; ONE of the following:
@@ -110,6 +110,12 @@ cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 # The path syntax is the module import path, without any type signatures or
 # additional information, followed by the affected versions.
 #declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
+
+# Optional: Specific vulnerable APIs (functions, types, etc.) affected by
+# this advisory. Each entry identifies a module and name within the package.
+#[[affected.api]]
+#module = "Acme.Broken"
+#name = "vulnerableFunction"
 
 # Versions affected by the vulnerability.
 #

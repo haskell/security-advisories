@@ -122,7 +122,8 @@ mkAdvisory versionRange =
               affectedVersions = mkAffectedVersions versionRange,
               affectedArchitectures = Nothing,
               affectedOS = Nothing,
-              affectedDeclarations = []
+              affectedDeclarations = [],
+              affectedApi = []
             }
         ],
       advisoryReferences = [],

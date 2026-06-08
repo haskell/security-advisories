@@ -176,6 +176,7 @@ instance Toml.FromValue Affected where
       os <- Toml.optKey "os"
       arch <- Toml.optKey "arch"
       decls <- maybe [] Map.toList <$> Toml.optKey "declarations"
+      api <- fromMaybe [] <$> Toml.optKey "api"
       versions <- Toml.reqKey "versions"
       pure $
         Affected
@@ -184,7 +185,8 @@ instance Toml.FromValue Affected where
             affectedVersions = versions,
             affectedArchitectures = arch,
             affectedOS = os,
-            affectedDeclarations = decls
+            affectedDeclarations = decls,
+            affectedApi = api
           }
 
 instance Toml.ToValue Affected where
@@ -200,6 +202,7 @@ instance Toml.ToTable Affected where
         ++ ["os" Toml..= y | Just y <- [affectedOS x]]
         ++ ["arch" Toml..= y | Just y <- [affectedArchitectures x]]
         ++ ["declarations" Toml..= asTable (affectedDeclarations x) | not (null (affectedDeclarations x))]
+        ++ ["api" Toml..= affectedApi x | not (null (affectedApi x))]
     where
       ecosystem = case affectedComponentIdentifier x of
         Repository repoUrl repoName pkg
@@ -207,6 +210,25 @@ instance Toml.ToTable Affected where
           | otherwise -> ["repository-url" Toml..= repoUrl, "repository-name" Toml..= repoName, "package" Toml..= pkg]
         GHC c -> ["ghc-component" Toml..= c]
       asTable kvs = Map.fromList [(T.unpack k, v) | (k, v) <- kvs]
+
+instance Toml.FromValue AffectedApi where
+  fromValue = Toml.parseTableFromValue $ do
+    mod <- Toml.reqKey "module"
+    name <- Toml.reqKey "name"
+    pure AffectedApi
+      { affectedApiModule = mod,
+        affectedApiName = name
+      }
+
+instance Toml.ToValue AffectedApi where
+  toValue = Toml.defaultTableToValue
+
+instance Toml.ToTable AffectedApi where
+  toTable x =
+    Toml.table
+      [ "module" Toml..= affectedApiModule x,
+        "name" Toml..= affectedApiName x
+      ]
 
 instance Toml.FromValue AffectedVersionRange where
   fromValue = Toml.parseTableFromValue $
