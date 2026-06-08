@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -6,6 +8,7 @@ module Security.Advisories.Convert.OSV
     convertWithLinks,
     DbLinks (..),
     AffectedLinks (..),
+    HsecEcosystemSpecific (..),
     haskellLinks,
   )
 where
@@ -18,7 +21,7 @@ import Security.Advisories
 import Security.Advisories.Core.OsvId (printOsvId)
 import qualified Security.OSV as OSV
 
-convert :: Advisory -> OSV.Model Void Void Void Void
+convert :: Advisory -> OSV.Model Void Void HsecEcosystemSpecific Void
 convert adv =
   ( OSV.newModel'
       (T.pack . printHsecId $ advisoryId adv)
@@ -33,13 +36,16 @@ convert adv =
       OSV.modelAffected = fmap mkAffected (advisoryAffected adv)
     }
 
-mkAffected :: Affected -> OSV.Affected Void Void Void
+mkAffected :: Affected -> OSV.Affected Void HsecEcosystemSpecific Void
 mkAffected aff =
   OSV.Affected
     { OSV.affectedPackage = mkPackage (affectedComponentIdentifier aff),
       OSV.affectedRanges = pure $ mkRange (affectedVersions aff),
       OSV.affectedSeverity = [OSV.Severity (affectedCVSS aff)],
-      OSV.affectedEcosystemSpecific = Nothing,
+      OSV.affectedEcosystemSpecific =
+        if null (affectedApi aff)
+          then Nothing
+          else Just (HsecEcosystemSpecific (affectedApi aff)),
       OSV.affectedDatabaseSpecific = Nothing
     }
 
@@ -66,7 +72,7 @@ mkRange ranges =
       OSV.EventIntroduced (T.pack $ prettyShow $ affectedVersionRangeIntroduced range)
         : maybe [] (pure . OSV.EventFixed . T.pack . prettyShow) (affectedVersionRangeFixed range)
 
-convertWithLinks :: DbLinks -> Advisory -> OSV.Model DbLinks AffectedLinks Void Void
+convertWithLinks :: DbLinks -> Advisory -> OSV.Model DbLinks AffectedLinks HsecEcosystemSpecific Void
 convertWithLinks links adv =
   OSV.Model
     { OSV.modelDatabaseSpecific = Just links,
@@ -90,6 +96,13 @@ instance ToJSON DbLinks where
         "home" .= dbLinksHome
       ]
 
+instance FromJSON DbLinks where
+  parseJSON = withObject "DbLinks" $ \o -> do
+    dbLinksRepository <- o .: "repository"
+    dbLinksOSVs <- o .: "osvs"
+    dbLinksHome <- o .: "home"
+    pure DbLinks {..}
+
 haskellLinks :: DbLinks
 haskellLinks =
   DbLinks
@@ -110,7 +123,42 @@ instance ToJSON AffectedLinks where
         "human_link" .= affectedLinksHumanLink
       ]
 
-mkAffectedWithLinks :: DbLinks -> HsecId -> Affected -> OSV.Affected AffectedLinks Void Void
+instance FromJSON AffectedLinks where
+  parseJSON = withObject "AffectedLinks" $ \o -> do
+    affectedLinksOSV <- o .: "osv"
+    affectedLinksHumanLink <- o .: "human_link"
+    pure AffectedLinks {..}
+
+newtype HsecEcosystemSpecific = HsecEcosystemSpecific
+  { hsecEcosystemAffectedApi :: [AffectedApi]
+  }
+  deriving stock (Eq, Show)
+
+instance ToJSON HsecEcosystemSpecific where
+  toJSON (HsecEcosystemSpecific apis) =
+    object
+      [ "affected_api" .= apis
+      ]
+
+instance FromJSON HsecEcosystemSpecific where
+  parseJSON = withObject "HsecEcosystemSpecific" $ \o -> do
+    hsecEcosystemAffectedApi <- o .: "affected_api"
+    pure HsecEcosystemSpecific {..}
+
+instance ToJSON AffectedApi where
+  toJSON AffectedApi {..} =
+    object
+      [ "module" .= affectedApiModule,
+        "name" .= affectedApiName
+      ]
+
+instance FromJSON AffectedApi where
+  parseJSON = withObject "AffectedApi" $ \o -> do
+    affectedApiModule <- o .: "module"
+    affectedApiName <- o .: "name"
+    pure AffectedApi {..}
+
+mkAffectedWithLinks :: DbLinks -> HsecId -> Affected -> OSV.Affected AffectedLinks HsecEcosystemSpecific Void
 mkAffectedWithLinks links hsecId aff =
   OSV.Affected
     { OSV.affectedDatabaseSpecific =

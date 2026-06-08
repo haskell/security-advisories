@@ -79,6 +79,7 @@ genAffected =
     <*> Gen.maybe (Gen.list (Range.linear 0 5) genArchitecture)
     <*> Gen.maybe (Gen.list (Range.linear 0 5) genOS)
     <*> (Map.toList . Map.fromList <$> Gen.list (Range.linear 0 5) ((,) <$> genText <*> genVersionRange))
+    <*> Gen.list (Range.linear 0 5) genAffectedApi
 
 genComponentIdentifier :: Gen.Gen ComponentIdentifier
 genComponentIdentifier =
@@ -205,3 +206,6 @@ genOsvId = do
       ]
   entry <- Gen.text (Range.linear 4 10) Gen.alphaNum
   pure . Maybe.fromJust . parseOsvId $ prefix <> "-" <> entry
+
+genAffectedApi :: Gen.Gen AffectedApi
+genAffectedApi = AffectedApi <$> genText <*> genText

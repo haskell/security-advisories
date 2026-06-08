@@ -265,6 +265,13 @@ renderAdvisory advisory =
               code_ [] $ toHtml declaration
               ": "
               code_ [] $ toHtml $ T.pack $ prettyShow versionRange
+        dt_ "Affected APIs"
+        placeholderWhenEmptyOr (Advisories.affectedApi affected) $ \apis ->
+          forM_ apis $ \api ->
+            dd_ [] $ do
+              code_ [] $ toHtml $ Advisories.affectedApiModule api
+              "."
+              code_ [] $ toHtml $ Advisories.affectedApiName api
 
 -- * Utils
 

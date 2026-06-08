@@ -13,6 +13,7 @@ module Security.Advisories.Core.Advisory
     AffectedVersionRange (..),
     OS (..),
     Keyword (..),
+    AffectedApi (..),
     ComponentIdentifier (..),
     GHCComponent (..),
     RepositoryURL (..),
@@ -123,7 +124,8 @@ data Affected = Affected
     affectedVersions :: [AffectedVersionRange],
     affectedArchitectures :: Maybe [Architecture],
     affectedOS :: Maybe [OS],
-    affectedDeclarations :: [(Text, VersionRange)]
+    affectedDeclarations :: [(Text, VersionRange)],
+    affectedApi :: [AffectedApi]
   }
   deriving stock (Eq, Show)
 
@@ -174,6 +176,12 @@ data OS
 newtype Keyword = Keyword {unKeyword :: Text}
   deriving stock (Eq, Ord)
   deriving (Show) via Text
+
+data AffectedApi = AffectedApi
+  { affectedApiModule :: Text,
+    affectedApiName :: Text
+  }
+  deriving stock (Eq, Show)
 
 data AffectedVersionRange = AffectedVersionRange
   { affectedVersionRangeIntroduced :: Version,

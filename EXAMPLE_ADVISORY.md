@@ -45,6 +45,11 @@ cvss = "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
 # os = ["mingw32"]
 # declarations = { "Acme.Broken.function" = ">= 1.1.0 && < 1.2.0", "Acme.Broken.renamedFunction" = ">= 1.2.0 && < 1.2.0.5"}
 
+# Optional: Specific vulnerable APIs (functions, types, etc.)
+# [[affected.api]]
+# module = "Acme.Broken"
+# name = "vulnerableFunction"
+
 # Versions affected by the vulnerability.
 #
 # The `fixed` field is optional.  You can specify multiple ranges
