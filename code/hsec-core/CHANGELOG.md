@@ -1,3 +1,7 @@
+## 0.5.0.0
+
+* Add `AffectedApi` type and `affectedApi` field in `Affected`
+
 ## 0.4.0.0
 
 * Introduce `OsvId` and use it in `Advisory.{aliases,related}`
