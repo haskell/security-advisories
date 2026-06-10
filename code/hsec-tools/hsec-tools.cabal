@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hsec-tools
-version:            0.4.0.0
+version:            0.5.0.0
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -73,7 +73,7 @@ library
     , extra                 >=1.7      && <1.9
     , file-embed            >=0.0.13.0 && <0.0.17
     , filepath              >=1.4      && <1.6
-    , hsec-core             >=0.4.0.0  && <0.6
+    , hsec-core             >=0.5.0.0  && <0.6
     , lens                  >=5.1.0    && <5.4
     , lucid                 >=2.9.0    && <3
     , mtl                   >=2.2      && <2.4
@@ -120,7 +120,7 @@ executable hsec-tools
     , Cabal-syntax          >=3.8.1.0 && <3.17
     , directory             <2
     , filepath              >=1.4     && <1.6
-    , hsec-core             >=0.4.0.0 && <0.6
+    , hsec-core             >=0.5.0.0 && <0.6
     , hsec-tools
     , network-uri           >=2.6.3.0 && <2.8
     , optparse-applicative  >=0.17    && <0.20

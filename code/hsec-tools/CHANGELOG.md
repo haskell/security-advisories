@@ -1,3 +1,10 @@
+## 0.5.0.0
+
+* Add `HsecEcosystemSpecific` with `affected_api` in OSV exports
+* Add TOML parsing/rendering for `api` key in affected sections
+* Add HTML rendering for affected APIs
+* Update `hsec-core` to `0.5.0.0`
+
 ## 0.4.0.0
 
 * Update `hsec-core` to `0.4.0.0`
