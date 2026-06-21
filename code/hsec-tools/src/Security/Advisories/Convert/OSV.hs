@@ -137,26 +137,30 @@ newtype HsecEcosystemSpecific = HsecEcosystemSpecific
 instance ToJSON HsecEcosystemSpecific where
   toJSON (HsecEcosystemSpecific apis) =
     object
-      [ "affected_api" .= apis
+      [ "affected_api" .= map RepresentableAffectedApi apis
       ]
 
 instance FromJSON HsecEcosystemSpecific where
   parseJSON = withObject "HsecEcosystemSpecific" $ \o -> do
-    hsecEcosystemAffectedApi <- o .: "affected_api"
+    hsecEcosystemAffectedApi <- map unRepresentableAffectedApi <$> o .: "affected_api"
     pure HsecEcosystemSpecific {..}
 
-instance ToJSON AffectedApi where
-  toJSON AffectedApi {..} =
+newtype RepresentableAffectedApi = RepresentableAffectedApi
+  { unRepresentableAffectedApi :: AffectedApi
+  }
+
+instance ToJSON RepresentableAffectedApi where
+  toJSON (RepresentableAffectedApi AffectedApi {..}) =
     object
       [ "module" .= affectedApiModule,
         "name" .= affectedApiName
       ]
 
-instance FromJSON AffectedApi where
+instance FromJSON RepresentableAffectedApi where
   parseJSON = withObject "AffectedApi" $ \o -> do
     affectedApiModule <- o .: "module"
     affectedApiName <- o .: "name"
-    pure AffectedApi {..}
+    pure $ RepresentableAffectedApi AffectedApi {..}
 
 mkAffectedWithLinks :: DbLinks -> HsecId -> Affected -> OSV.Affected AffectedLinks HsecEcosystemSpecific Void
 mkAffectedWithLinks links hsecId aff =

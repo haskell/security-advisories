@@ -213,12 +213,13 @@ instance Toml.ToTable Affected where
 
 instance Toml.FromValue AffectedApi where
   fromValue = Toml.parseTableFromValue $ do
-    mod <- Toml.reqKey "module"
+    module' <- Toml.reqKey "module"
     name <- Toml.reqKey "name"
-    pure AffectedApi
-      { affectedApiModule = mod,
-        affectedApiName = name
-      }
+    pure
+      AffectedApi
+        { affectedApiModule = module',
+          affectedApiName = name
+        }
 
 instance Toml.ToValue AffectedApi where
   toValue = Toml.defaultTableToValue
