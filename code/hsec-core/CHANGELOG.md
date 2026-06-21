@@ -1,3 +1,8 @@
+## Unreleased
+
+* Update GHC support to GHC 9.6.7, 9.8.4, 9.10.3, 9.12.4, and 9.14.1
+* Relax dependency bounds for `Cabal-syntax`, `containers`, and `time`
+
 ## 0.5.0.0
 
 * Add `AffectedApi` type and `affectedApi` field in `Affected`
