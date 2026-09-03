@@ -22,7 +22,7 @@ spec =
         "AffectedApi"
         [ testProperty "JSON roundtrip" $
             Gen.property $ do
-              api <- Gen.forAll genAffectedApi
+              api <- Gen.forAll (RepresentableAffectedApi <$> genAffectedApi)
               let encoded = encode api
                   decoded = decode encoded
               Just api Gen.=== decoded

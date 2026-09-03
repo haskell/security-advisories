@@ -9,6 +9,7 @@ module Security.Advisories.Convert.OSV
     DbLinks (..),
     AffectedLinks (..),
     HsecEcosystemSpecific (..),
+    RepresentableAffectedApi (..),
     haskellLinks,
   )
 where
@@ -148,6 +149,7 @@ instance FromJSON HsecEcosystemSpecific where
 newtype RepresentableAffectedApi = RepresentableAffectedApi
   { unRepresentableAffectedApi :: AffectedApi
   }
+  deriving stock (Eq, Show)
 
 instance ToJSON RepresentableAffectedApi where
   toJSON (RepresentableAffectedApi AffectedApi {..}) =
