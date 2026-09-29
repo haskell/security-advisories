@@ -1,0 +1,73 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0010</h1><div class="content"><div id="advisory"><h1>Improper parsing of fractional <code>NumericDate</code> from JWT
+<code>exp</code> claims</h1>
+<p>Since its <a
+href="https://github.com/puffnfresh/haskell-jwt/commit/76567342c71f62f3f7554da8987579d90e532209">initial
+commit</a>, package jwt uses <a
+href="https://hackage-content.haskell.org/package/scientific-0.3.8.1/docs/Data-Scientific.html#g:2"><code>Data.Scientific.coefficient</code></a>
+to extract the fractional mantissa in a way that improperly <em>discards
+the exponent</em>. This can lead to incorrect parsing of the
+<code>exp</code> claim in JWT payload body.</p>
+<p>PoC:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cabal repl <span class="co">--build-depends jwt==0.11.0</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Web.JWT</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="op">:</span>set <span class="op">-</span><span class="dt">XOverloadedStrings</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> signer <span class="ot">=</span> <span class="dt">VerifyHMACSecret</span> <span class="st">&quot;dummy-signing-symmetric-hmac-key.not-so-secret&quot;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> exploit <span class="ot">=</span> <span class="st">&quot;eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkhvbmVzdCBKb2UiLCJhZG1pbiI6dHJ1ZSwiaWF0IjoxNzkwMTY2Nzg2LCJleHAiOjE3OTAxNzAzODYuMDAwMX0.xQyl3rBYtVTxPL_VXSawSSmZkuF4MzOkzwdQGJFjE2o&quot;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co">-- {</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">--   &quot;sub&quot;: &quot;1234567890&quot;,</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">--   &quot;name&quot;: &quot;Honest Joe&quot;,</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co">--   &quot;admin&quot;: true,</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="co">--   &quot;iat&quot;: 1790166786,</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="co">--   &quot;exp&quot;: 1790170386.0001</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="co">-- }</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>λλ ➔ <span class="dt">Just</span> whoops <span class="ot">=</span> Web.JWT.decodeAndVerifySignature signer exploit</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>λ</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>λλ ➔ whoops</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="dt">Verified</span> (<span class="dt">JOSEHeader</span> {typ <span class="ot">=</span> <span class="dt">Just</span> <span class="st">&quot;JWT&quot;</span>, cty <span class="ot">=</span> <span class="dt">Nothing</span>, alg <span class="ot">=</span> <span class="dt">Just</span> <span class="dt">HS256</span>, kid <span class="ot">=</span> <span class="dt">Nothing</span>}) (<span class="dt">JWTClaimsSet</span> {iss <span class="ot">=</span> <span class="dt">Nothing</span>, sub <span class="ot">=</span> <span class="dt">Just</span> <span class="dv">1234567890</span>, aud <span class="ot">=</span> <span class="dt">Nothing</span>, <span class="fu">exp</span> <span class="ot">=</span> <span class="dt">Just</span> (<span class="dt">NumericDate</span> <span class="dv">17901703860001</span>), nbf <span class="ot">=</span> <span class="dt">Nothing</span>, iat <span class="ot">=</span> <span class="dt">Just</span> (<span class="dt">NumericDate</span> <span class="dv">1790166786</span>), jti <span class="ot">=</span> <span class="dt">Nothing</span>, unregisteredClaims <span class="ot">=</span> <span class="dt">ClaimsMap</span> {unClaimsMap <span class="ot">=</span> fromList [(<span class="st">&quot;admin&quot;</span>,<span class="dt">Bool</span> <span class="dt">True</span>),(<span class="st">&quot;name&quot;</span>,<span class="dt">String</span> <span class="st">&quot;Honest Joe&quot;</span>)]}}) (<span class="dt">Signature</span> <span class="st">&quot;xQyl3rBYtVTxPL_VXSawSSmZkuF4MzOkzwdQGJFjE2o&quot;</span>)</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>λ</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>λλ ➔ <span class="fu">fmap</span> secondsSinceEpoch <span class="op">.</span> Web.JWT.iat <span class="op">.</span> claims <span class="op">$</span> whoops</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="dt">Just</span> <span class="dv">1790166786</span>s</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>λ</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>λλ ➔ <span class="fu">fmap</span> secondsSinceEpoch <span class="op">.</span> Web.JWT.exp <span class="op">.</span> claims <span class="op">$</span> whoops</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="dt">Just</span> <span class="dv">17901703860001</span>s</span></code></pre></div>
+<p>The encoded claim <code>exp = 1790170386.0001</code> is:</p>
+<ol type="1">
+<li>Explicitly allowed by RFC 7519 <a
+href="https://www.rfc-editor.org/info/rfc7519/#section-2">section 2</a>
+to contain fractional part (<em>"... non-integer values can be
+represented."</em>);</li>
+<li>Decodes correctly as <code>2026-09-23T12:33:06.0001</code>
+(including in JS implementations on jwt.io &amp; token.dev);</li>
+<li>Decodes incorrectly as <code>569252-05-30T12:40:01</code> (== posix
+epoch <code>17901703860001</code>) by the <code>jwt</code> library.
+<pre><code>&gt;&gt;&gt; import Data.Time.Format.ISO8601
+&gt;&gt;&gt; import Data.Time.Clock.POSIX
+&gt;&gt;&gt;
+&gt;&gt;&gt; iso8601Show $ posixSecondsToUTCTime 1790166786
+&quot;2026-09-23T12:33:06Z&quot;
+&gt;&gt;&gt;
+&gt;&gt;&gt; iso8601Show $ posixSecondsToUTCTime 17901703860001
+&quot;569252-05-30T12:40:01Z&quot;</code></pre></li>
+</ol>
+<p>This happens because jwt's <code>instance FromJSON NumericDate</code>
+only extracts the parsed <code>coefficient</code> while ignoring <a
+href="https://hackage-content.haskell.org/package/scientific-0.3.8.1/docs/Data-Scientific.html#g:2"><code>base10Exponent</code></a>,
+which in this case becomes negative non-zero.</p>
+<p>Since the standard <code>exp</code> claim carries credential
+expiration time:</p>
+<blockquote>
+<h3><a
+href="https://www.rfc-editor.org/info/rfc7519/#section-4.1.4">4.1.4</a>.
+"exp" (Expiration Time) Claim</h3>
+<p>The "exp" (expiration time) claim identifies the expiration time on
+or after which the JWT MUST NOT be accepted for processing. The
+processing of the "exp" claim requires that the current date/time MUST
+be before the expiration date/time listed in the "exp" claim.</p>
+</blockquote>
+<p>— this parsing mistake of dropping the exponent can have
+security-relevant consequences, should an attacker be able to forge JWTs
+with fractional expiry dates and get them fed into software that uses
+the <code>jwt</code> library for consuming JWTs.</p><h3>Info</h3><dl><dt>Published</dt><dd>September 29, 2026</dd><dt>Modified</dt><dd>September 29, 2026</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/681.html">681</a></dd><dd><a href="https://cwe.mitre.org/data/definitions/613.html">613</a></dd><dt>Keywords</dt><dd>jwt, web</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/puffnfresh/haskell-jwt/issues/4">[REPORT] https://github.com/puffnfresh/haskell-jwt/issues/4</a></dd><dd><a href="https://github.com/puffnfresh/haskell-jwt/pull/10">[FIX] https://github.com/puffnfresh/haskell-jwt/pull/10</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/jwt"><code>@hackage/jwt</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:N/I:L/A:N/E:P/RL:W/RC:C/IR:H/MAV:N/MAC:H/MPR:N/MUI:N/MS:C/MC:N/MI:L/MA:N</dd><dt>Versions</dt><dd><code>&gt;=0.1.0 &amp;&amp; &lt;0.12.0</code></dd><dt>Declarations</dt><dd><code>instance FromJSON IntDate</code>: <code>&gt;=0.1.0 &amp;&amp; &lt;0.7.0</code></dd><dd><code>instance FromJSON NumericDate</code>: <code>&gt;=0.7.0 &amp;&amp; &lt;=0.11.0</code></dd><dt>Affected APIs</dt><dd><code>Web.JWT</code>.<code>decode</code></dd><dd><code>Web.JWT</code>.<code>decodeAndVerifySignature</code></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
