@@ -1,0 +1,41 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0007</h1><div class="content"><div id="advisory"><h1>Denial of Service and Memory Exhaustion in aeson</h1>
+<p>A Denial of Service (DoS) and memory exhaustion vulnerability was
+identified in the <code>aeson</code> package. The vulnerability allows
+an attacker to exhaust server memory and crash the host process by
+supplying maliciously crafted JSON payloads.</p>
+<p>The vulnerability exists in <code>aeson</code>'s
+<code>withBoundedScientific_</code> function (located in
+<code>src/Data/Aeson/Types/FromJSON.hs</code>). The exponent bounds
+check only rejects large positive exponents
+(<code>exp10 &gt; 1024</code>) but fails to reject arbitrarily large
+negative exponents.</p>
+<p>When an attacker sends a JSON number with a massive negative exponent
+(e.g., <code>1e-999999999</code>), the value bypasses the check and
+flows into <code>realToFrac</code>, which computes
+<code>fromRational . toRational</code>. For such a large negative
+exponent, <code>toRational</code> produces a GMP Integer with
+approximately 1 billion decimal digits, causing immediate and severe
+memory exhaustion.</p>
+<p>Affected <code>FromJSON</code> instances:</p>
+<ul>
+<li><code>Fixed a</code> (including <code>Centi</code>,
+<code>Pico</code>, <code>Nano</code>, etc.)</li>
+<li><code>NominalDiffTime</code></li>
+<li><code>DiffTime</code></li>
+</ul>
+<h2>Resolution</h2>
+<p>The issue was resolved by introducing proper bounds checks:</p>
+<ul>
+<li><code>aeson</code> now applies an absolute bounds check to both
+positive and negative exponents (<code>abs exp10 &gt; 1024</code>).</li>
+</ul>
+<p>The fix first shipped in <code>aeson-2.3.0.0</code>, and have been
+backported to the previous release series as
+<code>aeson-2.2.5.1</code>.</p>
+<p>Users are strongly advised to update to the patched versions:</p>
+<ul>
+<li><code>aeson-2.2.5.1</code> or later</li>
+</ul>
+<h2>Acknowledgements</h2>
+<p>The vulnerabilities were reported Nathan Walsh, and patched by Li-yao
+Xia.</p><h3>Info</h3><dl><dt>Published</dt><dd>May 22, 2026</dd><dt>Modified</dt><dd>May 22, 2026</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/400.html">400</a></dd><dt>Keywords</dt><dd>aeson, dos, memory-exhaustion, json</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/haskell/aeson/commit/42775f45ff8dad934d44617f6f38ee874e1c9df1">[FIX] https://github.com/haskell/aeson/commit/42775f45ff8dad934d44617f6f38ee874e1c9df1</a></dd><dd><a href="https://github.com/haskell/aeson/commit/b6fb54b11ebf3e499685c4eeb2714ead522252cc">[FIX] https://github.com/haskell/aeson/commit/b6fb54b11ebf3e499685c4eeb2714ead522252cc</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/aeson"><code>@hackage/aeson</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</dd><dt>Versions</dt><dd><code>&gt;=0.12.0.0 &amp;&amp; &lt;2.2.5.1</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><i>&lt; none &gt;</i></dd></dl><h5><a href="https://hackage.haskell.org/package/text-iso8601"><code>@hackage/text-iso8601</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H</dd><dt>Versions</dt><dd><code>&gt;=0.1 &amp;&amp; &lt;0.1.1.2</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
