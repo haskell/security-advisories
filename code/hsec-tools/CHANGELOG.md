@@ -1,5 +1,6 @@
 ## Unreleased
 
+* Bound git history lookups to the listing root (`GIT_CEILING_DIRECTORIES` in the git child process), so parsing a synced snapshot is immune to enclosing git repositories
 * Move to `lucid2`
 * Remove compilation warnings by introducing `RepresentableAffectedApi` and renaming variables
 * Update GHC support to GHC 9.6.7, 9.8.4, 9.10.3, 9.12.4, and 9.14.1

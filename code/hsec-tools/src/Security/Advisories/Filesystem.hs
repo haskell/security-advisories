@@ -37,8 +37,8 @@ import Data.Traversable (for)
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Text.IO as T
-import System.FilePath ((</>), dropExtension)
-import System.Directory (doesDirectoryExist, listDirectory)
+import System.FilePath ((</>), dropExtension, takeDirectory)
+import System.Directory (canonicalizePath, doesDirectoryExist, listDirectory)
 import Validation (Validation (..))
 
 import Security.Advisories (Advisory, AttributeOverridePolicy (NoOverrides), OutOfBandAttributes (..), ParseAdvisoryError, parseAdvisory)
@@ -126,19 +126,38 @@ forAdvisory root =
 listAdvisories
   :: (MonadIO m)
   => FilePath -> m (Validation [(FilePath, ParseAdvisoryError)] [Advisory])
-listAdvisories root =
-  forAdvisory root $ \advisoryPath _advisoryId ->
+listAdvisories root = do
+  -- Canonicalize first: the parent must be computed on the physical path
+  -- (git discovery walks physical directories), and relative spellings
+  -- like "." would otherwise name the wrong ceiling.
+  root' <- liftIO (canonicalizePath root)
+  forAdvisory root' $ \advisoryPath _advisoryId ->
     bimap (\err -> [(advisoryPath, err)]) pure
-    <$> advisoryFromFile advisoryPath
+    <$> advisoryFromFileWith (Just (ceilingFor root')) advisoryPath
+  where
+    -- See 'advisoryFromFileWith': the ceiling is the parent of the
+    -- already-canonicalized root.
+    ceilingFor = takeDirectory
 
 -- | Parse an advisory from a file system path
 advisoryFromFile
   :: (MonadIO m)
   => FilePath -> m (Validation ParseAdvisoryError Advisory)
-advisoryFromFile advisoryPath = do
+advisoryFromFile = advisoryFromFileWith Nothing
+
+-- | 'advisoryFromFile' with an optional git-discovery ceiling directory
+-- (see 'Security.Advisories.Git.getAdvisoryGitInfo'). Git excludes the
+-- ceiling directory itself from discovery, so the ceiling is set to the
+-- /parent/ of the listing root: repositories at or above the root's parent
+-- are ignored, while a repository located exactly at the root (repository
+-- tooling) remains visible.
+advisoryFromFileWith
+  :: (MonadIO m)
+  => Maybe FilePath -> FilePath -> m (Validation ParseAdvisoryError Advisory)
+advisoryFromFileWith mCeiling advisoryPath = do
   oob <- runExceptT $
    withExceptT GitHasNoOOB $ do
-    gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath
+    gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo advisoryPath mCeiling
     pure OutOfBandAttributes
       { oobPublished = firstAppearanceCommitDate gitInfo
       , oobModified = lastModificationCommitDate gitInfo

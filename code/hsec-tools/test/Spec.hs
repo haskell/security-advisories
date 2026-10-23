@@ -12,6 +12,7 @@ import Data.Time.Calendar.OrdinalDate (fromOrdinalDate)
 import Paths_hsec_tools (getDataFileName)
 import qualified Security.Advisories.Convert.OSV as OSV
 import Security.Advisories.Parse
+import qualified Spec.FilesystemSpec as FilesystemSpec
 import qualified Spec.FormatSpec as FormatSpec
 import qualified Spec.OsvSpec as OsvSpec
 import System.Directory (listDirectory)
@@ -26,6 +27,7 @@ main = do
         testGroup
             "Tests"
             [ goldenTestsSpec goldenFiles
+            , FilesystemSpec.spec
             , FormatSpec.spec
             , OsvSpec.spec
             ]
