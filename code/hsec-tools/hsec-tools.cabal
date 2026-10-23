@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               hsec-tools
-version:            0.5.0.0
+version:            0.5.0.1
 
 -- A short (one-line) description of the package.
 synopsis:
@@ -138,6 +138,7 @@ test-suite spec
   autogen-modules:  Paths_hsec_tools
   other-modules:
     Paths_hsec_tools
+    Spec.FilesystemSpec
     Spec.FormatSpec
     Spec.OsvSpec
 
@@ -157,12 +158,17 @@ test-suite spec
     , osv
     , pretty-simple   <5
     , prettyprinter
+    , process
+    , tasty-hunit     <0.11
+    , temporary
     , tasty           <2
     , tasty-golden    <2.4
     , tasty-hedgehog  <2
     , text
     , time
     , toml-parser
+    , filepath
+    , validation-selective >=0.1 && <1
 
   default-language: Haskell2010
   ghc-options:

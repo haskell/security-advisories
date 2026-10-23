@@ -249,7 +249,7 @@ withAdvisory go file = do
     Nothing -> throwE StdInHasNoOOB
     Just path -> do
      withExceptT GitHasNoOOB $ do
-      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path
+      gitInfo <- ExceptT $ liftIO $ getAdvisoryGitInfo path Nothing
       pure OutOfBandAttributes
         { oobPublished = firstAppearanceCommitDate gitInfo
         , oobModified = lastModificationCommitDate gitInfo
