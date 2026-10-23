@@ -32,9 +32,13 @@
             };
 
             modifier = drv:
+              let
+                # FilesystemSpec tests spawn git; gitMinimal mirrors the image's runtime git
+                drv' = pkgs.haskell.lib.addTestToolDepends drv [ pkgs.gitMinimal ];
+              in
               if returnShellEnv
               then
-                pkgs.haskell.lib.addBuildTools drv
+                pkgs.haskell.lib.addBuildTools drv'
                   (with pkgs.haskellPackages;
                   [
                     cabal-fmt
@@ -43,7 +47,7 @@
                     haskell-language-server
                     pkgs.nixpkgs-fmt
                   ])
-              else drv;
+              else drv';
           };
         hsec-sync =
           pkgs.haskell.lib.dontCheck
