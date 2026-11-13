@@ -1,0 +1,52 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0012</h1><div class="content"><div id="advisory"><h1>Out-of-bounds read in Eq and Ord on numbers with extreme
+exponents</h1>
+<p><code>scientific-0.3.9.0</code> reimplemented <code>Eq</code> and
+<code>Ord</code> without normalising their arguments. The new
+implementation short-circuits on <code>integerLog10' c + e</code>
+computed in <code>Int</code>, which overflows when the base-10 exponent
+is close to <code>maxBound :: Int</code>. The overflowed comparison then
+falls through to <code>magnitude (e1 - e2)</code>, where the exponent
+difference overflows to a negative <code>Int</code> as well.
+<code>magnitude</code> indexed its cached power-of-ten array without a
+bounds check, so the negative index performed an out-of-bounds read and
+the process died with <code>SIGSEGV</code>.</p>
+<p>With <code>scientific-0.3.9.0</code> (GHC 9.10.3, x86_64-linux), as
+reported in <a
+href="https://github.com/basvandijk/scientific/issues/120">basvandijk/scientific#120</a>:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Scientific</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">print</span> (scientific <span class="dv">10</span> <span class="fu">maxBound</span> <span class="op">==</span> scientific <span class="dv">1</span> <span class="fu">minBound</span>)</span></code></pre></div>
+<pre><code>$ ./repro; echo &quot;exit=$?&quot;
+exit=139</code></pre>
+<p>The issue was discovered when Stackage nightly test suites
+(<code>genvalidity-hspec-aeson</code>,
+<code>genvalidity-sydtest-aeson</code>) started segfaulting after
+upgrading to <code>scientific-0.3.9.0</code>: their property tests
+round-trip <code>aeson</code> <code>Value</code>s, which produces
+<code>Scientific</code>s with extreme exponents.</p>
+<p>Versions before <code>0.3.9.0</code> did not crash, but
+<code>Eq</code>/<code>Ord</code> returned invalid results there instead
+(the normalisation-based implementation overflows the exponent,
+reporting <code>scientific 10 maxBound == scientific 1 minBound</code>
+as <code>True</code>). The same unchecked read was also reachable
+through <code>(+)</code> and <code>(-)</code> on older versions, guarded
+only by the documented warning about the potential <code>10^e</code>
+blowup — reading outside the cache is not.</p>
+<h2>Resolution</h2>
+<p><code>scientific-0.3.10.0</code> computes the logarithms using
+<code>Integer</code>, fixing both the crash and the invalid comparison
+results, and bounds-checks <code>magnitude</code>, so a negative
+exponent now raises an error instead of reading out of bounds. All entry
+points (<code>Eq</code>, <code>Ord</code>, <code>(+)</code>,
+<code>(-)</code>) are covered; upgrade to
+<code>scientific-0.3.10.0</code> or later.</p>
+<p>Note that printing values with exponents close to
+<code>maxBound :: Int</code> remains unreliable due to the inherent
+<code>Int</code> exponent overflow in <code>normalize</code>; this
+limitation is documented upstream and postponed to the next major
+release.</p>
+<h2>Credits</h2>
+<p>Reported by Tom Sydney Kerckhove (@NorfairKing); fixed by Oleg
+Grenrus (@phadej).</p><h3>Info</h3><dl><dt>Published</dt><dd>November 03, 2026</dd><dt>Modified</dt><dd>November 03, 2026</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/125.html">125</a></dd><dd><a href="https://cwe.mitre.org/data/definitions/190.html">190</a></dd><dt>Keywords</dt><dd>memory-safety, oob-read, segfault</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd>HSEC-2026-0011</dd><dt>References</dt><dd><a href="https://github.com/basvandijk/scientific/issues/120">[REPORT] https://github.com/basvandijk/scientific/issues/120</a></dd><dd><a href="https://github.com/NorfairKing/validity/issues/121">[REPORT] https://github.com/NorfairKing/validity/issues/121</a></dd><dd><a href="https://github.com/basvandijk/scientific/pull/121">[FIX] https://github.com/basvandijk/scientific/pull/121</a></dd><dd><a href="https://www.reddit.com/r/haskell/comments/1xbj59g/dont_use_scientific_for_calculations_it_can/">[DISCUSSION] https://www.reddit.com/r/haskell/comments/1xbj59g/dont_use_scientific_for_calculations_it_can/</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/scientific"><code>@hackage/scientific</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:H</dd><dt>Versions</dt><dd><code>&gt;=0.3.9.0 &amp;&amp; &lt;0.3.10.0</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
