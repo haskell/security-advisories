@@ -1,0 +1,32 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0016</h1><div class="content"><div id="advisory"><h1>Improper IP address validation in validateCertificateName</h1>
+<p><code>Data.X509.Validation.getNames</code> extracts only
+<code>AltNameDNS</code> entries from the subjectAltName extension
+(Data/X509/Validation.hs, <code>unAltName</code>, ~L512–515 in
+crypton-x509-validation 1.10.1). When a certificate carries an
+<code>iPAddress</code> SAN but no <code>dNSName</code> SAN, the
+extracted name list is empty, so <code>validateNames</code> (~L569–580)
+falls through to the commonName branch as if no SAN extension existed,
+even though the extension's haddock promises that the commonName is
+ignored whenever subjectAltName is present. Consequently, when a client
+connects to an IP literal:</p>
+<ul>
+<li>a certificate with <code>CN = &lt;target IP&gt;</code> but
+<code>iPAddress</code> SAN pointing to a different host is
+<strong>accepted</strong>;</li>
+<li>a certificate whose only valid identity is a matching
+<code>iPAddress</code> SAN is <strong>rejected</strong>.</li>
+</ul>
+<p>Exploitation requires a certificate from a CA the client trusts that
+has a commonName different from its iPAddress SAN (public CAs are barred
+from this by the CA/Browser Forum Baseline Requirements, but private or
+enterprise CAs can issue such certificates). A successful impersonation
+exposes and can modify the protected connection.</p>
+<p>The draft fix makes <code>getNames</code> distinguish "no SAN
+extension" from "SAN extension present with no DNS names" and applies
+SAN semantics (including the existing iPAddress comparison) whenever the
+extension is present, restoring the documented SAN-supersedes-CN
+behavior in line with RFC 9525. No fixed release is published at the
+time of writing (1.10.1 is the latest release and still vulnerable).</p>
+<h2>Credits</h2>
+<p>Reported by Dickson Wu (SEAL &amp; CertiK). Validated and fixed by
+Kazu Yamamoto.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 17, 2026</dd><dt>Modified</dt><dd>November 17, 2026</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/297.html">297</a></dd><dt>Keywords</dt><dd>tls, x509, hostname-validation, ip-address, cn-fallback</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://hackage.haskell.org/package/crypton-x509-validation">[PACKAGE] https://hackage.haskell.org/package/crypton-x509-validation</a></dd><dd><a href="https://github.com/kazu-yamamoto/crypton-certificate/commit/d2f64137954b4026332fa9f08c1711bd92c79d62">[FIX] https://github.com/kazu-yamamoto/crypton-certificate/commit/d2f64137954b4026332fa9f08c1711bd92c79d62</a></dd><dd><a href="https://github.com/kazu-yamamoto/crypton-certificate/commit/d782c2dd83e69d2ed103ed42fdac95d94262e7d3">[FIX] https://github.com/kazu-yamamoto/crypton-certificate/commit/d782c2dd83e69d2ed103ed42fdac95d94262e7d3</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/crypton-x509-validation"><code>@hackage/crypton-x509-validation</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N</dd><dt>Versions</dt><dd><code>&gt;=1.6.12 &amp;&amp; &lt;1.10.2</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><code>Data.X509.Validation</code>.<code>validateCertificateName</code></dd><dd><code>Data.X509.Validation</code>.<code>validateDefault</code></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

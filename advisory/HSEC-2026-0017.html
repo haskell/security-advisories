@@ -1,0 +1,50 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0017</h1><div class="content"><div id="advisory"><h1>Out-of-bounds writes in BMP RLE and TIFF strip decoding</h1>
+<p>JuicyPixels contains independent out-of-bounds writes reachable from
+ordinary image decoding (<code>Codec.Picture.decodeImage</code> and the
+format-specific decoders):</p>
+<ol type="1">
+<li><strong>BMP <code>BI_RLE8</code>/<code>BI_RLE4</code></strong>
+(<code>Codec.Picture.Bitmap.decodeImageY8RLE</code>): the pixel buffer
+size is computed with 32-bit <code>Int32</code> arithmetic and wraps to
+a zero-length allocation for large headers; end-of-line and
+vertical-delta control codes move the destination cursor without a
+bound, and the horizontal delta jump is unclamped. Every run writes
+attacker-chosen bytes through <code>M.unsafeWrite</code> at the cursor
+position — negative offsets before the raster, arbitrary offsets against
+a wrapped allocation, and up to 255 bytes past it.</li>
+<li><strong>TIFF uncompressed/PackBits contiguous strips</strong>
+(<code>Codec.Picture.Tiff.gatherStrips</code>,
+<code>copyByteString</code>, <code>unpackPackBit</code>): strip copies
+have no destination bound and the per-strip size computation wraps
+negative for strips starting past the raster, so excess strips copy
+attacker-chosen bytes past the end of the allocated raster.</li>
+</ol>
+<p>Impact: heap memory adjacent to the decoded image is corrupted with
+attacker-selected values and offsets through maliciously crafted BMP or
+TIFF files. Beyond corruption, exploitation primitives were demonstrated
+end-to-end on GHC 9.6 / linux-amd64: a crafted BMP deterministically
+crashed the process via the wrapped allocation; against a warp-based
+service a single uploaded BMP overwrote another request's in-memory
+session blob, observed in the victim's own HTTP response (12 of 12
+cycles); and with heap grooming the write primitive was used to redirect
+a lazily-evaluated top-level <code>String</code> passed to
+<code>callCommand</code>, executing attacker-supplied commands (3 of 3
+runs). These are relative-offset primitives: the demonstrated RCE
+depends on heap layout and linkage and is not a guaranteed
+arbitrary-address write.</p>
+<p>The fix, released in 3.3.10, validates the declared pixel count
+centrally in <code>decodeBitmapWithPaletteAndMetadata</code> (cap 2^29
+pixels, i.e. 2 GiB of RGBA8), computes all decoder buffer sizes in exact
+64-bit <code>Int</code> arithmetic, clips out-of-bounds BMP RLE writes
+to the raster (zero-filling skipped pixels, matching the clipping
+behaviour of the non-RLE decoders and the Windows WIC decoder), bounds
+TIFF strip copies at the destination buffer, and clamps strip counts at
+the raster boundary. Malformed-but-decodable files keep decoding instead
+of failing.</p>
+<p>Residual risk in 3.3.10: the shared GIF/TIFF LZW decoder
+(<code>Codec.Picture.Gif.Internal.LZW</code>) retains an unguarded
+single-byte KwKwK write reachable from the same TIFF/GIF decode paths;
+it is documented as a follow-up and is not addressed by this
+release.</p>
+<p>Credit: external vulnerability report by Akash Sebastian (@akashseb)
+and Tomer Fichman (irregular).</p><h3>Info</h3><dl><dt>Published</dt><dd>November 17, 2026</dd><dt>Modified</dt><dd>November 17, 2026</dd><dt>CAPECs</dt><dd><i>&lt; none &gt;</i></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/787.html">787</a></dd><dt>Keywords</dt><dd>bmp, tiff, rle, image-decoding, oob-write, rce</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/haskell-github-trust/Juicy.Pixels/commit/9c9a3d75ed0a998b5bfd49534a364a9e52e74ba2">[FIX] https://github.com/haskell-github-trust/Juicy.Pixels/commit/9c9a3d75ed0a998b5bfd49534a364a9e52e74ba2</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/JuicyPixels"><code>@hackage/JuicyPixels</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H</dd><dt>Versions</dt><dd><code>&gt;=3.1.3 &amp;&amp; &lt;3.3.10</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

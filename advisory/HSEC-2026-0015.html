@@ -1,0 +1,53 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0015</h1><div class="content"><div id="advisory"><h1>Missing validation of CONNECT requests in http2</h1>
+<p>For CONNECT requests, <code>checkRequestHeader</code>
+(<code>Network/HTTP2/H2/HPACK.hs</code>) in http2 up to 5.4.13 returned
+early, only requiring the absence of <code>:scheme</code> and
+<code>:path</code>. Every other check was skipped:</p>
+<ul>
+<li>the requirement that <code>:authority</code> is present (RFC 9113,
+Section 8.5);</li>
+<li>the check that <code>:authority</code> and <code>Host</code> agree,
+which applies to every other request (RFC 9113, Section 8.3.1: a server
+SHOULD treat a mismatch as malformed);</li>
+<li>the common checks for <code>:status</code>, <code>Connection</code>
+and <code>TE</code>.</li>
+</ul>
+<p>A CONNECT request carrying <code>:authority: a.example</code> and
+<code>Host: b.example</code> was therefore accepted. Consumers that read
+<code>Host</code> see <code>b.example</code> where intermediaries that
+read <code>:authority</code> see <code>a.example</code>. warp, for
+example, sets <code>requestHeaderHost</code> to <code>Host</code> when
+present and falls back to <code>:authority</code>, so an application
+behind an intermediary that routes or authorizes on
+<code>:authority</code> handles a request other than the one the
+intermediary validated — a request can be smuggled past the front-end's
+access control, validation, logging or WAF rules.</p>
+<p>Exploitation requires a front-end that makes decisions based on
+<code>:authority</code> while the application behind it bases routing or
+authorization on <code>Host</code>; a directly exposed server sees only
+one authority.</p>
+<p>A CONNECT request with neither <code>:authority</code> nor
+<code>:path</code> also passed validation and reached warp 3.4.21, where
+<code>fromJust (mPath &lt;|&gt; mAuth)</code>
+(<code>Network/Wai/Handler/Warp/HTTP2/Request.hs</code>) threw. The
+exception was raised in the stream's worker thread, so it reset one
+stream and did not affect the server process.</p>
+<h2>Resolution</h2>
+<p>http2 5.4.14 validates CONNECT requests like every other request:
+<code>:authority</code> is required, <code>:scheme</code> and
+<code>:path</code> are forbidden, and the common checks apply, including
+the <code>:authority</code>/<code>Host</code> consistency check. A
+malformed request is rejected with a stream error of type
+<code>PROTOCOL_ERROR</code>, leaving the connection itself in place.
+With every request thus carrying <code>:path</code> or
+<code>:authority</code> when it reaches warp, the <code>fromJust</code>
+can no longer fail, so warp needs no change.</p>
+<p>The same release also stops the server from pushing on a request that
+has no <code>:scheme</code> or <code>:authority</code>, where a push
+previously crashed on the missing <code>:scheme</code>.</p>
+<p>Upgrade to http2 5.4.14 or later. Series before 4.0 performed no
+<code>:authority</code>/<code>Host</code> consistency check at all, for
+any request, and are unsupported; upgrade regardless.</p>
+<h2>Credits</h2>
+<p>Reported by Akash Sebastian (@akashseb). Validated and fixed by Kazu
+Yamamoto.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 16, 2026</dd><dt>Modified</dt><dd>November 16, 2026</dd><dt>CAPECs</dt><dd><a href="https://capec.mitre.org/data/definitions/33.html">33</a></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/444.html">444</a></dd><dt>Keywords</dt><dd>http, http2, connect, request-smuggling, desync, proxy</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/kazu-yamamoto/http2/commit/7c119b5890fefa6a00a2c389fb85f15d4b683a60">[FIX] https://github.com/kazu-yamamoto/http2/commit/7c119b5890fefa6a00a2c389fb85f15d4b683a60</a></dd><dd><a href="https://github.com/kazu-yamamoto/http2/commit/da1453d3be3277b4b5efba63b97c7a21d32d4e96">[FIX] https://github.com/kazu-yamamoto/http2/commit/da1453d3be3277b4b5efba63b97c7a21d32d4e96</a></dd><dd><a href="https://hackage.haskell.org/package/http2">[PACKAGE] https://hackage.haskell.org/package/http2</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/http2"><code>@hackage/http2</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:H/A:N</dd><dt>Versions</dt><dd><code>&gt;=4.0.0 &amp;&amp; &lt;5.4.14</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>

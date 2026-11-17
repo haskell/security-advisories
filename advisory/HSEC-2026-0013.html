@@ -1,0 +1,56 @@
+<!DOCTYPE HTML><html><html lang="en"><head><meta charset="UTF-8"><base href=".."><link rel="alternate" type="application/atom+xml" href="https://haskell.github.io/security-advisories/atom.xml"><link rel="stylesheet" href="assets/css/default.css"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Haskell Security advisories"><title>Haskell Security advisories</title></head><body><div class="nav-bar"><ul class="items"><li class=""><a href="by-dates.html">by date</a></li><li class=""><a href="by-packages.html">by package</a></li></ul></div><h1>HSEC-2026-0013</h1><div class="content"><div id="advisory"><h1>HTTP Request Smuggling in warp</h1>
+<p>warp's HTTP/1.x request parser accepted request framing that RFC 9112
+requires recipients to refuse, so a request could frame one way for a
+front-end proxy reading it and another way for warp behind it. Whoever
+reads such a request the other way sees one request where the other sees
+two, which smuggles a request past the proxy: past access control,
+request validation, logging, or WAF rules. warp's HTTP/2 support
+delegates parsing to the <code>http2</code> package and is not
+affected.</p>
+<p>Six defects were fixed in warp 3.4.17:</p>
+<ul>
+<li><code>Transfer-Encoding</code> and <code>Content-Length</code> field
+lines were collapsed to a single value, the last line winning. A second
+<code>Content-Length</code> could hide the first, and a second
+<code>Transfer-Encoding</code> could hide a <code>chunked</code>
+coding.</li>
+<li>Sending <code>Content-Length</code> together with
+<code>Transfer-Encoding</code>, or a <code>Transfer-Encoding</code>
+whose final coding is not <code>chunked</code>, was not refused; warp
+resolved the ambiguity by reading whichever framing it recognised.</li>
+<li><code>Content-Length</code> values were parsed by reading the
+leading digits: a non-numeric value, or one too large for an
+<code>Int</code> which then wrapped, became length 0 — so the request
+body was read as the next request on the connection.</li>
+<li>Header field names were not validated: an obs-fold continuation
+line, a name containing whitespace or control characters, or an empty
+name became a header warp did not act on but a repairing intermediary
+could, including a hidden <code>Content-Length</code>.</li>
+<li>A bare CR or a NUL inside a header field line was accepted; an
+intermediary that takes a bare CR for a line terminator reads a field
+line where warp reads none.</li>
+<li>The chunked body parser did not keep to RFC 9112: a chunk size was
+the fold of whatever hex digits a line led with, a chunk not closed off
+by CRLF ended the body early, a size line split over several reads was
+mis-read, and the trailer section was left in the connection to be
+parsed as the next request. A chunked body cut short by the end of input
+was handed to the application as though it were whole
+(yesodweb/wai#1129), so an upload could be stored truncated and answered
+200.</li>
+</ul>
+<p>Exploitation of the framing defects requires a front-end — reverse
+proxy, load balancer, WAF — that parses the ambiguous request
+differently from warp; the truncated-chunk defect also affects directly
+exposed servers.</p>
+<h2>Resolution</h2>
+<p>warp 3.4.17 validates the framing and refuses requests it cannot
+frame reliably, raising <code>InvalidRequest</code> with the new
+constructors <code>UnsupportedTransferEncoding</code>,
+<code>AmbiguousBodyLength</code>, <code>BadFieldName</code>,
+<code>BadHeaderLine</code> and <code>BadChunkedBody</code>; the default
+exception response is 400, or 501 for a transfer coding warp cannot
+decode.</p>
+<p>Users are advised to upgrade to warp 3.4.17 or later. The lax parsing
+is verified back to warp 1.3.3, the oldest source retained in the
+upstream repository's tags; older release series are unsupported and
+should be upgraded regardless.</p><h3>Info</h3><dl><dt>Published</dt><dd>November 04, 2026</dd><dt>Modified</dt><dd>November 04, 2026</dd><dt>CAPECs</dt><dd><a href="https://capec.mitre.org/data/definitions/33.html">33</a></dd><dt>CWEs</dt><dd><a href="https://cwe.mitre.org/data/definitions/444.html">444</a></dd><dt>Keywords</dt><dd>http, request-smuggling, framing, chunked, transfer-encoding, proxy</dd><dt>Aliases</dt><dd><i>&lt; none &gt;</i></dd><dt>Related</dt><dd><i>&lt; none &gt;</i></dd><dt>References</dt><dd><a href="https://github.com/yesodweb/wai/issues/1129">[REPORT] https://github.com/yesodweb/wai/issues/1129</a></dd><dd><a href="https://github.com/yesodweb/wai/compare/warp-3.4.16...warp-3.4.17">[FIX] https://github.com/yesodweb/wai/compare/warp-3.4.16...warp-3.4.17</a></dd><dd><a href="https://hackage.haskell.org/package/warp">[PACKAGE] https://hackage.haskell.org/package/warp</a></dd></dl><h4>Affected</h4><h5><a href="https://hackage.haskell.org/package/warp"><code>@hackage/warp</code></a></h5><dl><dt>CVSS</dt><dd>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:L</dd><dt>Versions</dt><dd><code>&gt;=1.3.3 &amp;&amp; &lt;3.4.17</code></dd><dt>Declarations</dt><dd><i>&lt; none &gt;</i></dd><dt>Affected APIs</dt><dd><i>&lt; none &gt;</i></dd></dl></div></div><footer><div class="HF">This site is a project of <a href="https://haskell.foundation" target="_blank" rel="noopener noreferrer">The Haskell Foundation</a>.</div></footer></body></html></html>
